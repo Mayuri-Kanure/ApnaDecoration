@@ -1,5 +1,10 @@
 # APNA Decoration
 
+![React](https://img.shields.io/badge/Frontend-React-blue)
+![Node](https://img.shields.io/badge/Backend-Node-green)
+![MongoDB](https://img.shields.io/badge/Database-MongoDB-brightgreen)
+![License](https://img.shields.io/badge/license-MIT-blue)
+
 A complete e-commerce platform for home decoration and furniture products with multi-vendor support.
 
 ## 🚀 Features
@@ -12,7 +17,7 @@ A complete e-commerce platform for home decoration and furniture products with m
 - **Payment Integration** - Multiple payment methods
 - **Review System** - Customer feedback and ratings
 
-## � Tech Stack
+## 🛠 Tech Stack
 
 - **Frontend**: React.js, Material-UI, Redux
 - **Backend**: Node.js, Express.js, MongoDB
@@ -24,14 +29,136 @@ A complete e-commerce platform for home decoration and furniture products with m
 
 ```
 APNA DECORATION _APP/
-├── Admin/          # Admin panel (React + Node.js)
 ├── User/           # Customer app (React + Node.js)  
 ├── Vendor/         # Vendor portal (React + Node.js)
+├── Admin/          # Admin panel (React + Node.js)
 ├── Delivery/       # Delivery app (React + Node.js)
-└── shared/         # Shared utilities
+├── shared/         # Shared utilities
+└── scripts/        # Build and deployment scripts
 ```
 
-## 🚀 Quick Start
+## � Screenshots
+
+### 🛍️ Customer App
+
+![Customer App - Product Browse](https://s3-alpha.figma.com/hub/file/4147536926/2f24cd36-8296-4eda-99d7-c56d579b3b9c-cover.png)
+
+![Customer App - Shopping Cart](https://cdn.dribbble.com/userupload/11236269/file/original-5256eeeee13428511c408b184155eed5.jpg?resize=400x0)
+
+![Customer App - Product Details](https://s3-alpha.figma.com/hub/file/6224449214/4384b82d-598f-4036-aeee-41aceebf927d-cover.png)
+
+![Customer App - Order Tracking](https://cdn.dribbble.com/userupload/33328319/file/original-eeef2f1da4d5f7db35ea463f16ad3336.png?resize=400x300)
+
+### 👨‍💼 Admin Dashboard
+
+![Admin Dashboard - Analytics](https://cdn.dribbble.com/userupload/19033320/file/original-c7fe912935a962cea8a50f12a2c0e10d.png)
+
+![Admin Dashboard - Product Management](https://s3-alpha.figma.com/hub/file/4458611334/e492d36f-14cd-4399-afb2-78ff63da5941-cover.png)
+
+![Admin Dashboard - Order Management](https://qvalia.com/app/uploads/2022/11/Blog_post_Dashboard_1120x800_white.png)
+
+![Admin Dashboard - Vendor Management](https://elements-resized.envatousercontent.com/elements-cover-images/a5354366-63a3-4c38-9b6b-a7e124d20a27?cf_fit=scale-down\&format=auto\&q=85\&s=dcbe2570c9675031b92d17750a9464f6e3920e9f7b374505865a86b4f99c5461\&w=433)
+
+## 🌐 Live Demo
+
+- **Website**: https://apnadecoration.com
+- **Admin Panel**: https://admin.apnadecoration.com
+- **Vendor Portal**: https://vendor.apnadecoration.com
+
+## 🧠 System Architecture
+
+![System Architecture - Multi-Vendor E-commerce](https://miro.medium.com/0%2AxuHRipbS0io0EYVl.png)
+
+![Database Schema Design](https://www.researchgate.net/publication/346535243/figure/fig4/AS%3A964261639622660%401606909298906/Scenario-2-multi-vendor-e-marketplace-system.png)
+
+## 🔐 Security
+
+- **JWT Authentication** - Secure token-based authentication
+- **Role-Based Access Control** - Admin, Vendor, Customer, Delivery roles
+- **Input Validation** - Sanitization and validation of all inputs
+- **Rate Limiting** - API protection against abuse
+- **CORS Configuration** - Secure cross-origin requests
+- **Password Hashing** - bcrypt for secure password storage
+- **CSRF Protection** - Cross-site request forgery prevention
+- **OAuth Integration** - Social login support (Google, Facebook)
+- **API Gateway** - Cloudflare protection and load balancing
+
+## ☁️ DevOps & Cloud
+
+- **Docker Containerization** - Consistent deployment environments
+- **CI/CD Pipelines** - Automated testing and deployment
+- **AWS/DigitalOcean Deployment** - Scalable cloud infrastructure
+- **Nginx Reverse Proxy** - Load balancing and SSL termination
+- **Redis Caching** - Performance optimization
+- **Environment Management** - Secure configuration handling
+- **Monitoring & Logging** - Real-time error tracking and performance metrics
+
+## ⚡ Performance Optimization
+
+- **Lazy Loading** - Components loaded on demand
+- **Code Splitting** - Reduced bundle sizes
+- **CDN Image Delivery** - Cloudinary global CDN
+- **Redis Caching** - Database query optimization
+- **Query Optimization** - Indexed MongoDB queries
+- **Image Compression** - WebP format and responsive images
+- **Service Workers** - Offline functionality and caching
+
+## 🚀 Future Roadmap
+
+- **AI Product Recommendations** - Smart product suggestions based on user behavior
+- **Augmented Reality Furniture Preview** - AR technology to visualize furniture in customer space
+- **Voice Search Integration** - Natural language product discovery
+- **Mobile iOS & Android Apps** - Native applications for better performance
+- **Subscription Model** - Premium vendor features and analytics
+- **Multi-Language Support** - Internationalization for global markets
+- **Advanced Analytics Dashboard** - Real-time business insights and reporting
+- **Blockchain Integration** - Secure payment processing and supply chain tracking
+
+## 💡 Why APNA Decoration?
+
+This platform solves the critical problem of **fragmented home decoration vendors in India** by providing:
+
+🏪 **Unified Marketplace** - Single platform for multiple vendors
+📊 **Centralized Management** - Streamlined operations for all stakeholders
+🚚 **Real-Time Delivery** - Integrated logistics and tracking
+💰 **Revenue Analytics** - Data-driven insights for business growth
+🔒 **Secure Transactions** - Enterprise-grade payment and data protection
+📱 **Cross-Platform** - Web, mobile, and tablet accessibility
+
+**Transforming the traditional decoration industry into a digital-first ecosystem.**
+
+---
+
+## 📊 Project Status
+
+### ✅ Completed Features
+- Multi-vendor architecture with role-based access control
+- Complete admin dashboard with analytics and reporting
+- Customer shopping app with wishlist and review system
+- Vendor portal with product submission and earnings tracking
+- Real-time delivery management system
+- JWT authentication and security implementation
+- MongoDB database with optimized schemas
+- Cloudinary integration for image management
+- Mobile-responsive design with PWA support
+
+### 🚧 Current Development
+- Product reconsideration workflow (in progress)
+- Enhanced notification system
+- Performance optimization implementation
+- Advanced search and filtering capabilities
+
+### 🎯 Next Milestones
+- Q2 2024: Advanced analytics dashboard
+- Q3 2024: Mobile apps (iOS/Android) release
+- Q4 2024: AI-powered product recommendations
+- Q1 2025: Multi-language support and global expansion
+
+---
+
+**Built with ❤️ for the decoration and furniture industry**
+
+## �� Quick Start
 
 ### Prerequisites
 - Node.js 14+
