@@ -1,0 +1,74 @@
+{
+  "name": "apna-decoration",
+  "version": "1.0.0",
+  "description": "Complete E-Commerce Platform for Home Decoration and Furniture",
+  "main": "index.js",
+  "scripts": {
+    "setup:all": "npm run setup:user && npm run setup:admin && npm run setup:vendor && npm run setup:delivery",
+    "setup:user": "cd User && npm install && cd backend && npm install",
+    "setup:admin": "cd Admin && npm install && cd backend && npm install && cd ../frontend && npm install",
+    "setup:vendor": "cd Vendor && npm install && cd frontend && npm install",
+    "setup:delivery": "cd Delivery && cd frontend && npm install",
+    "start:all": "concurrently \"npm run start:user-backend\" \"npm run start:admin-backend\" \"npm run start:user-frontend\" \"npm run start:admin-frontend\" \"npm run start:vendor-frontend\" \"npm run start:delivery-frontend\"",
+    "start:user-backend": "cd User/backend && npm run dev",
+    "start:admin-backend": "cd Admin/backend && npm run dev",
+    "start:user-frontend": "cd User && npm start",
+    "start:admin-frontend": "cd Admin/frontend && npm start",
+    "start:vendor-frontend": "cd Vendor/frontend && npm start",
+    "start:delivery-frontend": "cd Delivery/frontend && npm run dev",
+    "build:all": "npm run build:user && npm run build:admin && npm run build:vendor && npm run build:delivery",
+    "build:user": "cd User && npm run build",
+    "build:admin": "cd Admin/frontend && npm run build",
+    "build:vendor": "cd Vendor/frontend && npm run build",
+    "build:delivery": "cd Delivery/frontend && npm run build",
+    "test:all": "npm run test:user && npm run test:admin && npm run test:vendor",
+    "test:user": "cd User && npm test",
+    "test:admin": "cd Admin && npm test",
+    "test:vendor": "cd Vendor && npm test",
+    "deploy:prod": "npm run build:all && pm2 start ecosystem.config.js --env production",
+    "deploy:dev": "pm2 start ecosystem.config.js --env development",
+    "build:apk": "cd User && npm run build && npx cap sync android && cd android && ./gradlew assembleDebug",
+    "lint:all": "npm run lint:user && npm run lint:admin && npm run lint:vendor",
+    "lint:user": "cd User && npm run lint",
+    "lint:admin": "cd Admin && npm run lint",
+    "lint:vendor": "cd Vendor && npm run lint",
+    "clean:all": "npm run clean:user && npm run clean:admin && npm run clean:vendor && npm run clean:delivery",
+    "clean:user": "cd User && rm -rf node_modules && rm -rf backend/node_modules && npm run setup:user",
+    "clean:admin": "cd Admin && rm -rf node_modules && rm -rf backend/node_modules && rm -rf frontend/node_modules && npm run setup:admin",
+    "clean:vendor": "cd Vendor && rm -rf node_modules && rm -rf frontend/node_modules && npm run setup:vendor",
+    "clean:delivery": "cd Delivery && rm -rf frontend/node_modules && npm run setup:delivery"
+  },
+  "keywords": [
+    "e-commerce",
+    "react",
+    "nodejs",
+    "mongodb",
+    "mobile-app",
+    "admin-panel",
+    "vendor-portal"
+  ],
+  "author": "APNA DECORATION Team",
+  "license": "MIT",
+  "dependencies": {
+    "axios": "^1.13.5",
+    "dotenv": "^17.3.1",
+    "mongoose": "^9.2.1",
+    "node-fetch": "^3.3.2"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2",
+    "pm2": "^5.3.0"
+  },
+  "engines": {
+    "node": ">=14.0.0",
+    "npm": ">=6.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-username/apna-decoration.git"
+  },
+  "bugs": {
+    "url": "https://github.com/your-username/apna-decoration/issues"
+  },
+  "homepage": "https://apnadecoration.com"
+}

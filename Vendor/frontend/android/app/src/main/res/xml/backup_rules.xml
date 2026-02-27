@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<full-backup-content>
+    <exclude domain="sharedpref" path="CapacitorStorage.xml"/>
+    <exclude domain="database" path="capacitor.db"/>
+    <exclude domain="file" path="app_webview/"/>
+</full-backup-content>

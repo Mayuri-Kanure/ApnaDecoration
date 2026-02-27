@@ -1,0 +1,8 @@
+/* Global Styles for Entire Project */
+body {
+  font-family: 'Roboto', 'Helvetica', 'Arial', sans-serif;
+  margin: 0;
+  padding: 0;
+}
+
+/* Clean, minimal global styles - let Material-UI handle the rest */

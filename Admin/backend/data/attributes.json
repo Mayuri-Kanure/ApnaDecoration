@@ -1,0 +1,108 @@
+[
+  {
+    "id": 1,
+    "name": "Color",
+    "type": "color",
+    "values": [
+      "Red",
+      "Blue",
+      "Green",
+      "Black",
+      "White"
+    ],
+    "category": "All Products",
+    "required": true,
+    "active": true,
+    "createdAt": "2024-01-01",
+    "description": "Product color variations"
+  },
+  {
+    "id": 3,
+    "name": "Material",
+    "type": "text",
+    "values": [
+      "Cotton",
+      "Polyester",
+      "Wool",
+      "Silk",
+      "Linen"
+    ],
+    "category": "Clothing",
+    "required": false,
+    "active": true,
+    "createdAt": "2024-01-03",
+    "description": "Fabric material composition"
+  },
+  {
+    "id": 4,
+    "name": "Weight",
+    "type": "number",
+    "values": [
+      "100g",
+      "200g",
+      "500g",
+      "1kg",
+      "2kg"
+    ],
+    "category": "Food",
+    "required": false,
+    "active": true,
+    "createdAt": "2024-01-04",
+    "description": "Product weight measurements"
+  },
+  {
+    "id": 5,
+    "name": "Size",
+    "type": "size",
+    "values": [
+      "XS",
+      "S",
+      "M",
+      "L",
+      "XL",
+      "XXL"
+    ],
+    "category": "Clothing",
+    "required": true,
+    "active": true,
+    "description": "Product size options",
+    "createdAt": "2026-02-05"
+  },
+  {
+    "id": 6,
+    "name": "Number",
+    "type": "number",
+    "values": [],
+    "category": "Books",
+    "required": true,
+    "active": true,
+    "description": "number of books",
+    "createdAt": "2026-02-05"
+  },
+  {
+    "id": 7,
+    "name": "number",
+    "type": "number",
+    "values": [
+      "2"
+    ],
+    "category": "All Products",
+    "required": true,
+    "active": true,
+    "description": "number of products",
+    "createdAt": "2026-02-05"
+  },
+  {
+    "id": 8,
+    "name": "text",
+    "type": "text",
+    "values": [
+      "text"
+    ],
+    "category": "All Products",
+    "required": true,
+    "active": true,
+    "description": "text",
+    "createdAt": "2026-02-05"
+  }
+]

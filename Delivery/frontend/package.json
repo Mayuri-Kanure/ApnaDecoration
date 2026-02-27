@@ -1,0 +1,70 @@
+{
+  "name": "apna-decoration-delivery-frontend",
+  "version": "1.0.0",
+  "description": "APNA Decoration Delivery Boy Frontend - Multi-platform delivery management system",
+  "main": "index.js",
+  "scripts": {
+    "dev": "next dev -p 3003",
+    "build": "next build",
+    "start": "next start -p 3003",
+    "lint": "next lint",
+    "export": "next export",
+    "analyze": "cross-env ANALYZE=true next build",
+    "type-check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@emotion/react": "^11.14.0",
+    "@emotion/styled": "^11.14.1",
+    "@mui/icons-material": "^5.14.3",
+    "@mui/lab": "^5.0.0-alpha.140",
+    "@mui/material": "^5.18.0",
+    "axios": "^1.5.0",
+    "date-fns": "^2.30.0",
+    "js-cookie": "^3.0.5",
+    "lodash": "^4.17.21",
+    "next": "^13.4.19",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-hook-form": "^7.45.4",
+    "react-hot-toast": "^2.4.1",
+    "react-query": "^3.39.3",
+    "recharts": "^2.8.0"
+  },
+  "devDependencies": {
+    "@next/bundle-analyzer": "^13.4.19",
+    "@types/js-cookie": "^3.0.3",
+    "@types/lodash": "^4.14.197",
+    "@types/node": "^20.5.0",
+    "@types/react": "^18.2.20",
+    "@types/react-dom": "^18.2.7",
+    "cross-env": "^7.0.3",
+    "eslint": "^8.47.0",
+    "eslint-config-next": "^13.4.19",
+    "typescript": "^5.1.6"
+  },
+  "engines": {
+    "node": ">=16.0.0",
+    "npm": ">=8.0.0"
+  },
+  "keywords": [
+    "delivery",
+    "logistics",
+    "nextjs",
+    "react",
+    "mui",
+    "apna-decoration",
+    "delivery-boy",
+    "order-management",
+    "gps-tracking"
+  ],
+  "author": "APNA Decoration",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/apnadecoration/delivery-frontend"
+  },
+  "bugs": {
+    "url": "https://github.com/apnadecoration/delivery-frontend/issues"
+  },
+  "homepage": "https://delivery.apnadecoration.com"
+}

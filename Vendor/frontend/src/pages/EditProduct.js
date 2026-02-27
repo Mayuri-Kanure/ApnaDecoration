@@ -1,0 +1,683 @@
+import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
+import vendorApi from '../services/vendorApi';
+import {
+  Box,
+  Card,
+  CardContent,
+  Typography,
+  TextField,
+  Button,
+  Grid,
+  Paper,
+  Alert,
+  CircularProgress,
+  IconButton,
+  Chip,
+  MenuItem
+} from '@mui/material';
+import {
+  ArrowBack as BackIcon,
+  Save as SaveIcon,
+  Delete as DeleteIcon,
+  Upload as UploadIcon,
+  Image as ImageIcon,
+  Autorenew as RefreshIcon
+} from '@mui/icons-material';
+
+const EditProduct = () => {
+  const navigate = useNavigate();
+  const { id } = useParams();
+  const fileInputRef = useRef(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+  const [product, setProduct] = useState(null);
+  const [tempProductData, setTempProductData] = useState(null);
+  
+  // Function to generate SKU automatically (same as admin)
+  const generateSKU = (productName) => {
+    console.log('🔍 generateSKU called with:', productName);
+    
+    // Use same logic as admin system
+    const timestamp = Date.now().toString(36).toUpperCase();
+    const random = Math.random().toString(36).substr(2, 5).toUpperCase();
+    const code = `SKU-${timestamp}-${random}`;
+    
+    console.log('🔍 Generated SKU (admin style):', code);
+    return code;
+  };
+  
+  const [formData, setFormData] = useState({
+    name: '',
+    sku: '',
+    unit_price: '',
+    brand: '',
+    category: '',
+    description: '',
+    images: []
+  });
+
+  const [categories, setCategories] = useState([]);
+
+  // Fetch categories on component mount
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        console.log('🔄 Fetching categories...');
+        const response = await vendorApi.getCategories();
+        console.log('✅ Categories response:', response);
+        console.log('✅ Categories data:', response.categories);
+        console.log('✅ Categories length:', response.categories?.length);
+        console.log('✅ First category:', response.categories?.[0]);
+        setCategories(response.categories || []);
+      } catch (error) {
+        console.error('❌ Error fetching categories:', error);
+        setError('Failed to load categories');
+      }
+    };
+
+    fetchCategories();
+  }, []);
+
+  // Fetch product data on component mount
+  useEffect(() => {
+    const fetchProduct = async () => {
+      try {
+        console.log('🔄 Fetching product data for ID:', id);
+        const response = await vendorApi.getVendorProduct(id);
+        console.log('✅ Product response:', response);
+        
+        if (response && response.vendorProduct) {
+          const productData = response.vendorProduct;
+          setProduct(productData);
+          
+          // Store product data temporarily, wait for categories to load
+          setTempProductData(productData);
+          
+          console.log('🔍 Product data stored temporarily, waiting for categories...');
+        }
+      } catch (error) {
+        console.error('❌ Error fetching product:', error);
+        setError('Failed to load product data');
+      }
+    };
+
+    if (id) {
+      fetchProduct();
+    } else {
+      setError('Product ID is required');
+    }
+  }, [id]);
+
+  // Set form data when both product and categories are available
+  useEffect(() => {
+    if (tempProductData && categories.length > 0) {
+      console.log('🔄 Setting form data with loaded categories...');
+      
+      // Convert existing image paths to proper format with URLs
+      const existingImages = (tempProductData.images || []).map(imagePath => ({
+        name: imagePath.split('/').pop() || 'existing-image',
+        url: imagePath.startsWith('http') 
+          ? imagePath 
+          : `https://admin-api.apnadecoration.com/${imagePath}`,
+        isExisting: true // Flag to distinguish existing images
+      }));
+      
+      console.log('🔍 Product category from API:', tempProductData.category);
+      console.log('🔍 Product category type:', typeof tempProductData.category);
+      console.log('🔍 Available categories:', categories.map(c => ({id: c._id, name: c.name})));
+      
+      // Check if the product's category exists in the loaded categories
+      const categoryExists = categories.some(cat => cat._id === tempProductData.category);
+      console.log('🔍 Category exists in loaded categories:', categoryExists);
+      
+      setFormData({
+        name: tempProductData.name || '',
+        sku: tempProductData.sku || '',
+        unit_price: tempProductData.price || '',
+        brand: tempProductData.brand || '',
+        category: categoryExists ? tempProductData.category : '',
+        description: tempProductData.description || '',
+        images: existingImages
+      });
+      
+      console.log('🔍 Loaded existing images:', existingImages);
+      console.log('🔍 Form data category set to:', categoryExists ? tempProductData.category : '');
+      
+      // Clear temporary data
+      setTempProductData(null);
+    }
+  }, [tempProductData, categories]);
+
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    
+    // Simple form change - no auto SKU generation (like admin)
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  const handleImageUpload = (e) => {
+    const files = Array.from(e.target.files);
+    const newImages = files.map(file => ({
+      file,
+      name: file.name,
+      url: URL.createObjectURL(file),
+      isNew: true // Flag to distinguish new images
+    }));
+    
+    setFormData(prev => ({
+      ...prev,
+      images: [...prev.images, ...newImages]
+    }));
+    
+    console.log('🔍 Added new images:', newImages);
+  };
+
+  const [removedImages, setRemovedImages] = useState([]);
+
+  const removeImage = (index) => {
+    const imageToRemove = formData.images[index];
+    
+    // If it's an existing image, track it for removal
+    if (imageToRemove.isExisting) {
+      setRemovedImages(prev => [...prev, imageToRemove.url]);
+      console.log('🗑️ Tracking existing image for removal:', imageToRemove.url);
+    }
+    
+    setFormData(prev => ({
+      ...prev,
+      images: prev.images.filter((_, i) => i !== index)
+    }));
+  };
+
+  const validateForm = () => {
+    if (!formData.name.trim()) {
+      setError('Product name is required');
+      return false;
+    }
+    if (!formData.description.trim()) {
+      setError('Product description is required');
+      return false;
+    }
+    if (!formData.unit_price || formData.unit_price <= 0) {
+      setError('Product price must be greater than 0');
+      return false;
+    }
+    // Only validate category if categories are loaded
+    if (categories.length > 0 && !formData.category) {
+      setError('Category is required');
+      return false;
+    }
+    return true;
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    
+    if (!validateForm()) {
+      return;
+    }
+
+    // Check if user is logged in
+    const token = localStorage.getItem('vendorToken');
+    if (!token) {
+      setError('Please login to update products');
+      return;
+    }
+
+    // Check if product is approved - business rule: approved products cannot be edited
+    console.log('🔍 Frontend Guard Check:', {
+      product: !!product,
+      productStatus: product?.status,
+      isApproved: product?.status === 'approved'
+    });
+    
+    if (product && product.status === 'approved') {
+      console.log('❌ Frontend Guard: Blocking edit of approved product');
+      setError('Approved products cannot be edited. Please contact admin if changes are needed.');
+      return;
+    }
+    
+    console.log('✅ Frontend Guard: Product can be edited');
+
+    try {
+      setLoading(true);
+      setError('');
+      setSuccess('');
+      
+      const productData = {
+        name: formData.name,
+        product_name_en: formData.name,
+        sku: formData.sku,
+        unit_price: parseFloat(formData.unit_price),
+        brand: formData.brand || 'Generic Brand',
+        category: formData.category,
+        description: formData.description
+      };
+      
+      console.log('🔄 Updating vendor product...', productData);
+      console.log('🔄 With images:', formData.images.length, 'files');
+      console.log('🔄 Image details:', formData.images.map(img => ({
+        name: img.name,
+        isExisting: img.isExisting,
+        isNew: img.isNew,
+        hasFile: !!img.file,
+        url: img.url
+      })));
+      
+      // Separate new images (with files) from existing images
+      const newImages = formData.images.filter(img => img.isNew && img.file);
+      console.log('🔄 New images to upload:', newImages.length);
+      
+      // Use the file upload method if there are new images or removed images
+      let response;
+      if (newImages.length > 0 || removedImages.length > 0) {
+        console.log('🔄 Using file upload method with', newImages.length, 'new images and', removedImages.length, 'removed images');
+        response = await vendorApi.updateVendorProductWithFiles(id, productData, newImages, removedImages);
+      } else {
+        console.log('🔄 Using regular update method (no new images)');
+        response = await vendorApi.updateVendorProduct(id, productData);
+      }
+      
+      console.log('✅ Product updated successfully:', response);
+      
+      // Use the updated product data from the response immediately
+      if (response.vendorProduct) {
+        console.log('🔄 Using updated product data from response:', response.vendorProduct);
+        
+        // Store the updated product in sessionStorage for the product list to use
+        sessionStorage.setItem('updatedProduct', JSON.stringify(response.vendorProduct));
+        sessionStorage.setItem('updatedProductId', id);
+        
+        // Trigger a custom event with the updated product data
+        const eventData = { 
+          productId: id, 
+          updated: true,
+          updatedProduct: response.vendorProduct // Include the updated product data
+        };
+        
+        console.log('🔄 Dispatching productUpdated event with data:', eventData);
+        window.dispatchEvent(new CustomEvent('productUpdated', { detail: eventData }));
+        
+        // Also log that the event was dispatched
+        console.log('✅ productUpdated event dispatched successfully');
+      } else {
+        console.log('⚠️ No vendorProduct in response, falling back to refresh');
+        // Fallback to refresh if no updated product data
+        window.dispatchEvent(new CustomEvent('productUpdated', { 
+          detail: { productId: id, updated: true } 
+        }));
+      }
+      
+      setSuccess('Product updated successfully!');
+      setRemovedImages([]); // Reset removed images after successful update
+      
+      // Wait a moment for user to see success message, then navigate back
+      setTimeout(() => {
+        navigate('/products');
+      }, 1000); // Reduced back to 1000ms since we use immediate state updates
+      
+    } catch (error) {
+      console.error('❌ Error updating product:', error);
+      setError(`Error updating product: ${error.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (window.confirm('Are you sure you want to delete this product? This action cannot be undone.')) {
+      try {
+        setLoading(true);
+        setError('');
+        setSuccess('');
+        
+        const token = localStorage.getItem('vendorToken');
+        if (!token) {
+          setError('Please login to delete products');
+          return;
+        }
+        
+        console.log('🔄 Deleting vendor product...');
+        const response = await vendorApi.deleteVendorProduct(id);
+        console.log('✅ Product deleted successfully:', response);
+        
+        setSuccess('Product deleted successfully!');
+        
+        // Navigate back to products page after a short delay
+        setTimeout(() => {
+          navigate('/products');
+        }, 2000);
+        
+      } catch (error) {
+        console.error('❌ Error deleting product:', error);
+        setError(`Error deleting product: ${error.message}`);
+      } finally {
+        setLoading(false);
+      }
+    }
+  };
+
+  const handleBack = () => {
+    navigate('/products');
+  };
+
+  if (error && !product) {
+    return (
+      <Box sx={{ p: 3 }}>
+        <Alert severity="error" sx={{ mb: 2 }}>
+          {error}
+        </Alert>
+        <Button variant="contained" onClick={handleBack}>
+          Go Back
+        </Button>
+      </Box>
+    );
+  }
+
+  if (!product) {
+    return (
+      <Box sx={{ p: 3 }}>
+        <Alert severity="info" sx={{ mb: 2 }}>
+          Loading product data...
+        </Alert>
+      </Box>
+    );
+  }
+
+  return (
+    <Box sx={{ p: 3 }}>
+      <Card>
+        <CardContent>
+          <Typography variant="h4" sx={{ mb: 3 }}>
+            Edit Product
+          </Typography>
+
+          {/* Approved Product Warning */}
+          {product && product.status === 'approved' && (
+            <Alert severity="warning" sx={{ mb: 3 }}>
+              <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }}>
+                ⚠️ This product is APPROVED and cannot be edited
+              </Typography>
+              <Typography variant="body2">
+                Approved products are locked to maintain quality standards. 
+                Please contact the administrator if you need to make changes.
+              </Typography>
+            </Alert>
+          )}
+
+          {error && (
+            <Alert severity="error" sx={{ mb: 2 }}>
+              {error}
+            </Alert>
+          )}
+
+          {success && (
+            <Alert severity="success" sx={{ mb: 2 }}>
+              {success}
+            </Alert>
+          )}
+
+          <form onSubmit={handleSubmit}>
+            <Grid container spacing={3}>
+              {/* Product Name */}
+              <Grid item xs={12} md={6}>
+                <TextField
+                  fullWidth
+                  label="Product Name"
+                  name="name"
+                  value={formData.name}
+                  onChange={handleInputChange}
+                  required
+                  disabled={loading || (product && product.status === 'approved')}
+                />
+              </Grid>
+
+              {/* SKU */}
+              <Grid item xs={12} md={3}>
+                <Typography variant="body2" sx={{ fontWeight: 600, mb: 1.5, color: '#374151' }}>
+                  Product SKU <span style={{ color: '#ef4444' }}>*</span>
+                </Typography>
+                <TextField
+                  fullWidth
+                  label="SKU"
+                  name="sku"
+                  value={formData.sku}
+                  onChange={handleInputChange}
+                  disabled={loading}
+                  helperText="Click refresh to generate new SKU"
+                  InputProps={{
+                    endAdornment: (
+                      <IconButton onClick={() => {
+                        const newSKU = generateSKU();
+                        setFormData(prev => ({ ...prev, sku: newSKU }));
+                      }} size="small" sx={{ color: '#2563eb' }}>
+                        <RefreshIcon />
+                      </IconButton>
+                    ),
+                  }}
+                />
+              </Grid>
+
+              {/* Price */}
+              <Grid item xs={12} md={6}>
+                <TextField
+                  fullWidth
+                  label="Price (₹)"
+                  name="unit_price"
+                  type="number"
+                  value={formData.unit_price}
+                  onChange={handleInputChange}
+                  required
+                  disabled={loading}
+                  inputProps={{ min: 0 }}
+                />
+              </Grid>
+
+              {/* Brand */}
+              <Grid item xs={12} md={6}>
+                <TextField
+                  fullWidth
+                  label="Brand"
+                  name="brand"
+                  value={formData.brand}
+                  onChange={handleInputChange}
+                  disabled={loading}
+                />
+              </Grid>
+
+              {/* Category */}
+              <Grid item xs={12}>
+                <TextField
+                  fullWidth
+                  select
+                  label="Category"
+                  name="category"
+                  value={formData.category}
+                  onChange={handleInputChange}
+                  required
+                  disabled={loading || categories.length === 0}
+                  helperText={categories.length === 0 ? 'Loading categories...' : ''}
+                >
+                  <MenuItem value="">Select a category</MenuItem>
+                  {categories.map((category) => (
+                    <MenuItem key={category._id} value={category._id}>
+                      {category.name}
+                    </MenuItem>
+                  ))}
+                </TextField>
+              </Grid>
+
+              {/* Description */}
+              <Grid item xs={12}>
+                <TextField
+                  fullWidth
+                  label="Description"
+                  name="description"
+                  value={formData.description}
+                  onChange={handleInputChange}
+                  multiline
+                  rows={4}
+                  required
+                  disabled={loading}
+                />
+              </Grid>
+
+              {/* Product Images */}
+              <Grid item xs={12}>
+                <Typography variant="subtitle1" sx={{ mb: 2 }}>
+                  Product Images
+                </Typography>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                  <Button
+                    variant="outlined"
+                    component="label"
+                    disabled={loading}
+                    sx={{ alignSelf: 'flex-start' }}
+                  >
+                    <input
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      onChange={handleImageUpload}
+                      style={{ display: 'none' }}
+                    />
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <UploadIcon />
+                      Add Images
+                    </Box>
+                  </Button>
+
+                  {formData.images.length > 0 && (
+                    <Grid container spacing={2}>
+                      {formData.images.map((image, index) => {
+                        console.log(`🖼️ Rendering image ${index}:`, {
+                          name: image.name,
+                          url: image.url,
+                          isExisting: image.isExisting,
+                          isNew: image.isNew,
+                          hasFile: !!image.file
+                        });
+                        
+                        return (
+                          <Grid item xs={12} sm={6} md={4} key={index}>
+                            <Box sx={{ position: 'relative', display: 'inline-block' }}>
+                              <Box
+                                component="img"
+                                src={image.url || '/placeholder.png'}
+                                sx={{
+                                  width: '100%',
+                                  height: 200,
+                                  borderRadius: 2,
+                                  objectFit: 'cover',
+                                  backgroundColor: '#f0f0f0',
+                                  border: image.isExisting ? '2px solid #4caf50' : '2px solid #2196f3'
+                                }}
+                                onError={(e) => {
+                                  console.log(`❌ Image ${index} failed to load:`, image.url);
+                                  e.target.src = '/placeholder.png';
+                                }}
+                                onLoad={() => {
+                                  console.log(`✅ Image ${index} loaded successfully:`, image.url);
+                                }}
+                              />
+                            <Box
+                              sx={{
+                                position: 'absolute',
+                                top: 8,
+                                left: 8,
+                                backgroundColor: image.isExisting ? 'rgba(76, 175, 80, 0.9)' : 'rgba(33, 150, 243, 0.9)',
+                                color: 'white',
+                                px: 1,
+                                py: 0.5,
+                                borderRadius: 1,
+                                fontSize: '0.75rem',
+                                fontWeight: 'bold'
+                              }}
+                            >
+                              {image.isExisting ? 'Existing' : 'New'}
+                            </Box>
+                            <IconButton
+                              size="small"
+                              sx={{
+                                position: 'absolute',
+                                top: 8,
+                                right: 8,
+                                backgroundColor: 'rgba(244, 67, 54, 0.8)',
+                                color: 'white',
+                                '&:hover': {
+                                  backgroundColor: 'rgba(244, 67, 54, 0.9)'
+                                }
+                              }}
+                              onClick={() => removeImage(index)}
+                            >
+                              <DeleteIcon fontSize="small" />
+                            </IconButton>
+                            <Chip
+                              label={image.name || `Image ${index + 1}`}
+                              size="small"
+                              sx={{
+                                position: 'absolute',
+                                bottom: 8,
+                                left: 8,
+                                backgroundColor: 'rgba(0, 0, 0, 0.7)',
+                                color: 'white',
+                                maxWidth: 'calc(100% - 16px)',
+                                '& .MuiChip-label': {
+                                  overflow: 'hidden',
+                                  textOverflow: 'ellipsis',
+                                  whiteSpace: 'nowrap'
+                                }
+                              }}
+                            />
+                          </Box>
+                        </Grid>
+                        );
+                      })}
+                    </Grid>
+                  )}
+                </Box>
+              </Grid>
+
+              {/* Submit Buttons */}
+              <Grid item xs={12}>
+                <Box sx={{ display: 'flex', gap: 2, justifyContent: 'flex-end' }}>
+                  <Button
+                    variant="outlined"
+                    onClick={handleDelete}
+                    disabled={loading}
+                    color="error"
+                  >
+                    Delete Product
+                  </Button>
+                  <Button
+                    variant="outlined"
+                    onClick={handleBack}
+                    disabled={loading}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    type="submit"
+                    variant="contained"
+                    startIcon={loading ? <CircularProgress size={20} /> : <SaveIcon />}
+                    disabled={loading || (product && product.status === 'approved')}
+                    sx={{ backgroundColor: '#1976d2' }}
+                  >
+                    {loading ? 'Updating...' : 'Update Product'}
+                  </Button>
+                </Box>
+              </Grid>
+            </Grid>
+          </form>
+        </CardContent>
+      </Card>
+    </Box>
+  );
+};
+
+export default EditProduct;

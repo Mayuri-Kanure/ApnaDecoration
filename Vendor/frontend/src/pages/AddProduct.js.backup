@@ -1,0 +1,575 @@
+import React, { useState, useRef, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import vendorApi from '../services/vendorApi';
+import {
+  Box,
+  Card,
+  CardContent,
+  Typography,
+  TextField,
+  Button,
+  Grid,
+  Paper,
+  Alert,
+  CircularProgress,
+  IconButton,
+  Chip,
+  MenuItem  // Added missing import
+} from '@mui/material';
+import {
+  ArrowBack as BackIcon,
+  Save as SaveIcon,
+  Upload as UploadIcon,
+  Delete as DeleteIcon,
+  Image as ImageIcon,
+  Autorenew as RefreshIcon
+} from '@mui/icons-material';
+
+const AddProduct = () => {
+  const navigate = useNavigate();
+  const fileInputRef = useRef(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+  
+  // Function to generate SKU automatically (same as admin)
+  const generateSKU = (productName) => {
+    console.log('🔍 generateSKU called with:', productName);
+    
+    // Use same logic as admin system
+    const timestamp = Date.now().toString(36).toUpperCase();
+    const random = Math.random().toString(36).substr(2, 5).toUpperCase();
+    const code = `SKU-${timestamp}-${random}`;
+    
+    console.log('🔍 Generated SKU (admin style):', code);
+    return code;
+  };
+  
+  const [formData, setFormData] = useState({
+    name: '',
+    sku: '', // Will be auto-generated
+    unit_price: '',  // Fixed: backend expects unit_price
+    brand: '',
+    category: '',  // Will be populated with ObjectId
+    description: '',
+    images: []
+  });
+
+  // Add debugging for formData changes
+  useEffect(() => {
+    console.log('🔍 formData updated:', formData);
+  }, [formData]);
+
+  const [categories, setCategories] = useState([]);
+
+  // Fetch categories on component mount
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        console.log('🔄 Fetching categories...');
+        const response = await vendorApi.getCategories();
+        console.log('📦 Categories response:', response);
+        
+        // Handle different response formats
+        let categoriesData = [];
+        if (response && response.categories) {
+          categoriesData = response.categories;
+        } else if (response && Array.isArray(response)) {
+          categoriesData = response;
+        } else if (response && response.data && Array.isArray(response.data)) {
+          categoriesData = response.data;
+        }
+        
+        // Remove specific category (change "CategoryNameToRemove" to the actual category name you want to remove)
+        console.log('🔍 Available categories:', categoriesData.map(cat => ({ name: cat.name || cat, id: cat._id || cat.id })));
+        
+        // Example: Remove the first category (change as needed)
+        const filteredCategories = categoriesData.filter((cat, index) => {
+          // Remove the category at index 0 (first category)
+          // Change this logic to remove the specific category you want
+          return index !== 0; // This removes the first category
+        });
+        
+        console.log('📋 Final categories data:', filteredCategories);
+        setCategories(filteredCategories);
+      } catch (error) {
+        console.error('❌ Failed to fetch categories:', error);
+      }
+    };
+
+    fetchCategories();
+  }, []);
+
+  const [errors, setErrors] = useState({});
+  const [imagePreviews, setImagePreviews] = useState([]);
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    console.log('🔍 handleChange called:', { name, value });
+    
+    // Simple form change - no auto SKU generation (like admin)
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+    
+    // Clear error for this field
+    if (errors[name]) {
+      setErrors(prev => ({
+        ...prev,
+        [name]: ''
+      }));
+    }
+  };
+
+  const validateForm = () => {
+    const newErrors = {};
+    
+    if (!formData.name.trim()) {
+      newErrors.name = 'Product name is required';
+    }
+    
+    if (!formData.unit_price || parseFloat(formData.unit_price) <= 0) {
+      newErrors.unit_price = 'Valid price is required';
+    }
+    
+    if (!formData.category) {
+      newErrors.category = 'Category is required';
+    }
+    
+    if (!formData.description.trim()) {
+      newErrors.description = 'Description is required';
+    }
+    
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleImageUpload = (e) => {
+    const files = Array.from(e.target.files);
+    
+    // Filter for image files only
+    const imageFiles = files.filter(file => 
+      file.type.startsWith('image/')
+    );
+    
+    if (imageFiles.length === 0) {
+      setError('Please select valid image files');
+      return;
+    }
+    
+    // Create previews and update state
+    const newPreviews = imageFiles.map(file => ({
+      file,
+      preview: URL.createObjectURL(file),
+      name: file.name
+    }));
+    
+    setImagePreviews(prev => [...prev, ...newPreviews]);
+    setFormData(prev => ({
+      ...prev,
+      images: [...prev.images, ...imageFiles]
+    }));
+    
+    setError('');
+  };
+
+  const removeImage = (index) => {
+    const newPreviews = imagePreviews.filter((_, i) => i !== index);
+    const newImages = formData.images.filter((_, i) => i !== index);
+    
+    // Revoke object URL to prevent memory leaks
+    if (imagePreviews[index]?.preview) {
+      URL.revokeObjectURL(imagePreviews[index].preview);
+    }
+    
+    setImagePreviews(newPreviews);
+    setFormData(prev => ({
+      ...prev,
+      images: newImages
+    }));
+  };
+
+  const triggerFileInput = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    
+    if (!validateForm()) {
+      return;
+    }
+    
+    // Check if user is logged in
+    const token = localStorage.getItem('token');
+    if (!token) {
+      setError('Please login to add products');
+      return;
+    }
+    
+    try {
+      setLoading(true);
+      setError('');
+      setSuccess('');
+      
+      const productData = {
+        name: formData.name,
+        product_name_en: formData.name,
+        sku: formData.sku,
+        unit_price: parseFloat(formData.unit_price),
+        brand: formData.brand || 'Generic Brand',
+        category: formData.category,  // Added category field back
+        description: formData.description
+      };
+      
+      console.log('🔄 Creating vendor product...', productData);
+      console.log('🔄 With images:', formData.images.length, 'files');
+      
+      // Use the file upload method if there are images
+      let response;
+      if (formData.images.length > 0) {
+        response = await vendorApi.createVendorProductWithFiles(productData, formData.images);
+      } else {
+        response = await vendorApi.createVendorProduct(productData);
+      }
+      
+      console.log('✅ Product created successfully:', response);
+      
+      setSuccess('Product submitted for approval! It will be reviewed by admin.');
+      
+      // Reset form
+      setFormData({
+        name: '',
+        sku: '', // Will be auto-generated when name is entered
+        unit_price: '',
+        brand: '',
+        category: '',
+        description: '',
+        images: []
+      });
+      
+      // Redirect to products page after 2 seconds
+      setTimeout(() => {
+        navigate('/products');
+      }, 2000);
+      
+    } catch (error) {
+      console.error('❌ Error creating product:', error);
+      setError(error.message || 'Failed to create product. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleBack = () => {
+    navigate('/products');
+  };
+
+  return (
+    <Box sx={{ backgroundColor: '#f8fafc', minHeight: '100vh' }}>
+      {/* Header */}
+      <Box sx={{ mb: 3, display: 'flex', alignItems: 'center', gap: 2 }}>
+        <Button
+          startIcon={<BackIcon />}
+          onClick={handleBack}
+          sx={{ color: '#64748b' }}
+        >
+          Back to Products
+        </Button>
+        <Typography variant="h4" sx={{ fontWeight: 600, color: '#1e293b' }}>
+          Add New Product
+        </Typography>
+      </Box>
+
+      {/* Form */}
+      <Card>
+        <CardContent sx={{ p: 4 }}>
+          {error && (
+            <Alert severity="error" sx={{ mb: 3 }}>
+              {error}
+            </Alert>
+          )}
+          
+          {success && (
+            <Alert severity="success" sx={{ mb: 3 }}>
+              {success}
+            </Alert>
+          )}
+
+          <form onSubmit={handleSubmit}>
+            <Grid container spacing={2}>
+              {/* Product Name */}
+              <Grid item xs={12} md={6}>
+                <TextField
+                  fullWidth
+                  label="Product Name"
+                  name="name"
+                  value={formData.name}
+                  onChange={handleChange}
+                  error={!!errors.name}
+                  helperText={errors.name}
+                  required
+                />
+              </Grid>
+
+              {/* SKU */}
+              <Grid item xs={12} md={6}>
+                <Typography variant="body2" sx={{ fontWeight: 600, mb: 1.5, color: '#374151' }}>
+                  Product SKU <span style={{ color: '#ef4444' }}>*</span>
+                </Typography>
+                <TextField
+                  fullWidth
+                  label="SKU"
+                  name="sku"
+                  value={formData.sku}
+                  onChange={handleChange}
+                  error={!!errors.sku}
+                  helperText={errors.sku || "Auto-generated SKU"}
+                  required
+                  InputProps={{
+                    endAdornment: (
+                      <IconButton onClick={() => {
+                        const newSKU = generateSKU();
+                        setFormData(prev => ({ ...prev, sku: newSKU }));
+                      }} size="small" sx={{ color: '#2563eb' }}>
+                        <RefreshIcon />
+                      </IconButton>
+                    ),
+                  }}
+                />
+                {/* Debug info */}
+                <Typography variant="caption" sx={{ mt: 1, display: 'block' }}>
+                 {formData.sku}
+                </Typography>
+              </Grid>
+
+              {/* Price */}
+              <Grid item xs={12} md={6}>
+                <TextField
+                  fullWidth
+                  label="Price (₹)"
+                  name="unit_price"
+                  type="number"
+                  value={formData.unit_price}
+                  onChange={handleChange}
+                  error={!!errors.unit_price}
+                  helperText={errors.unit_price}
+                  required
+                  inputProps={{ min: 0 }}
+                />
+              </Grid>
+
+              {/* Brand */}
+              <Grid item xs={12} md={6}>
+                <TextField
+                  fullWidth
+                  label="Brand"
+                  name="brand"
+                  value={formData.brand}
+                  onChange={handleChange}
+                  error={!!errors.brand}
+                  helperText={errors.brand}
+                />
+              </Grid>
+
+              {/* Category */}
+              <Grid item xs={12} md={6}>
+                <TextField
+                  fullWidth
+                  select
+                  label="Category"
+                  name="category"
+                  value={formData.category}
+                  onChange={handleChange}
+                  error={!!errors.category}
+                  helperText={errors.category}
+                  required
+                >
+                  <MenuItem value="">Select a category</MenuItem>
+                  {categories.map((cat) => {
+                    // Handle different category object structures
+                    const catId = cat._id || cat.id || cat;
+                    const catName = cat.name || cat;
+                    
+                    return (
+                      <MenuItem key={catId} value={catId}>
+                        {catName}
+                      </MenuItem>
+                    );
+                  })}
+                </TextField>
+              </Grid>
+
+              {/* Description */}
+              <Grid item xs={12}>
+                <TextField
+                  fullWidth
+                  label="Description"
+                  name="description"
+                  value={formData.description}
+                  onChange={handleChange}
+                  error={!!errors.description}
+                  helperText={errors.description}
+                  multiline
+                  rows={4}
+                  required
+                />
+              </Grid>
+
+              {/* Product Images */}
+              <Grid item xs={12}>
+                <Typography variant="subtitle1" sx={{ mb: 2 }}>
+                  Product Images
+                </Typography>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                  <Button
+                    variant="outlined"
+                    component="label"
+                    disabled={loading}
+                    sx={{ alignSelf: 'flex-start' }}
+                  >
+                    <input
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      onChange={handleImageUpload}
+                      style={{ display: 'none' }}
+                    />
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <UploadIcon />
+                      Add Images
+                    </Box>
+                  </Button>
+
+                  {imagePreviews.length > 0 && (
+                    <Grid container spacing={2}>
+                      {imagePreviews.map((image, index) => (
+                        <Grid item xs={12} sm={6} md={4} key={index}>
+                          <Box sx={{ position: 'relative', display: 'inline-block' }}>
+                            <Box
+                              component="img"
+                              src={image.url}
+                              sx={{
+                                width: '100%',
+                                height: 200,
+                                borderRadius: 2,
+                                objectFit: 'cover',
+                                backgroundColor: '#f0f0f0'
+                              }}
+                            />
+                            <IconButton
+                              size="small"
+                              sx={{
+                                position: 'absolute',
+                                top: 8,
+                                right: 8,
+                                backgroundColor: 'rgba(244, 67, 54, 0.8)',
+                                color: 'white',
+                                '&:hover': {
+                                  backgroundColor: 'rgba(244, 67, 54, 0.9)'
+                                }
+                              }}
+                              onClick={() => removeImage(index)}
+                            >
+                              <DeleteIcon fontSize="small" />
+                            </IconButton>
+                            <Typography variant="caption" sx={{
+                              position: 'absolute',
+                              bottom: 8,
+                              left: 8,
+                              backgroundColor: 'rgba(0, 0, 0, 0.7)',
+                              color: 'white',
+                              maxWidth: 'calc(100% - 16px)',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                              whiteSpace: 'nowrap'
+                            }}>
+                              {image.name}
+                            </Typography>
+                          </Box>
+                        </Grid>
+                      ))}
+                    </Grid>
+                  )}
+                </Box>
+              </Grid>
+
+              {/* Submit Button */}
+              <Grid item xs={12}>
+                <Box sx={{ display: 'flex', gap: 2, justifyContent: 'flex-end', mt: 3 }}>
+                  <Button
+                    variant="outlined"
+                    onClick={() => navigate('/products')}
+                    disabled={loading}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    type="submit"
+                    variant="contained"
+                    startIcon={loading ? <CircularProgress size={20} /> : <SaveIcon />}
+                    disabled={loading}
+                    sx={{ backgroundColor: '#1976d2' }}
+                  >
+                    {loading ? 'Creating...' : 'Create Product'}
+                  </Button>
+                </Box>
+              </Grid>
+            </Grid>
+          </form>
+        </CardContent>
+      </Card>
+    </Box>
+  );
+};
+
+export default AddProduct;
+                                backgroundColor: 'rgba(0, 0, 0, 0.7)',
+                                color: 'white',
+                                maxWidth: 'calc(100% - 16px)',
+                                '& .MuiChip-label': {
+                                  overflow: 'hidden',
+                                  textOverflow: 'ellipsis',
+                                  whiteSpace: 'nowrap'
+                                }
+                              }}
+                            />
+                          </Box>
+                        </Grid>
+                      ))}
+                    </Grid>
+                  </Box>
+                )}
+              </Grid>
+
+              {/* Submit Button */}
+              <Grid item xs={12}>
+                <Box sx={{ display: 'flex', gap: 2, justifyContent: 'flex-end' }}>
+                  <Button
+                    variant="outlined"
+                    onClick={handleBack}
+                    disabled={loading}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    type="submit"
+                    variant="contained"
+                    startIcon={loading ? <CircularProgress size={20} /> : <SaveIcon />}
+                    disabled={loading}
+                    sx={{ backgroundColor: '#1976d2' }}
+                  >
+                    {loading ? 'Creating...' : 'Create Product'}
+                  </Button>
+                </Box>
+              </Grid>
+            </Grid>
+          </form>
+        </CardContent>
+      </Card>
+    </Box>
+  );
+};
+
+export default AddProduct;
