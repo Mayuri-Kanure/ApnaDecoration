@@ -1,13 +1,102 @@
-# 🏪 APNA DECORATION - Complete E-Commerce Platform
+# APNA Decoration
 
-A comprehensive multi-role e-commerce platform for home decoration and furniture products with separate applications for Users, Vendors, and Admins.
+A complete e-commerce platform for home decoration and furniture products with multi-vendor support.
 
-## 📋 Table of Contents
+## 🚀 Features
 
-- [🏗️ Project Architecture](#-project-architecture)
-- [🚀 Quick Start](#-quick-start)
-- [📱 Applications Overview](#-applications-overview)
-- [🔧 Installation Guide](#-installation-guide)
+- **Multi-Vendor Marketplace** - Vendors can submit products for approval
+- **Admin Panel** - Complete product, order, and user management  
+- **Customer App** - Full shopping experience with wishlist and reviews
+- **Vendor Portal** - Product submission and order tracking
+- **Delivery Management** - Real-time order tracking
+- **Payment Integration** - Multiple payment methods
+- **Review System** - Customer feedback and ratings
+
+## � Tech Stack
+
+- **Frontend**: React.js, Material-UI, Redux
+- **Backend**: Node.js, Express.js, MongoDB
+- **Database**: MongoDB with Mongoose ODM
+- **Authentication**: JWT tokens
+- **File Storage**: Cloudinary for images
+
+## 📁 Project Structure
+
+```
+APNA DECORATION _APP/
+├── Admin/          # Admin panel (React + Node.js)
+├── User/           # Customer app (React + Node.js)  
+├── Vendor/         # Vendor portal (React + Node.js)
+├── Delivery/       # Delivery app (React + Node.js)
+└── shared/         # Shared utilities
+```
+
+## 🚀 Quick Start
+
+### Prerequisites
+- Node.js 14+
+- MongoDB
+- npm
+
+### Installation
+
+```bash
+# Clone the repository
+git clone https://github.com/Mayuri-Kanure/ApnaDecoration.git
+cd ApnaDecoration
+
+# Install dependencies
+npm install
+
+# Setup environment variables
+cp Admin/backend/.env.example Admin/backend/.env
+# Configure your database and API keys
+```
+
+### Development
+
+```bash
+# Start all applications
+npm run dev:all
+
+# Or start individually
+npm run dev:admin     # Admin panel (port 3000)
+npm run dev:user       # Customer app (port 3001)
+npm run dev:vendor    # Vendor portal (port 3002)
+npm run dev:delivery  # Delivery app (port 3003)
+```
+
+## 📱 Applications
+
+- **Admin Panel**: Complete management dashboard
+- **Customer App**: Shopping cart, wishlist, orders
+- **Vendor Portal**: Product management, earnings
+- **Delivery App**: Order tracking, navigation
+
+## 🔐 Security
+
+- JWT-based authentication
+- Role-based access control (Admin, Vendor, Customer, Delivery)
+- Input validation and sanitization
+- Rate limiting and CORS protection
+
+## 🌐 Deployment
+
+```bash
+# Build for production
+npm run build
+
+# Deploy to your hosting service
+# Build files are in respective build/ folders
+```
+
+## 📄 License
+
+MIT License - see LICENSE file for details
+
+---
+
+**Built with ❤️ for the decoration and furniture industry**
 - [🌐 API Documentation](#-api-documentation)
 - [📱 Mobile App (APK)](#-mobile-app-apk)
 - [👥 User Roles & Access](#-user-roles--access)
@@ -477,5 +566,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 **🏪 APNA DECORATION - Transforming Home Decoration Shopping Experience**
 
 *Built with ❤️ using React, Node.js, and MongoDB*
-#   A p n a D e c o r a t i o n  
+#   A p n a D e c o r a t i o n 
+ 
  
