@@ -3,7 +3,8 @@ const mongoose = require("mongoose");
 const connectDB = async () => {
   try {
     // Use the same database as Admin backend
-    const mongoURI = process.env.MONGODB_URI;
+    const mongoURI =
+      process.env.MONGODB_URI || "mongodb://localhost:27017/apna-decoration";
 
     const conn = await mongoose.connect(mongoURI);
 

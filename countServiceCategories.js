@@ -7,7 +7,8 @@ const ServiceCategory = require("./Admin/backend/models/ServiceCategory");
 async function countServiceCategories() {
   try {
     // Connect to MongoDB
-    const uri = process.env.MONGODB_URI;
+    const uri =
+      process.env.MONGODB_URI || "mongodb://localhost:27017/apna-decoration";
     await mongoose.connect(uri);
     console.log("✅ Connected to MongoDB");
 
