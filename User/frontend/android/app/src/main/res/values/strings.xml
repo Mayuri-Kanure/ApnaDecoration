@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">apnadecoration</string>
+    <string name="title_activity_main">apnadecoration</string>
+    <string name="package_name">com.apnadecoration.app</string>
+    <string name="custom_url_scheme">com.apnadecoration.app</string>
+</resources>

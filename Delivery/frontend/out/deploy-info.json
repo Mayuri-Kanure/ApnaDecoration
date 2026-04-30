@@ -1,0 +1,13 @@
+{
+  "appName": "Apna Decoration Delivery",
+  "version": "1.0.0",
+  "buildDate": "2026-04-17T11:02:08.087Z",
+  "deploymentTarget": "Hostinger",
+  "domain": "delivery.apnadecoration.com",
+  "buildType": "Static Export",
+  "framework": "Next.js",
+  "files": {
+    "total": 12,
+    "mainEntry": "index.html"
+  }
+}

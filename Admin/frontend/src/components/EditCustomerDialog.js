@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from "react";
 import {
   Dialog,
   DialogTitle,
@@ -13,71 +13,75 @@ import {
   MenuItem,
   CircularProgress,
   Alert,
-  Box
-} from '@mui/material';
-import axios from 'axios';
+  Box,
+} from "@mui/material";
+import axios from "axios";
 
-const API_BASE_URL = 'http://localhost:5000/api';
+const API_BASE_URL =
+  process.env.REACT_APP_API_URL || "https://admin-api.apnadecoration.com/api";
 
 const EditCustomerDialog = ({ open, onClose, customer, onSave }) => {
   const [formData, setFormData] = useState({
-    firstName: '',
-    lastName: '',
-    email: '',
-    phone: '',
-    address: '',
-    city: '',
-    state: '',
-    zipCode: '',
-    country: '',
-    status: 'active'
+    firstName: "",
+    lastName: "",
+    email: "",
+    phone: "",
+    address: "",
+    city: "",
+    state: "",
+    zipCode: "",
+    country: "",
+    status: "active",
   });
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
 
   useEffect(() => {
     if (customer) {
       setFormData({
-        firstName: customer.firstName || '',
-        lastName: customer.lastName || '',
-        email: customer.email || '',
-        phone: customer.phone || '',
-        address: typeof customer.address === 'string' ? customer.address : (customer.address?.street || ''),
-        city: customer.city || customer.address?.city || '',
-        state: customer.state || customer.address?.state || '',
-        zipCode: customer.zipCode || customer.address?.zipCode || '',
-        country: customer.country || customer.address?.country || '',
-        status: customer.status || 'active'
+        firstName: customer.firstName || "",
+        lastName: customer.lastName || "",
+        email: customer.email || "",
+        phone: customer.phone || "",
+        address:
+          typeof customer.address === "string"
+            ? customer.address
+            : customer.address?.street || "",
+        city: customer.city || customer.address?.city || "",
+        state: customer.state || customer.address?.state || "",
+        zipCode: customer.zipCode || customer.address?.zipCode || "",
+        country: customer.country || customer.address?.country || "",
+        status: customer.status || "active",
       });
     }
   }, [customer]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      [name]: value
+      [name]: value,
     }));
   };
 
   const handleSubmit = async () => {
     setLoading(true);
-    setError('');
+    setError("");
 
     try {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem("token");
       const response = await axios.put(
         `${API_BASE_URL}/customers/${customer._id}`,
         formData,
         {
-          headers: { Authorization: `Bearer ${token}` }
-        }
+          headers: { Authorization: `Bearer ${token}` },
+        },
       );
 
       onSave(response.data);
       onClose();
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to update customer');
+      setError(err.response?.data?.message || "Failed to update customer");
     } finally {
       setLoading(false);
     }
@@ -92,7 +96,7 @@ const EditCustomerDialog = ({ open, onClose, customer, onSave }) => {
             {error}
           </Alert>
         )}
-        
+
         <Box sx={{ pt: 2 }}>
           <Grid container spacing={2}>
             <Grid item xs={12} sm={6}>
@@ -208,13 +212,13 @@ const EditCustomerDialog = ({ open, onClose, customer, onSave }) => {
       </DialogContent>
       <DialogActions>
         <Button onClick={onClose}>Cancel</Button>
-        <Button 
-          onClick={handleSubmit} 
+        <Button
+          onClick={handleSubmit}
           variant="contained"
           disabled={loading}
           startIcon={loading ? <CircularProgress size={16} /> : null}
         >
-          {loading ? 'Saving...' : 'Save Changes'}
+          {loading ? "Saving..." : "Save Changes"}
         </Button>
       </DialogActions>
     </Dialog>

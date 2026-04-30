@@ -1,6 +1,7 @@
-const DeliveryOrder = require('../models/DeliveryOrder');
-const DeliveryBoy = require('../models/DeliveryBoy');
-const { validationResult } = require('express-validator');
+const mongoose = require("mongoose");
+const DeliveryOrder = require("../models/DeliveryOrder");
+const DeliveryBoy = require("../models/DeliveryBoy");
+const { validationResult } = require("express-validator");
 
 // @desc    Get available orders for delivery boy
 // @route   GET /api/delivery-orders/available
@@ -13,18 +14,18 @@ exports.getAvailableOrders = async (req, res) => {
 
     // Get available orders (pending and not assigned)
     const orders = await DeliveryOrder.find({
-      status: 'pending',
-      deliveryBoyId: { $exists: false }
+      status: "pending",
+      $or: [{ deliveryBoyId: { $exists: false } }, { deliveryBoyId: null }],
     })
-    .populate('customerId', 'name email phone')
-    .populate('vendorId', 'shopName phone address')
-    .sort({ priority: -1, orderDate: 1 })
-    .skip(skip)
-    .limit(limit);
+      .populate("customerId", "name email phone")
+      .populate("vendorId", "shopName phone address")
+      .sort({ priority: -1, orderDate: 1 })
+      .skip(skip)
+      .limit(limit);
 
     const total = await DeliveryOrder.countDocuments({
-      status: 'pending',
-      deliveryBoyId: { $exists: false }
+      status: "pending",
+      $or: [{ deliveryBoyId: { $exists: false } }, { deliveryBoyId: null }],
     });
 
     res.status(200).json({
@@ -34,15 +35,15 @@ exports.getAvailableOrders = async (req, res) => {
         page,
         limit,
         total,
-        pages: Math.ceil(total / limit)
-      }
+        pages: Math.ceil(total / limit),
+      },
     });
   } catch (error) {
-    console.error('Error getting available orders:', error);
+    console.error("Error getting available orders:", error);
     res.status(500).json({
       success: false,
-      message: 'Server error',
-      error: error.message
+      message: "Server error",
+      error: error.message,
     });
   }
 };
@@ -57,18 +58,26 @@ exports.getMyOrders = async (req, res) => {
     const skip = (page - 1) * limit;
     const status = req.query.status;
 
-    let query = { deliveryBoyId: req.deliveryBoy.id };
-    
-    if (status && status !== 'all') {
+    const deliveryBoyId = req.deliveryBoy?._id || req.user?._id;
+    if (!deliveryBoyId) {
+      return res.status(401).json({
+        success: false,
+        message: "Unauthorized - No delivery boy ID found",
+      });
+    }
+
+    let query = { deliveryBoyId };
+
+    if (status && status !== "all") {
       query.status = status;
     }
 
     const orders = await DeliveryOrder.find(query)
-    .populate('customerId', 'name email phone')
-    .populate('vendorId', 'shopName phone address')
-    .sort({ orderDate: -1 })
-    .skip(skip)
-    .limit(limit);
+      .populate("customerId", "name email phone")
+      .populate("vendorId", "shopName phone address")
+      .sort({ orderDate: -1 })
+      .skip(skip)
+      .limit(limit);
 
     const total = await DeliveryOrder.countDocuments(query);
 
@@ -79,15 +88,15 @@ exports.getMyOrders = async (req, res) => {
         page,
         limit,
         total,
-        pages: Math.ceil(total / limit)
-      }
+        pages: Math.ceil(total / limit),
+      },
     });
   } catch (error) {
-    console.error('Error getting my orders:', error);
+    console.error("Error getting my orders:", error);
     res.status(500).json({
       success: false,
-      message: 'Server error',
-      error: error.message
+      message: "Server error",
+      error: error.message,
     });
   }
 };
@@ -104,40 +113,48 @@ exports.acceptOrder = async (req, res) => {
     if (!order) {
       return res.status(404).json({
         success: false,
-        message: 'Order not found'
+        message: "Order not found",
       });
     }
 
-    if (order.status !== 'pending') {
+    if (order.status !== "pending") {
       return res.status(400).json({
         success: false,
-        message: 'Order is no longer available'
+        message: "Order is no longer available",
       });
     }
 
     if (order.deliveryBoyId) {
       return res.status(400).json({
         success: false,
-        message: 'Order already assigned to another delivery boy'
+        message: "Order already assigned to another delivery boy",
       });
     }
 
     // Assign order to delivery boy
-    order.deliveryBoyId = req.deliveryBoy.id;
-    order.status = 'accepted';
+    const deliveryBoyId = req.deliveryBoy?.id || req.user?.id;
+    if (!deliveryBoyId) {
+      return res.status(401).json({
+        success: false,
+        message: "Unauthorized - No delivery boy ID found",
+      });
+    }
+
+    order.deliveryBoyId = deliveryBoyId;
+    order.status = "accepted";
     order.acceptedDate = new Date();
-    
+
     // Add tracking entry
     order.tracking.push({
       timestamp: new Date(),
-      status: 'accepted',
-      note: 'Order accepted by delivery boy'
+      status: "accepted",
+      note: "Order accepted by delivery boy",
     });
 
     await order.save();
 
     // Update delivery boy stats
-    const deliveryBoy = await DeliveryBoy.findById(req.deliveryBoy.id);
+    const deliveryBoy = await DeliveryBoy.findById(deliveryBoyId);
     if (deliveryBoy) {
       deliveryBoy.lastActive = new Date();
       await deliveryBoy.save();
@@ -145,15 +162,15 @@ exports.acceptOrder = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      message: 'Order accepted successfully',
-      data: order
+      message: "Order accepted successfully",
+      data: order,
     });
   } catch (error) {
-    console.error('Error accepting order:', error);
+    console.error("Error accepting order:", error);
     res.status(500).json({
       success: false,
-      message: 'Server error',
-      error: error.message
+      message: "Server error",
+      error: error.message,
     });
   }
 };
@@ -171,40 +188,40 @@ exports.rejectOrder = async (req, res) => {
     if (!order) {
       return res.status(404).json({
         success: false,
-        message: 'Order not found'
+        message: "Order not found",
       });
     }
 
-    if (order.status !== 'pending') {
+    if (order.status !== "pending") {
       return res.status(400).json({
         success: false,
-        message: 'Order cannot be rejected'
+        message: "Order cannot be rejected",
       });
     }
 
     // Update order status
-    order.status = 'rejected';
-    
+    order.status = "rejected";
+
     // Add tracking entry
     order.tracking.push({
       timestamp: new Date(),
-      status: 'rejected',
-      note: reason || 'Order rejected by delivery boy'
+      status: "rejected",
+      note: reason || "Order rejected by delivery boy",
     });
 
     await order.save();
 
     res.status(200).json({
       success: true,
-      message: 'Order rejected successfully',
-      data: order
+      message: "Order rejected successfully",
+      data: order,
     });
   } catch (error) {
-    console.error('Error rejecting order:', error);
+    console.error("Error rejecting order:", error);
     res.status(500).json({
       success: false,
-      message: 'Server error',
-      error: error.message
+      message: "Server error",
+      error: error.message,
     });
   }
 };
@@ -221,48 +238,48 @@ exports.startDelivery = async (req, res) => {
     if (!order) {
       return res.status(404).json({
         success: false,
-        message: 'Order not found'
+        message: "Order not found",
       });
     }
 
     if (order.deliveryBoyId.toString() !== req.deliveryBoy.id) {
       return res.status(403).json({
         success: false,
-        message: 'Not authorized to update this order'
+        message: "Not authorized to update this order",
       });
     }
 
-    if (order.status !== 'accepted') {
+    if (order.status !== "accepted") {
       return res.status(400).json({
         success: false,
-        message: 'Order must be accepted first'
+        message: "Order must be accepted first",
       });
     }
 
     // Update order status
-    order.status = 'picked_up';
+    order.status = "picked_up";
     order.pickedUpDate = new Date();
-    
+
     // Add tracking entry
     order.tracking.push({
       timestamp: new Date(),
-      status: 'picked_up',
-      note: 'Order picked up from vendor'
+      status: "picked_up",
+      note: "Order picked up from vendor",
     });
 
     await order.save();
 
     res.status(200).json({
       success: true,
-      message: 'Delivery started successfully',
-      data: order
+      message: "Delivery started successfully",
+      data: order,
     });
   } catch (error) {
-    console.error('Error starting delivery:', error);
+    console.error("Error starting delivery:", error);
     res.status(500).json({
       success: false,
-      message: 'Server error',
-      error: error.message
+      message: "Server error",
+      error: error.message,
     });
   }
 };
@@ -280,29 +297,29 @@ exports.completeDelivery = async (req, res) => {
     if (!order) {
       return res.status(404).json({
         success: false,
-        message: 'Order not found'
+        message: "Order not found",
       });
     }
 
     if (order.deliveryBoyId.toString() !== req.deliveryBoy.id) {
       return res.status(403).json({
         success: false,
-        message: 'Not authorized to update this order'
+        message: "Not authorized to update this order",
       });
     }
 
-    if (order.status !== 'picked_up') {
+    if (order.status !== "picked_up") {
       return res.status(400).json({
         success: false,
-        message: 'Order must be picked up first'
+        message: "Order must be picked up first",
       });
     }
 
     // Update order status
-    order.status = 'delivered';
+    order.status = "delivered";
     order.deliveredDate = new Date();
     order.completedDate = new Date();
-    
+
     // Add images if provided
     if (images && images.length > 0) {
       order.images.push(...images);
@@ -313,7 +330,7 @@ exports.completeDelivery = async (req, res) => {
       order.notes.push({
         note: notes,
         addedBy: req.deliveryBoy.id,
-        noteModel: 'DeliveryBoy'
+        noteModel: "DeliveryBoy",
       });
     }
 
@@ -323,8 +340,8 @@ exports.completeDelivery = async (req, res) => {
     // Add tracking entry
     order.tracking.push({
       timestamp: new Date(),
-      status: 'delivered',
-      note: 'Order delivered successfully'
+      status: "delivered",
+      note: "Order delivered successfully",
     });
 
     await order.save();
@@ -338,15 +355,15 @@ exports.completeDelivery = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      message: 'Delivery completed successfully',
-      data: order
+      message: "Delivery completed successfully",
+      data: order,
     });
   } catch (error) {
-    console.error('Error completing delivery:', error);
+    console.error("Error completing delivery:", error);
     res.status(500).json({
       success: false,
-      message: 'Server error',
-      error: error.message
+      message: "Server error",
+      error: error.message,
     });
   }
 };
@@ -359,35 +376,38 @@ exports.getOrderDetails = async (req, res) => {
     const { orderId } = req.params;
 
     const order = await DeliveryOrder.findById(orderId)
-    .populate('customerId', 'name email phone')
-    .populate('vendorId', 'shopName phone address')
-    .populate('deliveryBoyId', 'firstName lastName phone email');
+      .populate("customerId", "name email phone")
+      .populate("vendorId", "shopName phone address")
+      .populate("deliveryBoyId", "firstName lastName phone email");
 
     if (!order) {
       return res.status(404).json({
         success: false,
-        message: 'Order not found'
+        message: "Order not found",
       });
     }
 
     // Check if delivery boy is authorized to view this order
-    if (order.deliveryBoyId && order.deliveryBoyId._id.toString() !== req.deliveryBoy.id) {
+    if (
+      order.deliveryBoyId &&
+      order.deliveryBoyId._id.toString() !== req.deliveryBoy.id
+    ) {
       return res.status(403).json({
         success: false,
-        message: 'Not authorized to view this order'
+        message: "Not authorized to view this order",
       });
     }
 
     res.status(200).json({
       success: true,
-      data: order
+      data: order,
     });
   } catch (error) {
-    console.error('Error getting order details:', error);
+    console.error("Error getting order details:", error);
     res.status(500).json({
       success: false,
-      message: 'Server error',
-      error: error.message
+      message: "Server error",
+      error: error.message,
     });
   }
 };
@@ -405,21 +425,21 @@ exports.updateOrderLocation = async (req, res) => {
     if (!order) {
       return res.status(404).json({
         success: false,
-        message: 'Order not found'
+        message: "Order not found",
       });
     }
 
     if (order.deliveryBoyId.toString() !== req.deliveryBoy.id) {
       return res.status(403).json({
         success: false,
-        message: 'Not authorized to update this order'
+        message: "Not authorized to update this order",
       });
     }
 
     // Update delivery boy location
     order.deliveryBoyLocation = {
-      type: 'Point',
-      coordinates: [longitude, latitude]
+      type: "Point",
+      coordinates: [longitude, latitude],
     };
 
     // Add tracking entry
@@ -427,27 +447,27 @@ exports.updateOrderLocation = async (req, res) => {
       timestamp: new Date(),
       status: order.status,
       location: {
-        type: 'Point',
-        coordinates: [longitude, latitude]
+        type: "Point",
+        coordinates: [longitude, latitude],
       },
-      note: 'Location updated'
+      note: "Location updated",
     });
 
     await order.save();
 
     res.status(200).json({
       success: true,
-      message: 'Location updated successfully',
+      message: "Location updated successfully",
       data: {
-        deliveryBoyLocation: order.deliveryBoyLocation
-      }
+        deliveryBoyLocation: order.deliveryBoyLocation,
+      },
     });
   } catch (error) {
-    console.error('Error updating order location:', error);
+    console.error("Error updating order location:", error);
     res.status(500).json({
       success: false,
-      message: 'Server error',
-      error: error.message
+      message: "Server error",
+      error: error.message,
     });
   }
 };
@@ -457,45 +477,79 @@ exports.updateOrderLocation = async (req, res) => {
 // @access   Private
 exports.getOrderStats = async (req, res) => {
   try {
-    const deliveryBoyId = req.deliveryBoy.id;
+    const deliveryBoyId = req.deliveryBoy?._id || req.user?._id;
 
-    const stats = await DeliveryOrder.aggregate([
-      { $match: { deliveryBoyId: mongoose.Types.ObjectId(deliveryBoyId) } },
-      {
-        $group: {
-          _id: '$status',
-          count: { $sum: 1 },
-          totalEarnings: { $sum: '$deliveryBoyEarnings' }
-        }
-      }
-    ]);
+    if (!deliveryBoyId) {
+      return res.status(401).json({
+        success: false,
+        message: "Unauthorized - No delivery boy ID found",
+      });
+    }
 
-    const totalOrders = await DeliveryOrder.countDocuments({ deliveryBoyId });
-    const completedOrders = await DeliveryOrder.countDocuments({ 
-      deliveryBoyId, 
-      status: 'delivered' 
-    });
-    const totalEarnings = await DeliveryOrder.aggregate([
-      { $match: { deliveryBoyId: mongoose.Types.ObjectId(deliveryBoyId), status: 'delivered' } },
-      { $group: { _id: null, total: { $sum: '$deliveryBoyEarnings' } } }
-    ]);
+    console.log("🔍 Getting stats for delivery boy:", deliveryBoyId);
 
-    res.status(200).json({
-      success: true,
-      data: {
+    // Use simpler count queries instead of aggregation to avoid mongoose issues
+    try {
+      const totalOrders = await DeliveryOrder.countDocuments({ deliveryBoyId });
+      const completedOrders = await DeliveryOrder.countDocuments({
+        deliveryBoyId,
+        status: "delivered",
+      });
+      const pendingOrders = await DeliveryOrder.countDocuments({
+        deliveryBoyId,
+        status: "pending",
+      });
+      const inProgressOrders = await DeliveryOrder.countDocuments({
+        deliveryBoyId,
+        status: { $in: ["accepted", "picked_up"] },
+      });
+
+      // Get delivered orders for earnings calculation
+      const deliveredOrders = await DeliveryOrder.find({
+        deliveryBoyId,
+        status: "delivered",
+      }).select("deliveryBoyEarnings");
+
+      const totalEarnings = deliveredOrders.reduce(
+        (sum, order) => sum + (order.deliveryBoyEarnings || 0),
+        0,
+      );
+
+      const result = {
         totalOrders,
         completedOrders,
-        pendingOrders: totalOrders - completedOrders,
-        totalEarnings: totalEarnings.length > 0 ? totalEarnings[0].total : 0,
-        stats
-      }
-    });
+        pendingOrders,
+        inProgressOrders,
+        totalEarnings,
+        stats: [
+          { _id: "pending", count: pendingOrders, totalEarnings: 0 },
+          { _id: "accepted", count: 0, totalEarnings: 0 },
+          { _id: "picked_up", count: 0, totalEarnings: 0 },
+          { _id: "delivered", count: completedOrders, totalEarnings },
+        ],
+      };
+
+      console.log("✅ Stats calculated successfully:", result);
+
+      res.status(200).json({
+        success: true,
+        data: result,
+      });
+    } catch (dbError) {
+      console.error("❌ Database query error:", dbError);
+      res.status(500).json({
+        success: false,
+        message: "Database query error",
+        error: dbError.message,
+      });
+    }
   } catch (error) {
-    console.error('Error getting order stats:', error);
+    console.error("Error getting order stats:", error);
+    console.error("Stack trace:", error.stack);
     res.status(500).json({
       success: false,
-      message: 'Server error',
-      error: error.message
+      message: "Server error",
+      error: error.message,
     });
   }
 };

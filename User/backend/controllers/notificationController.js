@@ -106,17 +106,33 @@ const notificationController = {
   // Get notification settings
   getNotificationSettings: async (req, res) => {
     try {
-      // For now, return default settings
-      // In a real app, this would be stored in User model
-      const defaultSettings = {
+      const { User } = require('../models');
+      const user = await User.findById(req.user.userId);
+      
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          error: 'User not found'
+        });
+      }
+
+      // Return user's notification preferences or defaults
+      const settings = user.notificationPreferences || {
         email: true,
         sms: false,
-        push: false
+        push: false,
+        orderUpdates: true,
+        paymentAlerts: true,
+        promotions: true,
+        deliveryNotifications: true
       };
+      
+      console.log('🔔 Fetching notification settings for user:', req.user.userId);
+      console.log('🔔 Settings:', settings);
       
       res.json({
         success: true,
-        data: defaultSettings
+        data: settings
       });
     } catch (error) {
       console.error('Error fetching notification settings:', error);
@@ -130,22 +146,45 @@ const notificationController = {
   // Update notification settings
   updateNotificationSettings: async (req, res) => {
     try {
-      const { email, sms, push } = req.body;
+      const { User } = require('../models');
+      const { email, sms, push, orderUpdates, paymentAlerts, promotions, deliveryNotifications } = req.body;
       
-      // For now, just return success
-      // In a real app, this would update User model
-      const updatedSettings = {
-        email: email !== undefined ? email : true,
-        sms: sms !== undefined ? sms : false,
-        push: push !== undefined ? push : false
-      };
-      
-      console.log('🔔 Notification settings updated:', updatedSettings);
+      console.log('🔔 Updating notification settings:', {
+        userId: req.user.userId,
+        email, sms, push, orderUpdates, paymentAlerts, promotions, deliveryNotifications
+      });
+
+      // Update user notification preferences
+      const user = await User.findByIdAndUpdate(
+        req.user.userId,
+        {
+          notificationPreferences: {
+            email: email !== undefined ? email : true,
+            sms: sms !== undefined ? sms : false,
+            push: push !== undefined ? push : false,
+            orderUpdates: orderUpdates !== undefined ? orderUpdates : true,
+            paymentAlerts: paymentAlerts !== undefined ? paymentAlerts : true,
+            promotions: promotions !== undefined ? promotions : true,
+            deliveryNotifications: deliveryNotifications !== undefined ? deliveryNotifications : true
+          }
+        },
+        { new: true }
+      );
+
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          error: 'User not found'
+        });
+      }
+
+      console.log('🔔 Notification settings updated for user:', req.user.userId);
+      console.log('🔔 New settings:', user.notificationPreferences);
       
       res.json({
         success: true,
         message: 'Notification settings updated successfully',
-        data: updatedSettings
+        data: user.notificationPreferences
       });
     } catch (error) {
       console.error('Error updating notification settings:', error);

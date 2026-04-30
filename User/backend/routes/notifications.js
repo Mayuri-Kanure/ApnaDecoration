@@ -5,24 +5,6 @@ const emailService = require('../services/emailService');
 
 const router = express.Router();
 
-// Get all notifications (protected)
-router.get('/', authMiddleware, notificationController.getNotifications);
-
-// Mark notification as read (protected)
-router.put('/:id/read', authMiddleware, notificationController.markNotificationAsRead);
-
-// Mark all notifications as read (protected)
-router.put('/read-all', authMiddleware, notificationController.markAllNotificationsAsRead);
-
-// Delete notification (protected)
-router.delete('/:id', authMiddleware, notificationController.deleteNotification);
-
-// Get notification settings (protected)
-router.get('/settings', authMiddleware, notificationController.getNotificationSettings);
-
-// Update notification settings (protected)
-router.put('/settings', authMiddleware, notificationController.updateNotificationSettings);
-
 // Debug route to test if routes are loaded
 router.get('/debug', (req, res) => {
   res.json({
@@ -31,6 +13,44 @@ router.get('/debug', (req, res) => {
     timestamp: new Date().toISOString()
   });
 });
+
+// Specific routes (should come before param routes)
+// Get notification settings (protected)
+router.get('/settings', authMiddleware, notificationController.getNotificationSettings);
+
+// Update notification settings (protected)
+router.put('/settings', authMiddleware, notificationController.updateNotificationSettings);
+
+// Mark all notifications as read (protected) - MUST be before /:id routes
+router.put('/read-all', authMiddleware, notificationController.markAllNotificationsAsRead);
+
+// Clear all notifications
+router.delete('/clear-all', authMiddleware, async (req, res) => {
+  try {
+    const { Notification } = require('../models');
+    const result = await Notification.deleteMany({ userId: req.user.userId });
+    res.json({
+      success: true,
+      message: 'All notifications cleared',
+      deletedCount: result.deletedCount
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: 'Failed to clear notifications'
+    });
+  }
+});
+
+// Parametric routes (should come after specific routes)
+// Get all notifications (protected)
+router.get('/', authMiddleware, notificationController.getNotifications);
+
+// Mark notification as read (protected)
+router.put('/:id/read', authMiddleware, notificationController.markNotificationAsRead);
+
+// Delete notification (protected)
+router.delete('/:id', authMiddleware, notificationController.deleteNotification);
 
 // Send order confirmation email (protected)
 router.post('/send-order-confirmation', authMiddleware, async (req, res) => {

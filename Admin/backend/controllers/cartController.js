@@ -82,7 +82,7 @@ exports.addToCart = async (req, res) => {
       return res.status(400).json({ message: 'Product is not available' });
     }
 
-    if (product.stock_qty < quantity) {
+    if (product.stock < quantity) {
       return res.status(400).json({ message: 'Insufficient stock' });
     }
 
@@ -142,7 +142,7 @@ exports.addToCart = async (req, res) => {
         images: item.product.additional_images || [item.product.thumbnail],
         sku: item.product.sku,
         category: item.product.category_id,
-        stock_qty: item.product.stock_qty,
+        stock: item.product.stock,
         specifications: item.specifications,
         addedAt: item.addedAt
       })),

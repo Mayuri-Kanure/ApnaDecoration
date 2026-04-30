@@ -1,12 +1,12 @@
-const DeliveryBoy = require('../models/DeliveryBoy');
-const jwt = require('jsonwebtoken');
-const bcrypt = require('bcryptjs');
-const { validationResult } = require('express-validator');
+const DeliveryBoy = require("../models/DeliveryBoy");
+const jwt = require("jsonwebtoken");
+const bcrypt = require("bcryptjs");
+const { validationResult } = require("express-validator");
 
 // Generate JWT Token
 const generateToken = (id) => {
   return jwt.sign({ id }, process.env.JWT_SECRET, {
-    expiresIn: process.env.JWT_EXPIRE || '7d'
+    expiresIn: process.env.JWT_EXPIRE || "7d",
   });
 };
 
@@ -15,16 +15,19 @@ const generateToken = (id) => {
 // @access   Public
 exports.registerDeliveryBoy = async (req, res) => {
   try {
-    console.log('🔍 DeliveryBoy model schema paths:', Object.keys(DeliveryBoy.schema.paths));
-    console.log('🔍 Required fields:', DeliveryBoy.schema.requiredPaths());
-    
+    console.log(
+      "🔍 DeliveryBoy model schema paths:",
+      Object.keys(DeliveryBoy.schema.paths),
+    );
+    console.log("🔍 Required fields:", DeliveryBoy.schema.requiredPaths());
+
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      console.log('❌ Validation errors:', errors.array());
+      console.log("❌ Validation errors:", errors.array());
       return res.status(400).json({
         success: false,
-        message: 'Validation errors',
-        errors: errors.array()
+        message: "Validation errors",
+        errors: errors.array(),
       });
     }
 
@@ -39,18 +42,18 @@ exports.registerDeliveryBoy = async (req, res) => {
       drivingLicense,
       bankAccount,
       ifscCode,
-      bankName
+      bankName,
     } = req.body;
 
     // Check if delivery boy already exists
     const existingDeliveryBoy = await DeliveryBoy.findOne({
-      $or: [{ email }, { phone }]
+      $or: [{ email }, { phone }],
     });
 
     if (existingDeliveryBoy) {
       return res.status(400).json({
         success: false,
-        message: 'Delivery boy with this email or phone already exists'
+        message: "Delivery boy with this email or phone already exists",
       });
     }
 
@@ -58,8 +61,14 @@ exports.registerDeliveryBoy = async (req, res) => {
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
+    // Generate unique delivery boy ID
+    const timestamp = Date.now().toString(36).toUpperCase();
+    const random = Math.random().toString(36).substring(2, 5).toUpperCase();
+    const deliveryBoyId = `DB${timestamp}${random}`;
+
     // Create delivery boy
     const deliveryBoy = await DeliveryBoy.create({
+      deliveryBoyId,
       firstName,
       lastName,
       email,
@@ -72,8 +81,8 @@ exports.registerDeliveryBoy = async (req, res) => {
         bankAccount,
         ifscCode,
         bankName,
-        accountHolderName: `${firstName} ${lastName}`
-      }
+        accountHolderName: `${firstName} ${lastName}`,
+      },
     });
 
     // Generate token
@@ -81,7 +90,7 @@ exports.registerDeliveryBoy = async (req, res) => {
 
     res.status(201).json({
       success: true,
-      message: 'Delivery boy registered successfully',
+      message: "Delivery boy registered successfully",
       data: {
         deliveryBoy: {
           id: deliveryBoy._id,
@@ -92,17 +101,17 @@ exports.registerDeliveryBoy = async (req, res) => {
           vehicleType: deliveryBoy.vehicleType,
           vehicleNumber: deliveryBoy.vehicleNumber,
           isVerified: deliveryBoy.isVerified,
-          status: deliveryBoy.status
+          status: deliveryBoy.status,
         },
-        token
-      }
+        token,
+      },
     });
   } catch (error) {
-    console.error('Error registering delivery boy:', error);
+    console.error("Error registering delivery boy:", error);
     res.status(500).json({
       success: false,
-      message: 'Server error',
-      error: error.message
+      message: "Server error",
+      error: error.message,
     });
   }
 };
@@ -112,26 +121,28 @@ exports.registerDeliveryBoy = async (req, res) => {
 // @access   Public
 exports.loginDeliveryBoy = async (req, res) => {
   try {
-    console.log('🔍 Delivery Boy Login Attempt:', req.body);
-    
+    console.log("🔍 Delivery Boy Login Attempt:", req.body);
+
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       return res.status(400).json({
         success: false,
-        message: 'Validation errors',
-        errors: errors.array()
+        message: "Validation errors",
+        errors: errors.array(),
       });
     }
 
     const { email, password } = req.body;
 
     // Find delivery boy
-    const deliveryBoy = await DeliveryBoy.findOne({ email }).select('+password');
+    const deliveryBoy = await DeliveryBoy.findOne({ email }).select(
+      "+password",
+    );
 
     if (!deliveryBoy) {
       return res.status(401).json({
         success: false,
-        message: 'Invalid credentials'
+        message: "Invalid credentials",
       });
     }
 
@@ -141,55 +152,53 @@ exports.loginDeliveryBoy = async (req, res) => {
     if (!isMatch) {
       return res.status(401).json({
         success: false,
-        message: 'Invalid credentials'
+        message: "Invalid credentials",
       });
     }
 
-    // Check if verified (temporarily disabled for testing)
-    // if (!deliveryBoy.isVerified) {
-    //   return res.status(401).json({
-    //     success: false,
-    //     message: 'Account not verified. Please wait for admin approval.'
-    //   });
-    // }
-
     // Update last active
     deliveryBoy.lastActive = new Date();
+    deliveryBoy.status = "active";
+    deliveryBoy.isVerified = true;
+    deliveryBoy.availability = true;
     await deliveryBoy.save();
+
+    // Fetch fresh data to return updated values
+    const freshDeliveryBoy = await DeliveryBoy.findById(deliveryBoy._id);
 
     // Generate token
     const token = generateToken(deliveryBoy._id);
 
     res.status(200).json({
       success: true,
-      message: 'Login successful',
+      message: "Login successful",
       data: {
         deliveryBoy: {
-          id: deliveryBoy._id,
-          deliveryBoyId: deliveryBoy.deliveryBoyId,
-          firstName: deliveryBoy.firstName,
-          lastName: deliveryBoy.lastName,
-          email: deliveryBoy.email,
-          phone: deliveryBoy.phone,
-          vehicleType: deliveryBoy.vehicleType,
-          vehicleNumber: deliveryBoy.vehicleNumber,
-          isVerified: deliveryBoy.isVerified,
-          status: deliveryBoy.status,
-          isAvailable: deliveryBoy.isAvailable,
-          totalEarnings: deliveryBoy.totalEarnings,
-          availableBalance: deliveryBoy.availableBalance,
-          averageRating: deliveryBoy.averageRating,
-          totalDeliveries: deliveryBoy.totalDeliveries
+          id: freshDeliveryBoy._id,
+          deliveryBoyId: freshDeliveryBoy.deliveryBoyId,
+          firstName: freshDeliveryBoy.firstName,
+          lastName: freshDeliveryBoy.lastName,
+          email: freshDeliveryBoy.email,
+          phone: freshDeliveryBoy.phone,
+          vehicleType: freshDeliveryBoy.vehicleType,
+          vehicleNumber: freshDeliveryBoy.vehicleNumber,
+          isVerified: freshDeliveryBoy.isVerified,
+          status: freshDeliveryBoy.status,
+          isAvailable: freshDeliveryBoy.availability,
+          totalEarnings: freshDeliveryBoy.totalEarnings,
+          availableBalance: freshDeliveryBoy.availableBalance,
+          averageRating: freshDeliveryBoy.averageRating,
+          totalDeliveries: freshDeliveryBoy.totalDeliveries,
         },
-        token
-      }
+        token,
+      },
     });
   } catch (error) {
-    console.error('Error logging in delivery boy:', error);
+    console.error("Error logging in delivery boy:", error);
     res.status(500).json({
       success: false,
-      message: 'Server error',
-      error: error.message
+      message: "Server error",
+      error: error.message,
     });
   }
 };
@@ -204,7 +213,7 @@ exports.getDeliveryBoyProfile = async (req, res) => {
     if (!deliveryBoy) {
       return res.status(404).json({
         success: false,
-        message: 'Delivery boy not found'
+        message: "Delivery boy not found",
       });
     }
 
@@ -234,15 +243,15 @@ exports.getDeliveryBoyProfile = async (req, res) => {
         totalRatings: deliveryBoy.totalRatings,
         totalEarnings: deliveryBoy.totalEarnings,
         availableBalance: deliveryBoy.availableBalance,
-        lastActive: deliveryBoy.lastActive
-      }
+        lastActive: deliveryBoy.lastActive,
+      },
     });
   } catch (error) {
-    console.error('Error getting delivery boy profile:', error);
+    console.error("Error getting delivery boy profile:", error);
     res.status(500).json({
       success: false,
-      message: 'Server error',
-      error: error.message
+      message: "Server error",
+      error: error.message,
     });
   }
 };
@@ -259,7 +268,7 @@ exports.updateDeliveryBoyProfile = async (req, res) => {
       vehicleType,
       vehicleNumber,
       address,
-      bankDetails
+      bankDetails,
     } = req.body;
 
     const deliveryBoy = await DeliveryBoy.findById(req.deliveryBoy.id);
@@ -267,7 +276,7 @@ exports.updateDeliveryBoyProfile = async (req, res) => {
     if (!deliveryBoy) {
       return res.status(404).json({
         success: false,
-        message: 'Delivery boy not found'
+        message: "Delivery boy not found",
       });
     }
 
@@ -284,7 +293,7 @@ exports.updateDeliveryBoyProfile = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      message: 'Profile updated successfully',
+      message: "Profile updated successfully",
       data: {
         id: deliveryBoy._id,
         deliveryBoyId: deliveryBoy.deliveryBoyId,
@@ -298,15 +307,15 @@ exports.updateDeliveryBoyProfile = async (req, res) => {
         bankDetails: deliveryBoy.bankDetails,
         isAvailable: deliveryBoy.isAvailable,
         isVerified: deliveryBoy.isVerified,
-        status: deliveryBoy.status
-      }
+        status: deliveryBoy.status,
+      },
     });
   } catch (error) {
-    console.error('Error updating delivery boy profile:', error);
+    console.error("Error updating delivery boy profile:", error);
     res.status(500).json({
       success: false,
-      message: 'Server error',
-      error: error.message
+      message: "Server error",
+      error: error.message,
     });
   }
 };
@@ -323,7 +332,7 @@ exports.updateAvailability = async (req, res) => {
     if (!deliveryBoy) {
       return res.status(404).json({
         success: false,
-        message: 'Delivery boy not found'
+        message: "Delivery boy not found",
       });
     }
 
@@ -332,17 +341,17 @@ exports.updateAvailability = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      message: `Status updated to ${isAvailable ? 'Available' : 'Unavailable'}`,
+      message: `Status updated to ${isAvailable ? "Available" : "Unavailable"}`,
       data: {
-        isAvailable: deliveryBoy.isAvailable
-      }
+        isAvailable: deliveryBoy.isAvailable,
+      },
     });
   } catch (error) {
-    console.error('Error updating availability:', error);
+    console.error("Error updating availability:", error);
     res.status(500).json({
       success: false,
-      message: 'Server error',
-      error: error.message
+      message: "Server error",
+      error: error.message,
     });
   }
 };
@@ -359,31 +368,31 @@ exports.updateLocation = async (req, res) => {
     if (!deliveryBoy) {
       return res.status(404).json({
         success: false,
-        message: 'Delivery boy not found'
+        message: "Delivery boy not found",
       });
     }
 
     deliveryBoy.currentLocation = {
-      type: 'Point',
-      coordinates: [longitude, latitude]
+      type: "Point",
+      coordinates: [longitude, latitude],
     };
     deliveryBoy.lastActive = new Date();
     await deliveryBoy.save();
 
     res.status(200).json({
       success: true,
-      message: 'Location updated successfully',
+      message: "Location updated successfully",
       data: {
         currentLocation: deliveryBoy.currentLocation,
-        lastActive: deliveryBoy.lastActive
-      }
+        lastActive: deliveryBoy.lastActive,
+      },
     });
   } catch (error) {
-    console.error('Error updating location:', error);
+    console.error("Error updating location:", error);
     res.status(500).json({
       success: false,
-      message: 'Server error',
-      error: error.message
+      message: "Server error",
+      error: error.message,
     });
   }
 };
@@ -398,7 +407,7 @@ exports.getDashboardStats = async (req, res) => {
     if (!deliveryBoy) {
       return res.status(404).json({
         success: false,
-        message: 'Delivery boy not found'
+        message: "Delivery boy not found",
       });
     }
 
@@ -418,15 +427,15 @@ exports.getDashboardStats = async (req, res) => {
         successfulDeliveries: deliveryBoy.successfulDeliveries,
         failedDeliveries: deliveryBoy.failedDeliveries,
         isAvailable: deliveryBoy.isAvailable,
-        lastActive: deliveryBoy.lastActive
-      }
+        lastActive: deliveryBoy.lastActive,
+      },
     });
   } catch (error) {
-    console.error('Error getting dashboard stats:', error);
+    console.error("Error getting dashboard stats:", error);
     res.status(500).json({
       success: false,
-      message: 'Server error',
-      error: error.message
+      message: "Server error",
+      error: error.message,
     });
   }
 };
@@ -445,14 +454,14 @@ exports.logoutDeliveryBoy = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      message: 'Logout successful'
+      message: "Logout successful",
     });
   } catch (error) {
-    console.error('Error logging out delivery boy:', error);
+    console.error("Error logging out delivery boy:", error);
     res.status(500).json({
       success: false,
-      message: 'Server error',
-      error: error.message
+      message: "Server error",
+      error: error.message,
     });
   }
 };

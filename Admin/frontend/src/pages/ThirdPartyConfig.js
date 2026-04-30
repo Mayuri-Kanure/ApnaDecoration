@@ -70,11 +70,11 @@ function ThirdPartyConfig() {
   const [appleKeyFile, setAppleKeyFile] = useState(null);
 
   // Google Login State
-  const [googleCallbackUri, setGoogleCallbackUri] = useState('https://www.printformee.com/auth/google/callback');
+  const [googleCallbackUri, setGoogleCallbackUri] = useState('https://www.apnadecoration.com/auth/google/callback');
   const [googleClientSecret, setGoogleClientSecret] = useState('');
 
   // Facebook Login State
-  const [facebookCallbackUri, setFacebookCallbackUri] = useState('https://www.printformee.com/auth/facebook/callback');
+  const [facebookCallbackUri, setFacebookCallbackUri] = useState('https://www.apnadecoration.com/auth/facebook/callback');
   const [facebookClientSecret, setFacebookClientSecret] = useState('');
 
   // Mail Config State
@@ -84,12 +84,12 @@ function ThirdPartyConfig() {
 
   // SMTP Mail Config State
   const [smtpMailerName, setSmtpMailerName] = useState('demo');
-  const [smtpHost, setSmtpHost] = useState('mail.printformee.com');
+  const [smtpHost, setSmtpHost] = useState('mail.apnadecoration.com');
   const [smtpPort, setSmtpPort] = useState('465');
-  const [smtpEmailId, setSmtpEmailId] = useState('inquery@printformee.com');
+  const [smtpEmailId, setSmtpEmailId] = useState('inquery@apnadecoration.com');
   const [smtpPassword, setSmtpPassword] = useState('');
   const [smtpDriver, setSmtpDriver] = useState('SMTP');
-  const [smtpUsername, setSmtpUsername] = useState('inquery@printformee.com');
+  const [smtpUsername, setSmtpUsername] = useState('inquery@apnadecoration.com');
   const [smtpEncryption, setSmtpEncryption] = useState('TLS');
   const [showSmtpPassword, setShowSmtpPassword] = useState(false);
 
@@ -103,7 +103,7 @@ function ThirdPartyConfig() {
 
   // Send Test Mail State
   const [testEmail, setTestEmail] = useState('');
-  const [testSubject, setTestSubject] = useState('Test Email from PrintForMee');
+  const [testSubject, setTestSubject] = useState('Test Email from APNADECORATION');
   const [testMessage, setTestMessage] = useState('This is a test email to verify your mail configuration is working correctly.');
   const [isSendingTestMail, setIsSendingTestMail] = useState(false);
 

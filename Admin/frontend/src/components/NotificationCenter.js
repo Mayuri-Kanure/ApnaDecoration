@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from "react";
 import {
   Badge,
   IconButton,
@@ -14,8 +14,8 @@ import {
   ListItem,
   ListItemText,
   ListItemIcon,
-  Tooltip
-} from '@mui/material';
+  Tooltip,
+} from "@mui/material";
 import {
   Notifications as NotificationsIcon,
   Check as CheckIcon,
@@ -23,11 +23,12 @@ import {
   Business as BusinessIcon,
   ShoppingCart as CartIcon,
   Warning as WarningIcon,
-  Info as InfoIcon
-} from '@mui/icons-material';
-import axios from 'axios';
+  Info as InfoIcon,
+} from "@mui/icons-material";
+import axios from "axios";
 
-const API_BASE_URL = 'http://localhost:5000/api';
+const API_BASE_URL =
+  process.env.REACT_APP_API_URL || "https://admin-api.apnadecoration.com/api";
 
 function NotificationCenter() {
   const [notifications, setNotifications] = useState([]);
@@ -38,7 +39,7 @@ function NotificationCenter() {
   useEffect(() => {
     fetchNotifications();
     fetchUnreadCount();
-    
+
     // Poll for new notifications every 30 seconds
     const interval = setInterval(() => {
       fetchUnreadCount();
@@ -49,25 +50,31 @@ function NotificationCenter() {
 
   const fetchNotifications = async () => {
     try {
-      const token = localStorage.getItem('token');
-      const response = await axios.get(`${API_BASE_URL}/notifications?limit=10`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const token = localStorage.getItem("token");
+      const response = await axios.get(
+        `${API_BASE_URL}/notifications?limit=10`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        },
+      );
       setNotifications(response.data.notifications || []);
     } catch (error) {
-      console.error('Error fetching notifications:', error);
+      console.error("Error fetching notifications:", error);
     }
   };
 
   const fetchUnreadCount = async () => {
     try {
-      const token = localStorage.getItem('token');
-      const response = await axios.get(`${API_BASE_URL}/notifications/unread-count`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const token = localStorage.getItem("token");
+      const response = await axios.get(
+        `${API_BASE_URL}/notifications/unread-count`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        },
+      );
       setUnreadCount(response.data.unreadCount || 0);
     } catch (error) {
-      console.error('Error fetching unread count:', error);
+      console.error("Error fetching unread count:", error);
     }
   };
 
@@ -82,38 +89,46 @@ function NotificationCenter() {
 
   const markAsRead = async (notificationId) => {
     try {
-      const token = localStorage.getItem('token');
-      await axios.put(`${API_BASE_URL}/notifications/${notificationId}/read`, {}, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      
-      // Update local state
-      setNotifications(prev => 
-        prev.map(notif => 
-          notif._id === notificationId ? { ...notif, read: true } : notif
-        )
+      const token = localStorage.getItem("token");
+      await axios.put(
+        `${API_BASE_URL}/notifications/${notificationId}/read`,
+        {},
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        },
       );
-      setUnreadCount(prev => Math.max(0, prev - 1));
+
+      // Update local state
+      setNotifications((prev) =>
+        prev.map((notif) =>
+          notif._id === notificationId ? { ...notif, read: true } : notif,
+        ),
+      );
+      setUnreadCount((prev) => Math.max(0, prev - 1));
     } catch (error) {
-      console.error('Error marking notification as read:', error);
+      console.error("Error marking notification as read:", error);
     }
   };
 
   const markAllAsRead = async () => {
     try {
       setLoading(true);
-      const token = localStorage.getItem('token');
-      await axios.put(`${API_BASE_URL}/notifications/mark-all-read`, {}, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      
+      const token = localStorage.getItem("token");
+      await axios.put(
+        `${API_BASE_URL}/notifications/mark-all-read`,
+        {},
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        },
+      );
+
       // Update local state
-      setNotifications(prev => 
-        prev.map(notif => ({ ...notif, read: true }))
+      setNotifications((prev) =>
+        prev.map((notif) => ({ ...notif, read: true })),
       );
       setUnreadCount(0);
     } catch (error) {
-      console.error('Error marking all notifications as read:', error);
+      console.error("Error marking all notifications as read:", error);
     } finally {
       setLoading(false);
     }
@@ -121,23 +136,23 @@ function NotificationCenter() {
 
   const getNotificationIcon = (type) => {
     const icons = {
-      'product_approved': <CheckIcon color="success" />,
-      'product_denied': <WarningIcon color="error" />,
-      'product_needs_changes': <InfoIcon color="warning" />,
-      'order_update': <CartIcon color="info" />,
-      'system': <BusinessIcon color="default" />
+      product_approved: <CheckIcon color="success" />,
+      product_denied: <WarningIcon color="error" />,
+      product_needs_changes: <InfoIcon color="warning" />,
+      order_update: <CartIcon color="info" />,
+      system: <BusinessIcon color="default" />,
     };
     return icons[type] || <InfoIcon color="default" />;
   };
 
   const getNotificationColor = (priority) => {
     const colors = {
-      'urgent': 'error',
-      'high': 'warning',
-      'medium': 'info',
-      'low': 'default'
+      urgent: "error",
+      high: "warning",
+      medium: "info",
+      low: "default",
     };
-    return colors[priority] || 'default';
+    return colors[priority] || "default";
   };
 
   const formatTime = (dateString) => {
@@ -148,7 +163,7 @@ function NotificationCenter() {
     const diffHours = Math.floor(diffMs / 3600000);
     const diffDays = Math.floor(diffMs / 86400000);
 
-    if (diffMins < 1) return 'Just now';
+    if (diffMins < 1) return "Just now";
     if (diffMins < 60) return `${diffMins}m ago`;
     if (diffHours < 24) return `${diffHours}h ago`;
     if (diffDays < 7) return `${diffDays}d ago`;
@@ -161,7 +176,7 @@ function NotificationCenter() {
         <IconButton
           color="inherit"
           onClick={handleMenuOpen}
-          sx={{ position: 'relative' }}
+          sx={{ position: "relative" }}
         >
           <Badge badgeContent={unreadCount} color="error" max={99}>
             <NotificationsIcon />
@@ -178,12 +193,19 @@ function NotificationCenter() {
             width: 360,
             maxHeight: 480,
             mt: 1,
-            boxShadow: '0 4px 20px rgba(0,0,0,0.15)'
-          }
+            boxShadow: "0 4px 20px rgba(0,0,0,0.15)",
+          },
         }}
       >
         {/* Header */}
-        <Box sx={{ p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <Box
+          sx={{
+            p: 2,
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+          }}
+        >
           <Typography variant="h6" sx={{ fontWeight: 600 }}>
             Notifications
           </Typography>
@@ -193,7 +215,7 @@ function NotificationCenter() {
               onClick={markAllAsRead}
               disabled={loading}
               startIcon={<DoneAllIcon />}
-              sx={{ textTransform: 'none' }}
+              sx={{ textTransform: "none" }}
             >
               Mark all read
             </Button>
@@ -204,49 +226,59 @@ function NotificationCenter() {
 
         {/* Notifications List */}
         {notifications.length === 0 ? (
-          <Box sx={{ p: 3, textAlign: 'center' }}>
-            <Typography variant="body2" sx={{ color: '#666' }}>
+          <Box sx={{ p: 3, textAlign: "center" }}>
+            <Typography variant="body2" sx={{ color: "#666" }}>
               No notifications yet
             </Typography>
           </Box>
         ) : (
-          <List sx={{ maxHeight: 320, overflow: 'auto' }}>
+          <List sx={{ maxHeight: 320, overflow: "auto" }}>
             {notifications.map((notification) => (
               <MenuItem
                 key={notification._id}
                 sx={{
                   py: 1.5,
                   px: 2,
-                  backgroundColor: notification.read ? 'transparent' : '#f8fafc',
-                  borderLeft: notification.read ? 'none' : '3px solid #1976d2',
-                  '&:hover': { backgroundColor: '#f5f5f5' }
+                  backgroundColor: notification.read
+                    ? "transparent"
+                    : "#f8fafc",
+                  borderLeft: notification.read ? "none" : "3px solid #1976d2",
+                  "&:hover": { backgroundColor: "#f5f5f5" },
                 }}
-                onClick={() => !notification.read && markAsRead(notification._id)}
+                onClick={() =>
+                  !notification.read && markAsRead(notification._id)
+                }
               >
                 <ListItemIcon sx={{ minWidth: 40 }}>
                   {getNotificationIcon(notification.type)}
                 </ListItemIcon>
-                
+
                 <ListItemText
                   primary={
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <Typography variant="body2" sx={{ fontWeight: notification.read ? 400 : 600 }}>
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                      <Typography
+                        variant="body2"
+                        sx={{ fontWeight: notification.read ? 400 : 600 }}
+                      >
                         {notification.title}
                       </Typography>
                       <Chip
                         label={notification.priority}
                         size="small"
                         color={getNotificationColor(notification.priority)}
-                        sx={{ fontSize: '0.65rem', height: 18 }}
+                        sx={{ fontSize: "0.65rem", height: 18 }}
                       />
                     </Box>
                   }
                   secondary={
                     <Box>
-                      <Typography variant="caption" sx={{ display: 'block', color: '#666' }}>
+                      <Typography
+                        variant="caption"
+                        sx={{ display: "block", color: "#666" }}
+                      >
                         {notification.message}
                       </Typography>
-                      <Typography variant="caption" sx={{ color: '#999' }}>
+                      <Typography variant="caption" sx={{ color: "#999" }}>
                         {formatTime(notification.createdAt)}
                       </Typography>
                     </Box>
@@ -260,11 +292,11 @@ function NotificationCenter() {
         {notifications.length > 0 && (
           <>
             <Divider />
-            <Box sx={{ p: 1, textAlign: 'center' }}>
+            <Box sx={{ p: 1, textAlign: "center" }}>
               <Button
                 size="small"
                 onClick={handleMenuClose}
-                sx={{ textTransform: 'none', color: '#1976d2' }}
+                sx={{ textTransform: "none", color: "#1976d2" }}
               >
                 View all notifications
               </Button>

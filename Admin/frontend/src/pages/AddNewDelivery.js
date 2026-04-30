@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
-import axios from 'axios';
+import React, { useState } from "react";
+import axios from "axios";
+import { API_BASE_URL } from "../config/api";
 import {
   Box,
   Card,
@@ -15,55 +16,59 @@ import {
   IconButton,
   InputAdornment,
   Snackbar,
-  Alert
-} from '@mui/material';
+  Alert,
+} from "@mui/material";
 import {
   Visibility as VisibilityIcon,
   VisibilityOff as VisibilityOffIcon,
   Person as PersonIcon,
   Upload as UploadIcon,
-  Info as InfoIcon
-} from '@mui/icons-material';
+  Info as InfoIcon,
+} from "@mui/icons-material";
 
 function AddNewDelivery() {
   const [formData, setFormData] = useState({
     // General Information
-    firstName: '',
-    lastName: '',
-    phone: '',
-    countryCode: '+1',
-    address: '',
-    identityType: 'passport',
-    identityNumber: '',
+    firstName: "",
+    lastName: "",
+    phone: "",
+    countryCode: "+1",
+    address: "",
+    identityType: "passport",
+    identityNumber: "",
     deliverymanImage: null,
     deliverymanImagePreview: null,
     identityImage: null,
     identityImagePreview: null,
-    
+
     // Account Information
-    email: '',
-    password: '',
-    confirmPassword: '',
+    email: "",
+    password: "",
+    confirmPassword: "",
     showPassword: false,
-    showConfirmPassword: false
+    showConfirmPassword: false,
   });
 
-  const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
+  const [snackbar, setSnackbar] = useState({
+    open: false,
+    message: "",
+    severity: "success",
+  });
 
   const countryCodes = [
-    { code: '+1', country: 'USA' },
-    { code: '+44', country: 'UK' },
-    { code: '+91', country: 'India' },
-    { code: '+61', country: 'Australia' },
-    { code: '+86', country: 'China' },
-    { code: '+81', country: 'Japan' }
+    { code: "+1", country: "USA" },
+    { code: "+44", country: "UK" },
+    { code: "+91", country: "India" },
+    { code: "+61", country: "Australia" },
+    { code: "+86", country: "China" },
+    { code: "+81", country: "Japan" },
   ];
 
   const identityTypes = [
-    { value: 'passport', label: 'Passport' },
-    { value: 'driver_license', label: 'Driver License' },
-    { value: 'national_id', label: 'National ID' },
-    { value: 'voter_id', label: 'Voter ID' }
+    { value: "passport", label: "Passport" },
+    { value: "driver_license", label: "Driver License" },
+    { value: "national_id", label: "National ID" },
+    { value: "voter_id", label: "Voter ID" },
   ];
 
   const handleInputChange = (field) => (e) => {
@@ -78,7 +83,7 @@ function AddNewDelivery() {
         setFormData({
           ...formData,
           [field]: file,
-          [previewField]: reader.result
+          [previewField]: reader.result,
         });
       };
       reader.readAsDataURL(file);
@@ -88,116 +93,149 @@ function AddNewDelivery() {
   const togglePasswordVisibility = (field) => {
     setFormData({
       ...formData,
-      [field]: !formData[field]
+      [field]: !formData[field],
     });
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     // Validation
-    if (!formData.firstName || !formData.lastName || !formData.email || !formData.password) {
-      setSnackbar({ open: true, message: 'Please fill all required fields', severity: 'error' });
+    if (
+      !formData.firstName ||
+      !formData.lastName ||
+      !formData.email ||
+      !formData.password
+    ) {
+      setSnackbar({
+        open: true,
+        message: "Please fill all required fields",
+        severity: "error",
+      });
       return;
     }
 
     if (formData.password.length < 8) {
-      setSnackbar({ open: true, message: 'Password must be at least 8 characters', severity: 'error' });
+      setSnackbar({
+        open: true,
+        message: "Password must be at least 8 characters",
+        severity: "error",
+      });
       return;
     }
 
     if (formData.password !== formData.confirmPassword) {
-      setSnackbar({ open: true, message: 'Passwords do not match', severity: 'error' });
+      setSnackbar({
+        open: true,
+        message: "Passwords do not match",
+        severity: "error",
+      });
       return;
     }
 
     try {
-      const token = localStorage.getItem('token');
-      
+      const token = localStorage.getItem("token");
+
       // Create FormData for file uploads
       const deliveryFormData = new FormData();
-      deliveryFormData.append('firstName', formData.firstName);
-      deliveryFormData.append('lastName', formData.lastName);
-      deliveryFormData.append('phone', formData.phone);
-      deliveryFormData.append('countryCode', formData.countryCode);
-      deliveryFormData.append('address', formData.address);
-      deliveryFormData.append('identityType', formData.identityType);
-      deliveryFormData.append('identityNumber', formData.identityNumber);
-      deliveryFormData.append('email', formData.email);
-      deliveryFormData.append('password', formData.password);
-      
+      deliveryFormData.append("firstName", formData.firstName);
+      deliveryFormData.append("lastName", formData.lastName);
+      deliveryFormData.append("phone", formData.phone);
+      deliveryFormData.append("countryCode", formData.countryCode);
+      deliveryFormData.append("address", formData.address);
+      deliveryFormData.append("identityType", formData.identityType);
+      deliveryFormData.append("identityNumber", formData.identityNumber);
+      deliveryFormData.append("email", formData.email);
+      deliveryFormData.append("password", formData.password);
+
       if (formData.deliverymanImage) {
-        deliveryFormData.append('deliverymanImage', formData.deliverymanImage);
-      }
-      
-      if (formData.identityImage) {
-        deliveryFormData.append('identityImage', formData.identityImage);
+        deliveryFormData.append("deliverymanImage", formData.deliverymanImage);
       }
 
-      const response = await axios.post('http://localhost:5000/api/deliverymen', deliveryFormData, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'multipart/form-data'
-        }
+      if (formData.identityImage) {
+        deliveryFormData.append("identityImage", formData.identityImage);
+      }
+
+      const response = await axios.post(
+        `${API_BASE_URL}/deliverymen`,
+        deliveryFormData,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "multipart/form-data",
+          },
+        },
+      );
+
+      setSnackbar({
+        open: true,
+        message: "Delivery man added successfully",
+        severity: "success",
       });
-      
-      setSnackbar({ open: true, message: 'Delivery man added successfully', severity: 'success' });
-      
+
       // Reset form after success
       handleReset();
-      
+
       // Navigate back after success
       setTimeout(() => {
         window.history.back();
       }, 1500);
-      
     } catch (error) {
-      console.error('Error creating delivery man:', error);
-      setSnackbar({ 
-        open: true, 
-        message: error.response?.data?.message || 'Error creating delivery man', 
-        severity: 'error' 
+      console.error("Error creating delivery man:", error);
+      setSnackbar({
+        open: true,
+        message: error.response?.data?.message || "Error creating delivery man",
+        severity: "error",
       });
     }
   };
 
   const handleReset = () => {
     setFormData({
-      firstName: '',
-      lastName: '',
-      phone: '',
-      countryCode: '+1',
-      address: '',
-      identityType: 'passport',
-      identityNumber: '',
+      firstName: "",
+      lastName: "",
+      phone: "",
+      countryCode: "+1",
+      address: "",
+      identityType: "passport",
+      identityNumber: "",
       deliverymanImage: null,
       deliverymanImagePreview: null,
       identityImage: null,
       identityImagePreview: null,
-      email: '',
-      password: '',
-      confirmPassword: '',
+      email: "",
+      password: "",
+      confirmPassword: "",
       showPassword: false,
-      showConfirmPassword: false
+      showConfirmPassword: false,
     });
   };
 
   return (
-    <Box sx={{ p: 3, backgroundColor: '#F5F5F5', minHeight: '100vh' }}>
+    <Box sx={{ p: 3, backgroundColor: "#F5F5F5", minHeight: "100vh" }}>
       {/* Page Header */}
       <Box sx={{ mb: 3 }}>
-        <Typography variant="h4" sx={{ fontWeight: 600, color: '#2C3E50' }}>
+        <Typography variant="h4" sx={{ fontWeight: 600, color: "#2C3E50" }}>
           Add New Delivery Man
         </Typography>
       </Box>
 
       <form onSubmit={handleSubmit}>
         {/* General Information Section */}
-        <Card sx={{ mb: 3, borderRadius: 2, boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
+        <Card
+          sx={{
+            mb: 3,
+            borderRadius: 2,
+            boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
+          }}
+        >
           <CardContent sx={{ p: 3 }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 3 }}>
-              <PersonIcon sx={{ color: '#1976D2' }} />
-              <Typography variant="h6" sx={{ fontWeight: 600, color: '#424242' }}>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 3 }}>
+              <PersonIcon sx={{ color: "#1976D2" }} />
+              <Typography
+                variant="h6"
+                sx={{ fontWeight: 600, color: "#424242" }}
+              >
                 General Information
               </Typography>
             </Box>
@@ -208,13 +246,13 @@ function AddNewDelivery() {
                   fullWidth
                   label="First Name"
                   value={formData.firstName}
-                  onChange={handleInputChange('firstName')}
+                  onChange={handleInputChange("firstName")}
                   required
                   sx={{
-                    '& .MuiOutlinedInput-root': {
+                    "& .MuiOutlinedInput-root": {
                       borderRadius: 2,
-                      backgroundColor: '#FAFAFA'
-                    }
+                      backgroundColor: "#FAFAFA",
+                    },
                   }}
                 />
               </Grid>
@@ -224,26 +262,26 @@ function AddNewDelivery() {
                   fullWidth
                   label="Last Name"
                   value={formData.lastName}
-                  onChange={handleInputChange('lastName')}
+                  onChange={handleInputChange("lastName")}
                   required
                   sx={{
-                    '& .MuiOutlinedInput-root': {
+                    "& .MuiOutlinedInput-root": {
                       borderRadius: 2,
-                      backgroundColor: '#FAFAFA'
-                    }
+                      backgroundColor: "#FAFAFA",
+                    },
                   }}
                 />
               </Grid>
 
               <Grid item xs={12} md={6}>
-                <Box sx={{ display: 'flex', gap: 1 }}>
+                <Box sx={{ display: "flex", gap: 1 }}>
                   <FormControl sx={{ minWidth: 100 }}>
                     <Select
                       value={formData.countryCode}
-                      onChange={handleInputChange('countryCode')}
+                      onChange={handleInputChange("countryCode")}
                       sx={{
                         borderRadius: 2,
-                        backgroundColor: '#FAFAFA'
+                        backgroundColor: "#FAFAFA",
                       }}
                     >
                       {countryCodes.map((country) => (
@@ -257,13 +295,13 @@ function AddNewDelivery() {
                     fullWidth
                     label="Phone Number"
                     value={formData.phone}
-                    onChange={handleInputChange('phone')}
+                    onChange={handleInputChange("phone")}
                     required
                     sx={{
-                      '& .MuiOutlinedInput-root': {
+                      "& .MuiOutlinedInput-root": {
                         borderRadius: 2,
-                        backgroundColor: '#FAFAFA'
-                      }
+                        backgroundColor: "#FAFAFA",
+                      },
                     }}
                   />
                 </Box>
@@ -274,14 +312,14 @@ function AddNewDelivery() {
                   fullWidth
                   label="Address"
                   value={formData.address}
-                  onChange={handleInputChange('address')}
+                  onChange={handleInputChange("address")}
                   multiline
                   rows={2}
                   sx={{
-                    '& .MuiOutlinedInput-root': {
+                    "& .MuiOutlinedInput-root": {
                       borderRadius: 2,
-                      backgroundColor: '#FAFAFA'
-                    }
+                      backgroundColor: "#FAFAFA",
+                    },
                   }}
                 />
               </Grid>
@@ -291,11 +329,11 @@ function AddNewDelivery() {
                   <InputLabel>Identity Type</InputLabel>
                   <Select
                     value={formData.identityType}
-                    onChange={handleInputChange('identityType')}
+                    onChange={handleInputChange("identityType")}
                     label="Identity Type"
                     sx={{
                       borderRadius: 2,
-                      backgroundColor: '#FAFAFA'
+                      backgroundColor: "#FAFAFA",
                     }}
                   >
                     {identityTypes.map((type) => (
@@ -312,51 +350,64 @@ function AddNewDelivery() {
                   fullWidth
                   label="Identity Number"
                   value={formData.identityNumber}
-                  onChange={handleInputChange('identityNumber')}
+                  onChange={handleInputChange("identityNumber")}
                   required
                   sx={{
-                    '& .MuiOutlinedInput-root': {
+                    "& .MuiOutlinedInput-root": {
                       borderRadius: 2,
-                      backgroundColor: '#FAFAFA'
-                    }
+                      backgroundColor: "#FAFAFA",
+                    },
                   }}
                 />
               </Grid>
 
               <Grid item xs={12} md={6}>
-                <Box sx={{ textAlign: 'center' }}>
+                <Box sx={{ textAlign: "center" }}>
                   <Typography variant="body2" sx={{ mb: 1, fontWeight: 500 }}>
                     Deliveryman Image
                   </Typography>
-                  <Typography variant="caption" color="#666" sx={{ mb: 1, display: 'block' }}>
+                  <Typography
+                    variant="caption"
+                    color="#666"
+                    sx={{ mb: 1, display: "block" }}
+                  >
                     Ratio 1:1
                   </Typography>
                   <Box
                     sx={{
                       width: 150,
                       height: 150,
-                      border: '2px dashed #ddd',
+                      border: "2px dashed #ddd",
                       borderRadius: 2,
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      mx: 'auto',
-                      cursor: 'pointer',
-                      backgroundColor: '#FAFAFA',
-                      '&:hover': { backgroundColor: '#F0F0F0' }
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      mx: "auto",
+                      cursor: "pointer",
+                      backgroundColor: "#FAFAFA",
+                      "&:hover": { backgroundColor: "#F0F0F0" },
                     }}
-                    onClick={() => document.getElementById('deliveryman-image').click()}
+                    onClick={() =>
+                      document.getElementById("deliveryman-image").click()
+                    }
                   >
                     {formData.deliverymanImagePreview ? (
                       <img
                         src={formData.deliverymanImagePreview}
                         alt="Deliveryman"
-                        style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 1 }}
+                        style={{
+                          width: "100%",
+                          height: "100%",
+                          objectFit: "cover",
+                          borderRadius: 1,
+                        }}
                       />
                     ) : (
                       <>
-                        <UploadIcon sx={{ fontSize: 40, color: '#999', mb: 1 }} />
+                        <UploadIcon
+                          sx={{ fontSize: 40, color: "#999", mb: 1 }}
+                        />
                         <Typography variant="body2" color="#666">
                           Browse
                         </Typography>
@@ -367,14 +418,17 @@ function AddNewDelivery() {
                     id="deliveryman-image"
                     type="file"
                     accept="image/*"
-                    onChange={handleImageUpload('deliverymanImage', 'deliverymanImagePreview')}
-                    style={{ display: 'none' }}
+                    onChange={handleImageUpload(
+                      "deliverymanImage",
+                      "deliverymanImagePreview",
+                    )}
+                    style={{ display: "none" }}
                   />
                 </Box>
               </Grid>
 
               <Grid item xs={12} md={6}>
-                <Box sx={{ textAlign: 'center' }}>
+                <Box sx={{ textAlign: "center" }}>
                   <Typography variant="body2" sx={{ mb: 1, fontWeight: 500 }}>
                     Identity Image
                   </Typography>
@@ -382,28 +436,37 @@ function AddNewDelivery() {
                     sx={{
                       width: 150,
                       height: 150,
-                      border: '2px dashed #ddd',
+                      border: "2px dashed #ddd",
                       borderRadius: 2,
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      mx: 'auto',
-                      cursor: 'pointer',
-                      backgroundColor: '#FAFAFA',
-                      '&:hover': { backgroundColor: '#F0F0F0' }
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      mx: "auto",
+                      cursor: "pointer",
+                      backgroundColor: "#FAFAFA",
+                      "&:hover": { backgroundColor: "#F0F0F0" },
                     }}
-                    onClick={() => document.getElementById('identity-image').click()}
+                    onClick={() =>
+                      document.getElementById("identity-image").click()
+                    }
                   >
                     {formData.identityImagePreview ? (
                       <img
                         src={formData.identityImagePreview}
                         alt="Identity"
-                        style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 1 }}
+                        style={{
+                          width: "100%",
+                          height: "100%",
+                          objectFit: "cover",
+                          borderRadius: 1,
+                        }}
                       />
                     ) : (
                       <>
-                        <UploadIcon sx={{ fontSize: 40, color: '#999', mb: 1 }} />
+                        <UploadIcon
+                          sx={{ fontSize: 40, color: "#999", mb: 1 }}
+                        />
                         <Typography variant="body2" color="#666">
                           Browse
                         </Typography>
@@ -414,8 +477,11 @@ function AddNewDelivery() {
                     id="identity-image"
                     type="file"
                     accept="image/*"
-                    onChange={handleImageUpload('identityImage', 'identityImagePreview')}
-                    style={{ display: 'none' }}
+                    onChange={handleImageUpload(
+                      "identityImage",
+                      "identityImagePreview",
+                    )}
+                    style={{ display: "none" }}
                   />
                 </Box>
               </Grid>
@@ -424,11 +490,20 @@ function AddNewDelivery() {
         </Card>
 
         {/* Account Information Section */}
-        <Card sx={{ mb: 3, borderRadius: 2, boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
+        <Card
+          sx={{
+            mb: 3,
+            borderRadius: 2,
+            boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
+          }}
+        >
           <CardContent sx={{ p: 3 }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 3 }}>
-              <PersonIcon sx={{ color: '#1976D2' }} />
-              <Typography variant="h6" sx={{ fontWeight: 600, color: '#424242' }}>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 3 }}>
+              <PersonIcon sx={{ color: "#1976D2" }} />
+              <Typography
+                variant="h6"
+                sx={{ fontWeight: 600, color: "#424242" }}
+              >
                 Account Information
               </Typography>
             </Box>
@@ -440,13 +515,14 @@ function AddNewDelivery() {
                   label="Email"
                   type="email"
                   value={formData.email}
-                  onChange={handleInputChange('email')}
+                  onChange={handleInputChange("email")}
+                  autoComplete="email"
                   required
                   sx={{
-                    '& .MuiOutlinedInput-root': {
+                    "& .MuiOutlinedInput-root": {
                       borderRadius: 2,
-                      backgroundColor: '#FAFAFA'
-                    }
+                      backgroundColor: "#FAFAFA",
+                    },
                   }}
                 />
               </Grid>
@@ -455,31 +531,37 @@ function AddNewDelivery() {
                 <TextField
                   fullWidth
                   label="Password"
-                  type={formData.showPassword ? 'text' : 'password'}
+                  type={formData.showPassword ? "text" : "password"}
                   value={formData.password}
-                  onChange={handleInputChange('password')}
+                  onChange={handleInputChange("password")}
                   required
                   placeholder="Password minimum 8 characters"
                   InputProps={{
                     endAdornment: (
                       <InputAdornment position="end">
                         <IconButton
-                          onClick={() => togglePasswordVisibility('showPassword')}
+                          onClick={() =>
+                            togglePasswordVisibility("showPassword")
+                          }
                           edge="end"
                         >
-                          {formData.showPassword ? <VisibilityOffIcon /> : <VisibilityIcon />}
+                          {formData.showPassword ? (
+                            <VisibilityOffIcon />
+                          ) : (
+                            <VisibilityIcon />
+                          )}
                         </IconButton>
                         <IconButton edge="end">
-                          <InfoIcon sx={{ fontSize: 20, color: '#999' }} />
+                          <InfoIcon sx={{ fontSize: 20, color: "#999" }} />
                         </IconButton>
                       </InputAdornment>
-                    )
+                    ),
                   }}
                   sx={{
-                    '& .MuiOutlinedInput-root': {
+                    "& .MuiOutlinedInput-root": {
                       borderRadius: 2,
-                      backgroundColor: '#FAFAFA'
-                    }
+                      backgroundColor: "#FAFAFA",
+                    },
                   }}
                 />
               </Grid>
@@ -488,27 +570,33 @@ function AddNewDelivery() {
                 <TextField
                   fullWidth
                   label="Confirm Password"
-                  type={formData.showConfirmPassword ? 'text' : 'password'}
+                  type={formData.showConfirmPassword ? "text" : "password"}
                   value={formData.confirmPassword}
-                  onChange={handleInputChange('confirmPassword')}
+                  onChange={handleInputChange("confirmPassword")}
                   required
                   InputProps={{
                     endAdornment: (
                       <InputAdornment position="end">
                         <IconButton
-                          onClick={() => togglePasswordVisibility('showConfirmPassword')}
+                          onClick={() =>
+                            togglePasswordVisibility("showConfirmPassword")
+                          }
                           edge="end"
                         >
-                          {formData.showConfirmPassword ? <VisibilityOffIcon /> : <VisibilityIcon />}
+                          {formData.showConfirmPassword ? (
+                            <VisibilityOffIcon />
+                          ) : (
+                            <VisibilityIcon />
+                          )}
                         </IconButton>
                       </InputAdornment>
-                    )
+                    ),
                   }}
                   sx={{
-                    '& .MuiOutlinedInput-root': {
+                    "& .MuiOutlinedInput-root": {
                       borderRadius: 2,
-                      backgroundColor: '#FAFAFA'
-                    }
+                      backgroundColor: "#FAFAFA",
+                    },
                   }}
                 />
               </Grid>
@@ -517,14 +605,14 @@ function AddNewDelivery() {
         </Card>
 
         {/* Form Actions */}
-        <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2 }}>
+        <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 2 }}>
           <Button
             variant="outlined"
             onClick={handleReset}
             sx={{
-              borderColor: '#1976D2',
-              color: '#1976D2',
-              '&:hover': { backgroundColor: '#E3F2FD' }
+              borderColor: "#1976D2",
+              color: "#1976D2",
+              "&:hover": { backgroundColor: "#E3F2FD" },
             }}
           >
             Reset
@@ -533,9 +621,9 @@ function AddNewDelivery() {
             type="submit"
             variant="contained"
             sx={{
-              backgroundColor: '#1976D2',
-              '&:hover': { backgroundColor: '#1565C0' },
-              px: 4
+              backgroundColor: "#1976D2",
+              "&:hover": { backgroundColor: "#1565C0" },
+              px: 4,
             }}
           >
             Submit
@@ -548,9 +636,12 @@ function AddNewDelivery() {
         open={snackbar.open}
         autoHideDuration={6000}
         onClose={() => setSnackbar({ ...snackbar, open: false })}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+        anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
       >
-        <Alert severity={snackbar.severity} onClose={() => setSnackbar({ ...snackbar, open: false })}>
+        <Alert
+          severity={snackbar.severity}
+          onClose={() => setSnackbar({ ...snackbar, open: false })}
+        >
           {snackbar.message}
         </Alert>
       </Snackbar>

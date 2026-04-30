@@ -1,39 +1,43 @@
-const express = require('express');
-const axios = require('axios');
+const express = require("express");
+const axios = require("axios");
 const router = express.Router();
 
-const ADMIN_API = process.env.ADMIN_API_URL || 'http://localhost:5000';
+const ADMIN_API =
+  process.env.ADMIN_API_URL || "https://admin-api.apnadecoration.com";
 
-console.log('✅ Coupon routes loaded');
+console.log("✅ Coupon routes loaded");
 
 // Get available coupons (public)
-router.get('/available', async (req, res) => {
-  console.log('🎫 Fetching available coupons');
+router.get("/available", async (req, res) => {
+  console.log("🎫 Fetching available coupons");
   try {
     const response = await axios.get(`${ADMIN_API}/api/coupons/available`);
     res.json(response.data);
   } catch (error) {
-    console.error('Failed to fetch coupons:', error.message);
+    console.error("Failed to fetch coupons:", error.message);
     res.status(error.response?.status || 500).json({
       success: false,
-      message: error.response?.data?.message || 'Failed to fetch coupons'
+      message: error.response?.data?.message || "Failed to fetch coupons",
     });
   }
 });
 
 // Validate coupon (public)
-router.post('/validate', async (req, res) => {
-  console.log('🎫 Coupon validate route hit:', req.body);
+router.post("/validate", async (req, res) => {
+  console.log("🎫 Coupon validate route hit:", req.body);
   try {
-    console.log('Proxying to:', `${ADMIN_API}/api/coupons/validate`);
-    const response = await axios.post(`${ADMIN_API}/api/coupons/validate`, req.body);
-    console.log('Response from admin:', response.data);
+    console.log("Proxying to:", `${ADMIN_API}/api/coupons/validate`);
+    const response = await axios.post(
+      `${ADMIN_API}/api/coupons/validate`,
+      req.body,
+    );
+    console.log("Response from admin:", response.data);
     res.json(response.data);
   } catch (error) {
-    console.error('Coupon validation error:', error.message);
+    console.error("Coupon validation error:", error.message);
     res.status(error.response?.status || 500).json({
       success: false,
-      message: error.response?.data?.message || 'Failed to validate coupon'
+      message: error.response?.data?.message || "Failed to validate coupon",
     });
   }
 });

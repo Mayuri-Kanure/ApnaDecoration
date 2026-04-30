@@ -1,6 +1,6 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import vendorApi from '../services/vendorApi';
+import React, { useState, useRef, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import vendorApi from "../services/vendorApi";
 import {
   Box,
   Card,
@@ -14,20 +14,20 @@ import {
   CircularProgress,
   IconButton,
   Chip,
-  MenuItem
-} from '@mui/material';
+  MenuItem,
+} from "@mui/material";
 import {
   ArrowBack as BackIcon,
   Save as SaveIcon,
-  Autorenew as RefreshIcon
-} from '@mui/icons-material';
+  Autorenew as RefreshIcon,
+} from "@mui/icons-material";
 
 const AddProduct = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
-  
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+
   // Function to generate SKU automatically
   const generateSKU = (productName) => {
     const timestamp = Date.now().toString(36).toUpperCase();
@@ -35,14 +35,15 @@ const AddProduct = () => {
     const code = `SKU-${timestamp}-${random}`;
     return code;
   };
-  
+
   const [formData, setFormData] = useState({
-    name: '',
-    sku: '',
-    unit_price: '',
-    brand: '',
-    category: '',
-    description: ''
+    name: "",
+    sku: "",
+    unit_price: "",
+    brand: "",
+    category: "",
+    description: "",
+    stock: "",
   });
 
   const [images, setImages] = useState([]);
@@ -53,7 +54,7 @@ const AddProduct = () => {
     const fetchCategories = async () => {
       try {
         const response = await vendorApi.getCategories();
-        
+
         let categoriesData = [];
         if (response && response.categories) {
           categoriesData = response.categories;
@@ -62,14 +63,14 @@ const AddProduct = () => {
         } else if (response && response.data && Array.isArray(response.data)) {
           categoriesData = response.data;
         }
-        
+
         const filteredCategories = categoriesData.filter((cat, index) => {
           return index !== 0; // Remove first category
         });
-        
+
         setCategories(filteredCategories);
       } catch (error) {
-        console.error('Failed to fetch categories:', error);
+        console.error("Failed to fetch categories:", error);
       }
     };
 
@@ -80,16 +81,16 @@ const AddProduct = () => {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    
-    setFormData(prev => ({
+
+    setFormData((prev) => ({
       ...prev,
-      [name]: value
+      [name]: value,
     }));
-    
+
     if (errors[name]) {
-      setErrors(prev => ({
+      setErrors((prev) => ({
         ...prev,
-        [name]: ''
+        [name]: "",
       }));
     }
   };
@@ -101,102 +102,105 @@ const AddProduct = () => {
 
   const validateForm = () => {
     const newErrors = {};
-    
+
     if (!formData.name.trim()) {
-      newErrors.name = 'Product name is required';
+      newErrors.name = "Product name is required";
     }
-    
+
     if (!formData.unit_price || parseFloat(formData.unit_price) <= 0) {
-      newErrors.unit_price = 'Valid price is required';
+      newErrors.unit_price = "Valid price is required";
     }
-    
+
     if (!formData.category) {
-      newErrors.category = 'Category is required';
+      newErrors.category = "Category is required";
     }
-    
+
     if (!formData.description.trim()) {
-      newErrors.description = 'Description is required';
+      newErrors.description = "Description is required";
     }
-    
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     if (!validateForm()) {
       return;
     }
-    
-    const token = localStorage.getItem('vendorToken');
+
+    const token = localStorage.getItem("vendorToken");
     if (!token) {
-      setError('Please login to add products');
+      setError("Please login to add products");
       return;
     }
-    
+
     try {
       setLoading(true);
-      setError('');
-      setSuccess('');
-      
+      setError("");
+      setSuccess("");
+
       const formDataToSend = new FormData();
-      formDataToSend.append('name', formData.name);
-      formDataToSend.append('product_name_en', formData.name);
-      formDataToSend.append('sku', formData.sku);
-      formDataToSend.append('price', parseFloat(formData.unit_price));
-      formDataToSend.append('brand', formData.brand || 'Generic Brand');
-      formDataToSend.append('category', formData.category);
-      formDataToSend.append('description', formData.description);
-      
+      formDataToSend.append("name", formData.name);
+      formDataToSend.append("product_name_en", formData.name);
+      formDataToSend.append("sku", formData.sku);
+      formDataToSend.append("price", parseFloat(formData.unit_price));
+      formDataToSend.append("brand", formData.brand || "Generic Brand");
+      formDataToSend.append("category", formData.category);
+      formDataToSend.append("description", formData.description);
+      formDataToSend.append("stock", formData.stock);
+
       images.forEach((image) => {
-        formDataToSend.append('images', image);
+        formDataToSend.append("images", image);
       });
-      
+
       const response = await vendorApi.createVendorProduct(formDataToSend);
-      
-      setSuccess('Product submitted for approval! It will be reviewed by admin.');
-      
+
+      setSuccess(
+        "Product submitted for approval! It will be reviewed by admin.",
+      );
+
       // Reset form
       setFormData({
-        name: '',
-        sku: '',
-        unit_price: '',
-        brand: '',
-        category: '',
-        description: ''
+        name: "",
+        sku: "",
+        unit_price: "",
+        brand: "",
+        category: "",
+        description: "",
+        stock: "",
       });
       setImages([]);
-      
+
       // Redirect to products page after 2 seconds
       setTimeout(() => {
-        navigate('/products');
+        navigate("/products");
       }, 2000);
-      
     } catch (error) {
-      console.error('Error creating product:', error);
-      setError(error.message || 'Failed to create product. Please try again.');
+      console.error("Error creating product:", error);
+      setError(error.message || "Failed to create product. Please try again.");
     } finally {
       setLoading(false);
     }
   };
 
   const handleBack = () => {
-    navigate('/products');
+    navigate("/products");
   };
 
   return (
-    <Box sx={{ backgroundColor: '#f8fafc', minHeight: '100vh' }}>
+    <Box sx={{ backgroundColor: "#f8fafc", minHeight: "100vh" }}>
       {/* Header */}
-      <Box sx={{ mb: 3, display: 'flex', alignItems: 'center', gap: 2 }}>
+      <Box sx={{ mb: 3, display: "flex", alignItems: "center", gap: 2 }}>
         <Button
           startIcon={<BackIcon />}
           onClick={handleBack}
-          sx={{ color: '#64748b' }}
+          sx={{ color: "#64748b" }}
         >
           Back to Products
         </Button>
-        <Typography variant="h4" sx={{ fontWeight: 600, color: '#1e293b' }}>
+        <Typography variant="h4" sx={{ fontWeight: 600, color: "#1e293b" }}>
           Add New Product
         </Typography>
       </Box>
@@ -209,7 +213,7 @@ const AddProduct = () => {
               {error}
             </Alert>
           )}
-          
+
           {success && (
             <Alert severity="success" sx={{ mb: 3 }}>
               {success}
@@ -234,8 +238,11 @@ const AddProduct = () => {
 
               {/* SKU */}
               <Grid item xs={12} md={6}>
-                <Typography variant="body2" sx={{ fontWeight: 600, mb: 1.5, color: '#374151' }}>
-                  Product SKU <span style={{ color: '#ef4444' }}>*</span>
+                <Typography
+                  variant="body2"
+                  sx={{ fontWeight: 600, mb: 1.5, color: "#374151" }}
+                >
+                  Product SKU <span style={{ color: "#ef4444" }}>*</span>
                 </Typography>
                 <TextField
                   fullWidth
@@ -248,10 +255,14 @@ const AddProduct = () => {
                   required
                   InputProps={{
                     endAdornment: (
-                      <IconButton onClick={() => {
-                        const newSKU = generateSKU();
-                        setFormData(prev => ({ ...prev, sku: newSKU }));
-                      }} size="small" sx={{ color: '#2563eb' }}>
+                      <IconButton
+                        onClick={() => {
+                          const newSKU = generateSKU();
+                          setFormData((prev) => ({ ...prev, sku: newSKU }));
+                        }}
+                        size="small"
+                        sx={{ color: "#2563eb" }}
+                      >
                         <RefreshIcon />
                       </IconButton>
                     ),
@@ -288,6 +299,24 @@ const AddProduct = () => {
                 />
               </Grid>
 
+              {/* Stock */}
+              <Grid item xs={12} md={6}>
+                <TextField
+                  fullWidth
+                  label="Stock Quantity"
+                  name="stock"
+                  type="number"
+                  value={formData.stock}
+                  onChange={handleChange}
+                  error={!!errors.stock}
+                  helperText={
+                    errors.stock || "Enter available stock quantity (required)"
+                  }
+                  required
+                  inputProps={{ min: 0 }}
+                />
+              </Grid>
+
               {/* Category */}
               <Grid item xs={12} md={6}>
                 <TextField
@@ -305,7 +334,7 @@ const AddProduct = () => {
                   {categories.map((cat) => {
                     const catId = cat._id || cat.id || cat;
                     const catName = cat.name || cat;
-                    
+
                     return (
                       <MenuItem key={catId} value={catId}>
                         {catName}
@@ -333,11 +362,7 @@ const AddProduct = () => {
 
               {/* Images */}
               <Grid item xs={12}>
-                <Button
-                  variant="outlined"
-                  component="label"
-                  fullWidth
-                >
+                <Button variant="outlined" component="label" fullWidth>
                   Upload Images (Max 10)
                   <input
                     type="file"
@@ -356,10 +381,17 @@ const AddProduct = () => {
 
               {/* Submit Button */}
               <Grid item xs={12}>
-                <Box sx={{ display: 'flex', gap: 2, justifyContent: 'flex-end', mt: 3 }}>
+                <Box
+                  sx={{
+                    display: "flex",
+                    gap: 2,
+                    justifyContent: "flex-end",
+                    mt: 3,
+                  }}
+                >
                   <Button
                     variant="outlined"
-                    onClick={() => navigate('/products')}
+                    onClick={() => navigate("/products")}
                     disabled={loading}
                   >
                     Cancel
@@ -367,11 +399,13 @@ const AddProduct = () => {
                   <Button
                     type="submit"
                     variant="contained"
-                    startIcon={loading ? <CircularProgress size={20} /> : <SaveIcon />}
+                    startIcon={
+                      loading ? <CircularProgress size={20} /> : <SaveIcon />
+                    }
                     disabled={loading}
-                    sx={{ backgroundColor: '#1976d2' }}
+                    sx={{ backgroundColor: "#1976d2" }}
                   >
-                    {loading ? 'Creating...' : 'Create Product'}
+                    {loading ? "Creating..." : "Create Product"}
                   </Button>
                 </Box>
               </Grid>

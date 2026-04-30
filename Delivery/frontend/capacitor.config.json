@@ -1,0 +1,36 @@
+{
+  "appId": "com.apnadecoration.delivery",
+  "appName": "APNA Decoration - Delivery Panel",
+  "webDir": "out",
+  "server": {
+    "androidScheme": "https",
+    "cleartext": true,
+    "allowNavigation": true,
+    "plugins": {
+      "CapacitorHttp": {
+        "enabled": true,
+        "allowUrlList": [
+          "https://user-api.apnadecoration.com",
+          "https://admin-api.apnadecoration.com"
+        ]
+      }
+    }
+  },
+  "hosts": [
+    {
+      "hostname": "user-api.apnadecoration.com",
+      "scheme": "https"
+    },
+    {
+      "hostname": "admin-api.apnadecoration.com",
+      "scheme": "https"
+    }
+  ],
+  "android": {
+    "allowMixedContent": true,
+    "webSecurity": {
+      "allowContentAccess": true,
+      "allowFileAccess": true
+    }
+  }
+}

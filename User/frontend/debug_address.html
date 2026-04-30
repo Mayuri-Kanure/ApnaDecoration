@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Address API Debug</title>
+</head>
+<body>
+    <h1>Address API Debug</h1>
+    <button onclick="testToken()">Check Token</button>
+    <button onclick="testAPI()">Test API Call</button>
+    <div id="output"></div>
+
+    <script>
+        function log(msg) {
+            document.getElementById('output').innerHTML += '<pre>' + JSON.stringify(msg, null, 2) + '</pre>';
+        }
+
+        function testToken() {
+            log('=== TOKEN CHECK ===');
+            const token = localStorage.getItem("token");
+            const user = localStorage.getItem("user");
+            log({
+                token: token ? 'EXISTS' : 'MISSING',
+                tokenLength: token ? token.length : 0,
+                tokenPreview: token ? token.substring(0, 50) + '...' : null,
+                user: user ? 'EXISTS' : 'MISSING'
+            });
+        }
+
+        async function testAPI() {
+            log('=== API TEST ===');
+            const token = localStorage.getItem("token");
+            
+            if (!token) {
+                log('ERROR: No token found');
+                return;
+            }
+
+            try {
+                const response = await fetch("http://localhost:5002/api/addresses", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "Authorization": `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        type: "home",
+                        name: "Debug Test",
+                        phone: "9999999999",
+                        addressLine1: "Test Address",
+                        city: "Mumbai",
+                        state: "Maharashtra",
+                        pincode: "400001",
+                        country: "India",
+                        isDefault: false
+                    })
+                });
+
+                log({
+                    status: response.status,
+                    statusText: response.statusText,
+                    headers: Object.fromEntries(response.headers.entries())
+                });
+
+                const data = await response.json();
+                log(data);
+
+            } catch (error) {
+                log('ERROR: ' + error.message);
+            }
+        }
+    </script>
+</body>
+</html>

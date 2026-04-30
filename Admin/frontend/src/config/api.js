@@ -1,15 +1,15 @@
 const API_CONFIG = {
   development: {
-    BASE_URL: 'http://localhost:5000/api'
+    BASE_URL: "https://admin-api.apnadecoration.com/api",
   },
   production: {
-    BASE_URL: 'https://admin-api.apnadecoration.com/api'
-  }
+    BASE_URL: "https://admin-api.apnadecoration.com/api",
+  },
 };
 
 const getApiConfig = () => {
-  // Default to production for safety
-  const environment = process.env.NODE_ENV || 'production';
+  const environment = process.env.NODE_ENV || "production";
+  console.log("🔍 API Environment:", environment);
   return API_CONFIG[environment];
 };
 

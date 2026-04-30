@@ -94,6 +94,37 @@ const userSchema = new mongoose.Schema({
   },
   lastPasswordChange: {
     type: Date
+  },
+  // Notification Preferences
+  notificationPreferences: {
+    email: {
+      type: Boolean,
+      default: true
+    },
+    sms: {
+      type: Boolean,
+      default: false
+    },
+    push: {
+      type: Boolean,
+      default: false
+    },
+    orderUpdates: {
+      type: Boolean,
+      default: true
+    },
+    paymentAlerts: {
+      type: Boolean,
+      default: true
+    },
+    promotions: {
+      type: Boolean,
+      default: true
+    },
+    deliveryNotifications: {
+      type: Boolean,
+      default: true
+    }
   }
 }, {
   timestamps: true

@@ -48,7 +48,9 @@ import RestoreIcon from "@mui/icons-material/Restore";
  * Adjust endpoints below to your backend.
  */
 
-const API_BASE = "http://localhost:5000/api/currencies"; // <<-- Change to your real API base
+const API_BASE =
+  process.env.REACT_APP_API_URL ||
+  "https://admin-api.apnadecoration.com/api/currencies";
 
 export default function CurrencyManagement() {
   // UI state
@@ -56,7 +58,11 @@ export default function CurrencyManagement() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
-  const [snack, setSnack] = useState({ open: false, severity: "success", message: "" });
+  const [snack, setSnack] = useState({
+    open: false,
+    severity: "success",
+    message: "",
+  });
 
   // Add form state
   const [form, setForm] = useState({ name: "", symbol: "", code: "" });
@@ -68,7 +74,10 @@ export default function CurrencyManagement() {
 
   // Confirmation dialogs
   const [confirmDelete, setConfirmDelete] = useState({ open: false, id: null });
-  const [confirmDefault, setConfirmDefault] = useState({ open: false, id: null });
+  const [confirmDefault, setConfirmDefault] = useState({
+    open: false,
+    id: null,
+  });
 
   useEffect(() => {
     fetchList();
@@ -272,7 +281,8 @@ export default function CurrencyManagement() {
                 startIcon={<SaveIcon />}
                 onClick={() => {
                   const defaultCurrency = currencies.find((c) => c.isDefault);
-                  if (defaultCurrency) showSnack("info", "Default currency already set");
+                  if (defaultCurrency)
+                    showSnack("info", "Default currency already set");
                 }}
                 sx={{ borderRadius: 2 }}
               >
@@ -303,7 +313,7 @@ export default function CurrencyManagement() {
                   placeholder="Ex: United States Dollar"
                   error={!!formErrors.name}
                   helperText={formErrors.name}
-                  sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+                  sx={{ "& .MuiOutlinedInput-root": { borderRadius: 2 } }}
                 />
               </Grid>
               <Grid item xs={12} md={3}>
@@ -316,7 +326,7 @@ export default function CurrencyManagement() {
                   placeholder="$"
                   error={!!formErrors.symbol}
                   helperText={formErrors.symbol}
-                  sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+                  sx={{ "& .MuiOutlinedInput-root": { borderRadius: 2 } }}
                 />
               </Grid>
               <Grid item xs={12} md={3}>
@@ -329,7 +339,7 @@ export default function CurrencyManagement() {
                   placeholder="USD"
                   error={!!formErrors.code}
                   helperText={formErrors.code}
-                  sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+                  sx={{ "& .MuiOutlinedInput-root": { borderRadius: 2 } }}
                 />
               </Grid>
               <Grid item xs={12} md={3}>
@@ -337,7 +347,9 @@ export default function CurrencyManagement() {
                   <Button
                     type="submit"
                     variant="contained"
-                    startIcon={saving ? <CircularProgress size={16} /> : <AddIcon />}
+                    startIcon={
+                      saving ? <CircularProgress size={16} /> : <AddIcon />
+                    }
                     disabled={saving}
                     sx={{ borderRadius: 2 }}
                   >
@@ -398,7 +410,10 @@ export default function CurrencyManagement() {
               </TableHead>
               <TableBody>
                 {currencies.map((currency, index) => (
-                  <TableRow key={currency.id} sx={{ '&:hover': { backgroundColor: '#f9f9f9' } }}>
+                  <TableRow
+                    key={currency.id}
+                    sx={{ "&:hover": { backgroundColor: "#f9f9f9" } }}
+                  >
                     <TableCell>{index + 1}</TableCell>
                     <TableCell>{currency.name}</TableCell>
                     <TableCell>{currency.symbol}</TableCell>
@@ -425,7 +440,9 @@ export default function CurrencyManagement() {
                         </IconButton>
                         <IconButton
                           size="small"
-                          onClick={() => setConfirmDelete({ open: true, id: currency.id })}
+                          onClick={() =>
+                            setConfirmDelete({ open: true, id: currency.id })
+                          }
                           disabled={saving || currency.isDefault}
                           color={currency.isDefault ? "disabled" : "error"}
                         >
@@ -442,7 +459,12 @@ export default function CurrencyManagement() {
       </Card>
 
       {/* Edit Modal */}
-      <Dialog open={editOpen} onClose={() => setEditOpen(false)} maxWidth="sm" fullWidth>
+      <Dialog
+        open={editOpen}
+        onClose={() => setEditOpen(false)}
+        maxWidth="sm"
+        fullWidth
+      >
         <DialogTitle>Edit Currency</DialogTitle>
         <DialogContent>
           <Grid container spacing={2} sx={{ mt: 1 }}>
@@ -453,7 +475,7 @@ export default function CurrencyManagement() {
                 name="name"
                 value={editItem?.name || ""}
                 onChange={handleEditChange}
-                sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+                sx={{ "& .MuiOutlinedInput-root": { borderRadius: 2 } }}
               />
             </Grid>
             <Grid item xs={12}>
@@ -463,7 +485,7 @@ export default function CurrencyManagement() {
                 name="symbol"
                 value={editItem?.symbol || ""}
                 onChange={handleEditChange}
-                sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+                sx={{ "& .MuiOutlinedInput-root": { borderRadius: 2 } }}
               />
             </Grid>
             <Grid item xs={12}>
@@ -473,42 +495,68 @@ export default function CurrencyManagement() {
                 name="code"
                 value={editItem?.code || ""}
                 onChange={handleEditChange}
-                sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+                sx={{ "& .MuiOutlinedInput-root": { borderRadius: 2 } }}
               />
             </Grid>
           </Grid>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setEditOpen(false)}>Cancel</Button>
-          <Button onClick={handleEditSave} variant="contained" disabled={saving}>
+          <Button
+            onClick={handleEditSave}
+            variant="contained"
+            disabled={saving}
+          >
             {saving ? "Saving..." : "Save"}
           </Button>
         </DialogActions>
       </Dialog>
 
       {/* Delete Confirmation */}
-      <Dialog open={confirmDelete.open} onClose={() => setConfirmDelete({ open: false, id: null })}>
+      <Dialog
+        open={confirmDelete.open}
+        onClose={() => setConfirmDelete({ open: false, id: null })}
+      >
         <DialogTitle>Confirm Delete</DialogTitle>
         <DialogContent>
-          <Typography>Are you sure you want to delete this currency? This action cannot be undone.</Typography>
+          <Typography>
+            Are you sure you want to delete this currency? This action cannot be
+            undone.
+          </Typography>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setConfirmDelete({ open: false, id: null })}>Cancel</Button>
-          <Button onClick={() => handleDelete(confirmDelete.id)} color="error" variant="contained">
+          <Button onClick={() => setConfirmDelete({ open: false, id: null })}>
+            Cancel
+          </Button>
+          <Button
+            onClick={() => handleDelete(confirmDelete.id)}
+            color="error"
+            variant="contained"
+          >
             Delete
           </Button>
         </DialogActions>
       </Dialog>
 
       {/* Set Default Confirmation */}
-      <Dialog open={confirmDefault.open} onClose={() => setConfirmDefault({ open: false, id: null })}>
+      <Dialog
+        open={confirmDefault.open}
+        onClose={() => setConfirmDefault({ open: false, id: null })}
+      >
         <DialogTitle>Set Default Currency</DialogTitle>
         <DialogContent>
-          <Typography>Are you sure you want to set this as the default currency?</Typography>
+          <Typography>
+            Are you sure you want to set this as the default currency?
+          </Typography>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setConfirmDefault({ open: false, id: null })}>Cancel</Button>
-          <Button onClick={() => setAsDefault(confirmDefault.id)} variant="contained">
+          <Button onClick={() => setConfirmDefault({ open: false, id: null })}>
+            Cancel
+          </Button>
+          <Button
+            onClick={() => setAsDefault(confirmDefault.id)}
+            variant="contained"
+          >
             Set Default
           </Button>
         </DialogActions>

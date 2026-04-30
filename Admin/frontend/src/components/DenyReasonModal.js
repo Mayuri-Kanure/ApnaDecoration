@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState } from "react";
 import {
   Dialog,
   DialogTitle,
@@ -9,46 +9,47 @@ import {
   Typography,
   Box,
   Alert,
-  CircularProgress
-} from '@mui/material';
-import axios from 'axios';
+  CircularProgress,
+} from "@mui/material";
+import axios from "axios";
 
-const API_BASE_URL = 'http://localhost:5000/api';
+const API_BASE_URL =
+  process.env.REACT_APP_API_URL || "https://admin-api.apnadecoration.com/api";
 
 function DenyReasonModal({ open, onClose, product, onDenySuccess }) {
-  const [reason, setReason] = useState('');
+  const [reason, setReason] = useState("");
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
 
   const handleSubmit = async () => {
     if (!reason.trim()) {
-      setError('Please provide a reason for denial');
+      setError("Please provide a reason for denial");
       return;
     }
 
     setLoading(true);
-    setError('');
+    setError("");
 
     try {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem("token");
       await axios.put(
         `${API_BASE_URL}/vendor-products/${product._id}/deny`,
         { reason: reason.trim() },
-        { headers: { Authorization: `Bearer ${token}` } }
+        { headers: { Authorization: `Bearer ${token}` } },
       );
 
       onDenySuccess();
       handleClose();
     } catch (error) {
-      setError(error.response?.data?.message || 'Failed to deny product');
+      setError(error.response?.data?.message || "Failed to deny product");
     } finally {
       setLoading(false);
     }
   };
 
   const handleClose = () => {
-    setReason('');
-    setError('');
+    setReason("");
+    setError("");
     onClose();
   };
 
@@ -59,22 +60,29 @@ function DenyReasonModal({ open, onClose, product, onDenySuccess }) {
           Deny Product - {product?.name}
         </Typography>
       </DialogTitle>
-      
+
       <DialogContent>
         <Box sx={{ mb: 3 }}>
-          <Typography variant="body2" sx={{ color: '#666', mb: 2 }}>
-            Please provide a reason for denying this product. This reason will be sent to the vendor.
+          <Typography variant="body2" sx={{ color: "#666", mb: 2 }}>
+            Please provide a reason for denying this product. This reason will
+            be sent to the vendor.
           </Typography>
-          
+
           {product && (
-            <Box sx={{ p: 2, backgroundColor: '#f8fafc', borderRadius: 1, mb: 2 }}>
+            <Box
+              sx={{ p: 2, backgroundColor: "#f8fafc", borderRadius: 1, mb: 2 }}
+            >
               <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1 }}>
                 Product Details:
               </Typography>
               <Typography variant="body2">SKU: {product.sku}</Typography>
               <Typography variant="body2">Brand: {product.brand}</Typography>
-              <Typography variant="body2">Category: {product.category}</Typography>
-              <Typography variant="body2">Price: ${product.unit_price}</Typography>
+              <Typography variant="body2">
+                Category: {product.category}
+              </Typography>
+              <Typography variant="body2">
+                Price: ${product.unit_price}
+              </Typography>
             </Box>
           )}
         </Box>
@@ -100,11 +108,7 @@ function DenyReasonModal({ open, onClose, product, onDenySuccess }) {
       </DialogContent>
 
       <DialogActions sx={{ p: 3 }}>
-        <Button
-          onClick={handleClose}
-          disabled={loading}
-          sx={{ color: '#666' }}
-        >
+        <Button onClick={handleClose} disabled={loading} sx={{ color: "#666" }}>
           Cancel
         </Button>
         <Button
@@ -112,15 +116,15 @@ function DenyReasonModal({ open, onClose, product, onDenySuccess }) {
           variant="contained"
           disabled={loading}
           sx={{
-            backgroundColor: '#ef4444',
-            '&:hover': { backgroundColor: '#dc2626' },
-            minWidth: 100
+            backgroundColor: "#ef4444",
+            "&:hover": { backgroundColor: "#dc2626" },
+            minWidth: 100,
           }}
         >
           {loading ? (
             <CircularProgress size={20} color="inherit" />
           ) : (
-            'Deny Product'
+            "Deny Product"
           )}
         </Button>
       </DialogActions>

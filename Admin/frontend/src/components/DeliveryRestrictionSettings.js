@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from "react";
 import {
   Box,
   Grid,
@@ -24,30 +24,33 @@ import {
   DialogContent,
   DialogActions,
   Tooltip,
-} from '@mui/material';
-import DeleteIcon from '@mui/icons-material/Delete';
-import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
-import LocationOnIcon from '@mui/icons-material/LocationOn';
-import FolderIcon from '@mui/icons-material/Folder';
-import WarningIcon from '@mui/icons-material/Warning';
+} from "@mui/material";
+import DeleteIcon from "@mui/icons-material/Delete";
+import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
+import LocationOnIcon from "@mui/icons-material/LocationOn";
+import FolderIcon from "@mui/icons-material/Folder";
+import WarningIcon from "@mui/icons-material/Warning";
+
+const API_BASE_URL =
+  process.env.REACT_APP_API_URL || "https://admin-api.apnadecoration.com/api";
 
 const DeliveryRestrictionSettings = () => {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [confirmModal, setConfirmModal] = useState({
     open: false,
-    action: '',
+    action: "",
     data: null,
-    title: '',
-    message: ''
+    title: "",
+    message: "",
   });
   const [settings, setSettings] = useState({
     deliveryAvailableCountry: false,
     deliveryAvailableZipCode: false,
-    selectedCountry: '',
-    zipCodeInput: '',
+    selectedCountry: "",
+    zipCodeInput: "",
     countries: [],
-    zipCodes: []
+    zipCodes: [],
   });
 
   // Load settings from backend
@@ -55,11 +58,13 @@ const DeliveryRestrictionSettings = () => {
     const fetchSettings = async () => {
       try {
         setLoading(true);
-        const res = await fetch('http://localhost:5000/api/settings/delivery-restriction');
+        const res = await fetch(
+          `${API_BASE_URL}/settings/delivery-restriction`,
+        );
         const data = await res.json();
         setSettings(data);
       } catch (err) {
-        console.error('Error fetching delivery restriction settings:', err);
+        console.error("Error fetching delivery restriction settings:", err);
       } finally {
         setLoading(false);
       }
@@ -70,52 +75,66 @@ const DeliveryRestrictionSettings = () => {
 
   const handleToggleChange = (field, currentValue) => {
     const fieldLabels = {
-      deliveryAvailableCountry: 'Delivery Available Country',
-      deliveryAvailableZipCode: 'Delivery Available Zip Code Area'
+      deliveryAvailableCountry: "Delivery Available Country",
+      deliveryAvailableZipCode: "Delivery Available Zip Code Area",
     };
 
-    const action = currentValue ? 'Turn OFF' : 'Turn ON';
-    
+    const action = currentValue ? "Turn OFF" : "Turn ON";
+
     setConfirmModal({
       open: true,
-      action: 'toggle',
+      action: "toggle",
       data: { field, value: !currentValue },
       title: `Want to ${action} ${fieldLabels[field]}?`,
-      message: currentValue 
+      message: currentValue
         ? `Are you sure you want to turn off ${fieldLabels[field]}? This will hide the ${fieldLabels[field]} section.`
-        : `Are you sure you want to turn on ${fieldLabels[field]}? This will show the ${fieldLabels[field]} section.`
+        : `Are you sure you want to turn on ${fieldLabels[field]}? This will show the ${fieldLabels[field]} section.`,
     });
   };
 
   const handleConfirmAction = () => {
-    if (confirmModal.action === 'toggle') {
-      setSettings(prev => ({
+    if (confirmModal.action === "toggle") {
+      setSettings((prev) => ({
         ...prev,
-        [confirmModal.data.field]: confirmModal.data.value
+        [confirmModal.data.field]: confirmModal.data.value,
       }));
-    } else if (confirmModal.action === 'deleteCountry') {
-      setSettings(prev => ({
+    } else if (confirmModal.action === "deleteCountry") {
+      setSettings((prev) => ({
         ...prev,
-        countries: prev.countries.filter(country => country.id !== confirmModal.data)
+        countries: prev.countries.filter(
+          (country) => country.id !== confirmModal.data,
+        ),
       }));
-    } else if (confirmModal.action === 'deleteZipCode') {
-      setSettings(prev => ({
+    } else if (confirmModal.action === "deleteZipCode") {
+      setSettings((prev) => ({
         ...prev,
-        zipCodes: prev.zipCodes.filter(zip => zip.id !== confirmModal.data)
+        zipCodes: prev.zipCodes.filter((zip) => zip.id !== confirmModal.data),
       }));
     }
-    setConfirmModal({ open: false, action: '', data: null, title: '', message: '' });
+    setConfirmModal({
+      open: false,
+      action: "",
+      data: null,
+      title: "",
+      message: "",
+    });
   };
 
   const handleSaveCountry = () => {
-    if (settings.selectedCountry && !settings.countries.find(c => c.name === settings.selectedCountry)) {
-      setSettings(prev => ({
+    if (
+      settings.selectedCountry &&
+      !settings.countries.find((c) => c.name === settings.selectedCountry)
+    ) {
+      setSettings((prev) => ({
         ...prev,
-        countries: [...prev.countries, {
-          id: Date.now(),
-          name: settings.selectedCountry
-        }],
-        selectedCountry: ''
+        countries: [
+          ...prev.countries,
+          {
+            id: Date.now(),
+            name: settings.selectedCountry,
+          },
+        ],
+        selectedCountry: "",
       }));
     }
   };
@@ -123,58 +142,61 @@ const DeliveryRestrictionSettings = () => {
   const handleSaveZipCode = () => {
     if (settings.zipCodeInput.trim()) {
       const zipCodes = settings.zipCodeInput
-        .split(',')
-        .map(zip => zip.trim())
-        .filter(zip => zip && !settings.zipCodes.find(z => z.code === zip));
-      
-      setSettings(prev => ({
+        .split(",")
+        .map((zip) => zip.trim())
+        .filter((zip) => zip && !settings.zipCodes.find((z) => z.code === zip));
+
+      setSettings((prev) => ({
         ...prev,
-        zipCodes: [...prev.zipCodes, ...zipCodes.map(zip => ({
-          id: Date.now() + Math.random(),
-          code: zip
-        }))],
-        zipCodeInput: ''
+        zipCodes: [
+          ...prev.zipCodes,
+          ...zipCodes.map((zip) => ({
+            id: Date.now() + Math.random(),
+            code: zip,
+          })),
+        ],
+        zipCodeInput: "",
       }));
     }
   };
 
   const handleDeleteCountry = (id) => {
-    const country = settings.countries.find(c => c.id === id);
+    const country = settings.countries.find((c) => c.id === id);
     setConfirmModal({
       open: true,
-      action: 'deleteCountry',
+      action: "deleteCountry",
       data: id,
-      title: 'Delete Country',
-      message: `Are you sure you want to remove "${country.name}" from delivery availability?`
+      title: "Delete Country",
+      message: `Are you sure you want to remove "${country.name}" from delivery availability?`,
     });
   };
 
   const handleDeleteZipCode = (id) => {
-    const zipCode = settings.zipCodes.find(z => z.id === id);
+    const zipCode = settings.zipCodes.find((z) => z.id === id);
     setConfirmModal({
       open: true,
-      action: 'deleteZipCode',
+      action: "deleteZipCode",
       data: id,
-      title: 'Delete Zip Code',
-      message: `Are you sure you want to remove zip code "${zipCode.code}" from delivery availability?`
+      title: "Delete Zip Code",
+      message: `Are you sure you want to remove zip code "${zipCode.code}" from delivery availability?`,
     });
   };
 
   const handleSave = async () => {
     try {
       setSaving(true);
-      const res = await fetch('http://localhost:5000/api/settings/delivery-restriction', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+      const res = await fetch(`${API_BASE_URL}/settings/delivery-restriction`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(settings),
       });
 
       const data = await res.json();
-      console.log('Saved:', data);
-      alert('Delivery Restriction Settings Saved Successfully');
+      console.log("Saved:", data);
+      alert("Delivery Restriction Settings Saved Successfully");
     } catch (err) {
-      console.error('Error saving settings:', err);
-      alert('Failed to save settings');
+      console.error("Error saving settings:", err);
+      alert("Failed to save settings");
     } finally {
       setSaving(false);
     }
@@ -190,7 +212,13 @@ const DeliveryRestrictionSettings = () => {
   return (
     <Box sx={{ p: 3 }}>
       {/* Delivery Toggles Section */}
-      <Card sx={{ borderRadius: 2, boxShadow: '0 6px 18px rgba(15,23,42,0.06)', mb: 3 }}>
+      <Card
+        sx={{
+          borderRadius: 2,
+          boxShadow: "0 6px 18px rgba(15,23,42,0.06)",
+          mb: 3,
+        }}
+      >
         <CardContent sx={{ p: 3 }}>
           <Typography variant="h6" sx={{ mb: 3, fontWeight: 600 }}>
             Delivery Settings
@@ -198,8 +226,17 @@ const DeliveryRestrictionSettings = () => {
 
           <Grid container spacing={3}>
             <Grid item xs={12} md={6}>
-              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', p: 2, border: '1px solid #e0e0e0', borderRadius: 1 }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Box
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  p: 2,
+                  border: "1px solid #e0e0e0",
+                  borderRadius: 1,
+                }}
+              >
+                <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                   <Typography variant="body2" sx={{ fontWeight: 500 }}>
                     Delivery Available Country
                   </Typography>
@@ -211,15 +248,29 @@ const DeliveryRestrictionSettings = () => {
                 </Box>
                 <Switch
                   checked={settings.deliveryAvailableCountry}
-                  onChange={() => handleToggleChange('deliveryAvailableCountry', settings.deliveryAvailableCountry)}
+                  onChange={() =>
+                    handleToggleChange(
+                      "deliveryAvailableCountry",
+                      settings.deliveryAvailableCountry,
+                    )
+                  }
                   color="primary"
                 />
               </Box>
             </Grid>
 
             <Grid item xs={12} md={6}>
-              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', p: 2, border: '1px solid #e0e0e0', borderRadius: 1 }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Box
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  p: 2,
+                  border: "1px solid #e0e0e0",
+                  borderRadius: 1,
+                }}
+              >
+                <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                   <Typography variant="body2" sx={{ fontWeight: 500 }}>
                     Delivery Available Zip Code Area
                   </Typography>
@@ -231,7 +282,12 @@ const DeliveryRestrictionSettings = () => {
                 </Box>
                 <Switch
                   checked={settings.deliveryAvailableZipCode}
-                  onChange={() => handleToggleChange('deliveryAvailableZipCode', settings.deliveryAvailableZipCode)}
+                  onChange={() =>
+                    handleToggleChange(
+                      "deliveryAvailableZipCode",
+                      settings.deliveryAvailableZipCode,
+                    )
+                  }
                   color="primary"
                 />
               </Box>
@@ -242,7 +298,13 @@ const DeliveryRestrictionSettings = () => {
 
       {/* Country Management Section */}
       {settings.deliveryAvailableCountry && (
-        <Card sx={{ borderRadius: 2, boxShadow: '0 6px 18px rgba(15,23,42,0.06)', mb: 3 }}>
+        <Card
+          sx={{
+            borderRadius: 2,
+            boxShadow: "0 6px 18px rgba(15,23,42,0.06)",
+            mb: 3,
+          }}
+        >
           <CardContent sx={{ p: 3 }}>
             <Typography variant="h6" sx={{ mb: 3, fontWeight: 600 }}>
               Country Management
@@ -253,7 +315,12 @@ const DeliveryRestrictionSettings = () => {
                 <FormControl fullWidth>
                   <Select
                     value={settings.selectedCountry}
-                    onChange={(e) => setSettings(prev => ({ ...prev, selectedCountry: e.target.value }))}
+                    onChange={(e) =>
+                      setSettings((prev) => ({
+                        ...prev,
+                        selectedCountry: e.target.value,
+                      }))
+                    }
                     displayEmpty
                     sx={{ height: 42 }}
                   >
@@ -284,7 +351,7 @@ const DeliveryRestrictionSettings = () => {
 
             <TableContainer>
               <Table>
-                <TableHead sx={{ backgroundColor: '#F7FAFF' }}>
+                <TableHead sx={{ backgroundColor: "#F7FAFF" }}>
                   <TableRow>
                     <TableCell sx={{ fontWeight: 600 }}>Sl No</TableCell>
                     <TableCell sx={{ fontWeight: 600 }}>Country Name</TableCell>
@@ -309,11 +376,27 @@ const DeliveryRestrictionSettings = () => {
                     ))
                   ) : (
                     <TableRow>
-                      <TableCell colSpan={3} sx={{ textAlign: 'center', py: 4 }}>
-                        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
-                          <FolderIcon sx={{ fontSize: 48, color: '#9CA3AF' }} />
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                            <WarningIcon sx={{ color: '#9CA3AF' }} />
+                      <TableCell
+                        colSpan={3}
+                        sx={{ textAlign: "center", py: 4 }}
+                      >
+                        <Box
+                          sx={{
+                            display: "flex",
+                            flexDirection: "column",
+                            alignItems: "center",
+                            gap: 1,
+                          }}
+                        >
+                          <FolderIcon sx={{ fontSize: 48, color: "#9CA3AF" }} />
+                          <Box
+                            sx={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 1,
+                            }}
+                          >
+                            <WarningIcon sx={{ color: "#9CA3AF" }} />
                             <Typography variant="body2" color="text.secondary">
                               No country found
                             </Typography>
@@ -331,7 +414,13 @@ const DeliveryRestrictionSettings = () => {
 
       {/* Zip Code Management Section */}
       {settings.deliveryAvailableZipCode && (
-        <Card sx={{ borderRadius: 2, boxShadow: '0 6px 18px rgba(15,23,42,0.06)', mb: 3 }}>
+        <Card
+          sx={{
+            borderRadius: 2,
+            boxShadow: "0 6px 18px rgba(15,23,42,0.06)",
+            mb: 3,
+          }}
+        >
           <CardContent sx={{ p: 3 }}>
             <Typography variant="h6" sx={{ mb: 3, fontWeight: 600 }}>
               Zip Code Management
@@ -343,8 +432,13 @@ const DeliveryRestrictionSettings = () => {
                   fullWidth
                   placeholder="Enter zip code (multiple zips separated by comma)"
                   value={settings.zipCodeInput}
-                  onChange={(e) => setSettings(prev => ({ ...prev, zipCodeInput: e.target.value }))}
-                  onKeyPress={(e) => e.key === 'Enter' && handleSaveZipCode()}
+                  onChange={(e) =>
+                    setSettings((prev) => ({
+                      ...prev,
+                      zipCodeInput: e.target.value,
+                    }))
+                  }
+                  onKeyPress={(e) => e.key === "Enter" && handleSaveZipCode()}
                   sx={{ height: 42 }}
                   InputProps={{ sx: { height: 42 } }}
                 />
@@ -363,7 +457,7 @@ const DeliveryRestrictionSettings = () => {
 
             <TableContainer>
               <Table>
-                <TableHead sx={{ backgroundColor: '#F7FAFF' }}>
+                <TableHead sx={{ backgroundColor: "#F7FAFF" }}>
                   <TableRow>
                     <TableCell sx={{ fontWeight: 600 }}>Sl No</TableCell>
                     <TableCell sx={{ fontWeight: 600 }}>Zip Code</TableCell>
@@ -388,11 +482,27 @@ const DeliveryRestrictionSettings = () => {
                     ))
                   ) : (
                     <TableRow>
-                      <TableCell colSpan={3} sx={{ textAlign: 'center', py: 4 }}>
-                        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
-                          <FolderIcon sx={{ fontSize: 48, color: '#9CA3AF' }} />
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                            <WarningIcon sx={{ color: '#9CA3AF' }} />
+                      <TableCell
+                        colSpan={3}
+                        sx={{ textAlign: "center", py: 4 }}
+                      >
+                        <Box
+                          sx={{
+                            display: "flex",
+                            flexDirection: "column",
+                            alignItems: "center",
+                            gap: 1,
+                          }}
+                        >
+                          <FolderIcon sx={{ fontSize: 48, color: "#9CA3AF" }} />
+                          <Box
+                            sx={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 1,
+                            }}
+                          >
+                            <WarningIcon sx={{ color: "#9CA3AF" }} />
                             <Typography variant="body2" color="text.secondary">
                               No zip code found
                             </Typography>
@@ -409,19 +519,32 @@ const DeliveryRestrictionSettings = () => {
       )}
 
       {/* Confirmation Modal */}
-      <Dialog open={confirmModal.open} onClose={() => setConfirmModal({ open: false, action: '', data: null, title: '', message: '' })} maxWidth="sm" fullWidth>
-        <DialogTitle sx={{ textAlign: 'center', pb: 1 }}>
-          <LocationOnIcon sx={{ fontSize: 48, color: '#1976d2', mb: 2 }} />
+      <Dialog
+        open={confirmModal.open}
+        onClose={() =>
+          setConfirmModal({
+            open: false,
+            action: "",
+            data: null,
+            title: "",
+            message: "",
+          })
+        }
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle sx={{ textAlign: "center", pb: 1 }}>
+          <LocationOnIcon sx={{ fontSize: 48, color: "#1976d2", mb: 2 }} />
           <Typography variant="h6" sx={{ fontWeight: 600 }}>
             {confirmModal.title}
           </Typography>
         </DialogTitle>
-        <DialogContent sx={{ textAlign: 'center', py: 2 }}>
+        <DialogContent sx={{ textAlign: "center", py: 2 }}>
           <Typography variant="body2" color="text.secondary">
             {confirmModal.message}
           </Typography>
         </DialogContent>
-        <DialogActions sx={{ justifyContent: 'center', pb: 3, gap: 2 }}>
+        <DialogActions sx={{ justifyContent: "center", pb: 3, gap: 2 }}>
           <Button
             onClick={handleConfirmAction}
             variant="contained"
@@ -431,7 +554,15 @@ const DeliveryRestrictionSettings = () => {
             OK
           </Button>
           <Button
-            onClick={() => setConfirmModal({ open: false, action: '', data: null, title: '', message: '' })}
+            onClick={() =>
+              setConfirmModal({
+                open: false,
+                action: "",
+                data: null,
+                title: "",
+                message: "",
+              })
+            }
             variant="outlined"
             color="error"
             sx={{ minWidth: 100 }}

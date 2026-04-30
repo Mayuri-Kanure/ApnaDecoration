@@ -27,6 +27,14 @@ const notificationSchema = new mongoose.Schema({
     type: String,
     default: null
   },
+  actionText: {
+    type: String,
+    default: 'View Details'
+  },
+  data: {
+    type: mongoose.Schema.Types.Mixed,
+    default: {}
+  },
   createdAt: {
     type: Date,
     default: Date.now

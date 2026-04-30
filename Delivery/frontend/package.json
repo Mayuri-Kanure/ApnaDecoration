@@ -10,9 +10,14 @@
     "lint": "next lint",
     "export": "next export",
     "analyze": "cross-env ANALYZE=true next build",
-    "type-check": "tsc --noEmit"
+    "type-check": "tsc --noEmit",
+    "build:apk": "node build-apk.js",
+    "build:hostinger": "node deploy-hostinger.js"
   },
   "dependencies": {
+    "@capacitor/android": "^8.3.0",
+    "@capacitor/cli": "^8.3.0",
+    "@capacitor/core": "^8.3.0",
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
     "@mui/icons-material": "^5.14.3",
