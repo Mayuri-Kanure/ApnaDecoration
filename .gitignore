@@ -84,6 +84,7 @@ check-atlas-data.js
 
 # Utility and debugging scripts (keep local)
 countServiceCategories.js
+testServiceCategories.js
 *.debug.js
 debug-*.js
 test-*.js
