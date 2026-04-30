@@ -82,6 +82,13 @@ yarn.lock
 # Cloudinary and other service files
 check-atlas-data.js
 
+# Utility and debugging scripts (keep local)
+countServiceCategories.js
+*.debug.js
+debug-*.js
+test-*.js
+temp-*.js
+
 # Private assets and sensitive files
 uploads/
 private/
