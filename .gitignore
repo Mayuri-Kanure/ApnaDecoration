@@ -8,12 +8,18 @@ yarn-error.log*
 build/
 dist/
 
-# Environment variables
+# Environment variables - NEVER COMMIT SECRETS!
 .env
+.env.*
 .env.local
+.env.development
 .env.development.local
+.env.test
 .env.test.local
+.env.production
 .env.production.local
+.env.staging
+.env.staging.local
 
 # Database
 *.db
