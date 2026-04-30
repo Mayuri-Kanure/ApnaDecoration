@@ -22,6 +22,7 @@ A **complete multi-vendor e-commerce platform** for home decoration and furnitur
 APNA Decoration is a **comprehensive e-commerce ecosystem** that connects customers, vendors, administrators, and delivery partners in a seamless digital marketplace for home decoration and furniture products.
 
 ### 🎯 Target Audience
+
 - **Homeowners** looking for decoration products
 - **Furniture vendors** wanting to sell online
 - **Interior designers** seeking quality products
@@ -32,6 +33,7 @@ APNA Decoration is a **comprehensive e-commerce ecosystem** that connects custom
 ## 🚀 Key Features
 
 ### 🛍️ Customer Application
+
 - **Premium Shopping Experience** - Modern UI with advanced filtering
 - **Product Search & Discovery** - Smart search with categories
 - **Shopping Cart & Checkout** - Secure payment integration
@@ -40,6 +42,7 @@ APNA Decoration is a **comprehensive e-commerce ecosystem** that connects custom
 - **Mobile Responsive** - Works perfectly on all devices
 
 ### 🏪 Vendor Management System
+
 - **Product Management** - Add/edit products with variants
 - **Inventory Control** - Stock tracking and alerts
 - **Order Processing** - Manage orders and fulfillment
@@ -48,6 +51,7 @@ APNA Decoration is a **comprehensive e-commerce ecosystem** that connects custom
 - **Brand Promotion** - Featured listings and visibility options
 
 ### 👨‍💼 Admin Dashboard
+
 - **Complete Control** - Manage all platform aspects
 - **User Management** - Customers, vendors, delivery partners
 - **Product Approval** - Review and approve vendor products
@@ -56,6 +60,7 @@ APNA Decoration is a **comprehensive e-commerce ecosystem** that connects custom
 - **System Configuration** - Platform settings and preferences
 
 ### 🚚 Delivery Management
+
 - **Real-time Tracking** - GPS-based delivery monitoring
 - **Route Optimization** - Efficient delivery planning
 - **Delivery Analytics** - Performance metrics and insights
@@ -66,6 +71,7 @@ APNA Decoration is a **comprehensive e-commerce ecosystem** that connects custom
 ## 🏗️ Technical Architecture
 
 ### **Frontend Technologies**
+
 - **React.js** - Modern component-based UI
 - **Material-UI & Tailwind CSS** - Premium design system
 - **Redux Toolkit** - State management
@@ -73,6 +79,7 @@ APNA Decoration is a **comprehensive e-commerce ecosystem** that connects custom
 - **Axios** - API communication
 
 ### **Backend Technologies**
+
 - **Node.js & Express.js** - RESTful API server
 - **MongoDB & Mongoose** - NoSQL database with ODM
 - **JWT Authentication** - Secure token-based auth
@@ -80,6 +87,7 @@ APNA Decoration is a **comprehensive e-commerce ecosystem** that connects custom
 - **Socket.io** - Real-time notifications
 
 ### **Database Design**
+
 - **Multi-tenant Architecture** - Separate collections for each entity
 - **Parent-Child Product Variants** - Advanced variant management
 - **ACID Compliance** - Transactional data integrity
@@ -90,6 +98,7 @@ APNA Decoration is a **comprehensive e-commerce ecosystem** that connects custom
 ## 📊 Platform Statistics
 
 ### **Enterprise Features Implemented**
+
 - ✅ **16 New Vendor Features** - Complete vendor ecosystem
 - ✅ **Multi-Variant Architecture** - Parent-child product system
 - ✅ **Enterprise Security** - Comprehensive data protection
@@ -97,6 +106,7 @@ APNA Decoration is a **comprehensive e-commerce ecosystem** that connects custom
 - ✅ **Mobile Applications** - Android APK support
 
 ### **System Capabilities**
+
 - 🚀 **Scalable Architecture** - Handles thousands of concurrent users
 - 🔒 **Enterprise Security** - Bank-level data protection
 - 📱 **Mobile-First Design** - Responsive across all devices
@@ -108,12 +118,14 @@ APNA Decoration is a **comprehensive e-commerce ecosystem** that connects custom
 ## 🛠️ Installation & Setup
 
 ### **Prerequisites**
-- Node.js 14+ 
+
+- Node.js 14+
 - MongoDB 4.4+
 - npm or yarn
 - Git
 
 ### **Quick Start**
+
 ```bash
 # Clone the repository
 git clone https://github.com/Mayuri-Kanure/ApnaDecoration.git
@@ -127,6 +139,7 @@ npm run start:all
 ```
 
 ### **Individual Application Setup**
+
 ```bash
 # Customer Application (Port 3000)
 cd User/frontend && npm install && npm start
@@ -145,18 +158,25 @@ cd Delivery/frontend && npm install && npm run dev
 ```
 
 ### **Environment Configuration**
-```bash
-# Copy environment templates
-cp Admin/backend/.env.example Admin/backend/.env
-cp User/backend/.env.example User/backend/.env
-cp Vendor/backend/.env.example Vendor/backend/.env
 
-# Configure your database and API keys
-# MONGODB_URI=mongodb://localhost:27017/apna-decoration
-# JWT_SECRET=your-jwt-secret-key
-# CLOUDINARY_CLOUD_NAME=your-cloudinary-name
-# CLOUDINARY_API_KEY=your-api-key
-# CLOUDINARY_API_SECRET=your-api-secret
+⚠️ **Security Note**: Environment variables contain sensitive data and should never be committed to version control.
+
+```bash
+# Create environment files (never commit these)
+# Each backend requires its own .env file with proper credentials
+
+# Required Environment Variables:
+# MONGODB_URI - Database connection string
+# JWT_SECRET - Authentication secret key
+# CLOUDINARY_CLOUD_NAME - Cloud storage service
+# CLOUDINARY_API_KEY - Cloud storage API key
+# CLOUDINARY_API_SECRET - Cloud storage secret
+
+# For security reasons:
+# 1. Never commit .env files to git
+# 2. Use different credentials for each environment
+# 3. Rotate secrets regularly
+# 4. Use environment-specific configurations
 ```
 
 ---
@@ -164,12 +184,14 @@ cp Vendor/backend/.env.example Vendor/backend/.env
 ## 📱 Mobile Applications
 
 ### **Android Application**
+
 - **Technology**: React Native with Capacitor
 - **Features**: Full e-commerce functionality
 - **Build**: `npm run build:apk`
 - **Status**: Production-ready
 
 ### **Mobile Features**
+
 - 🛍️ **Complete Shopping** - Browse, cart, checkout
 - 📦 **Order Management** - Track and manage orders
 - 🔔 **Push Notifications** - Real-time updates
@@ -181,6 +203,7 @@ cp Vendor/backend/.env.example Vendor/backend/.env
 ## 🔐 Security Features
 
 ### **Enterprise-Grade Security**
+
 - 🔒 **JWT Authentication** - Secure token-based authentication
 - 🛡️ **Role-Based Access Control** - Admin, Vendor, Customer, Delivery roles
 - 🔐 **Input Validation** - Comprehensive data sanitization
@@ -189,6 +212,7 @@ cp Vendor/backend/.env.example Vendor/backend/.env
 - 🔒 **CORS Protection** - Cross-origin request security
 
 ### **Data Protection**
+
 - 🗝️ **Password Hashing** - bcrypt encryption
 - 🔒 **API Key Security** - No hardcoded credentials
 - 🛡️ **SQL Injection Prevention** - Parameterized queries
@@ -200,6 +224,7 @@ cp Vendor/backend/.env.example Vendor/backend/.env
 ## 📈 Business Features
 
 ### **Vendor Management**
+
 - 💰 **Commission System** - Automatic percentage-based deductions
 - 📊 **Sales Analytics** - Revenue, orders, top products
 - 🏪 **Store Customization** - Brand banners and promotions
@@ -208,6 +233,7 @@ cp Vendor/backend/.env.example Vendor/backend/.env
 - 💳 **Wallet System** - Automated payment processing
 
 ### **Marketing & Promotions**
+
 - 🎉 **Flash Deals** - Time-limited promotional campaigns
 - 🏷️ **Coupon System** - Discount code management
 - 🌟 **Featured Products** - Premium placement options
@@ -215,6 +241,7 @@ cp Vendor/backend/.env.example Vendor/backend/.env
 - 📊 **Performance Analytics** - Campaign effectiveness tracking
 
 ### **Customer Experience**
+
 - 🔍 **Advanced Search** - Smart product discovery
 - ⭐ **Review System** - Customer feedback and ratings
 - 🛒 **Quick Checkout** - Streamlined purchase process
@@ -227,6 +254,7 @@ cp Vendor/backend/.env.example Vendor/backend/.env
 ## 🎨 Screenshots & UI
 
 ### **Customer Application**
+
 - 🏠 **Home Page** - Featured products and categories
 - 🔍 **Product Browse** - Advanced filtering and search
 - 📱 **Product Details** - Comprehensive product information
@@ -234,6 +262,7 @@ cp Vendor/backend/.env.example Vendor/backend/.env
 - 📦 **Order Tracking** - Real-time delivery updates
 
 ### **Admin Dashboard**
+
 - 📊 **Analytics Dashboard** - Business insights and metrics
 - 🏪 **Product Management** - Complete product control
 - 👥 **User Management** - Customer and vendor administration
@@ -241,6 +270,7 @@ cp Vendor/backend/.env.example Vendor/backend/.env
 - ⚙️ **System Settings** - Platform configuration
 
 ### **Vendor Portal**
+
 - 📦 **Product Catalog** - Vendor product management
 - 📊 **Sales Dashboard** - Performance analytics
 - 💰 **Earnings Overview** - Revenue and commission tracking
@@ -251,6 +281,7 @@ cp Vendor/backend/.env.example Vendor/backend/.env
 ## 🔧 Development Workflow
 
 ### **Project Structure**
+
 ```
 APNA DECORATION _APP/
 ├── User/                    # Customer Application
@@ -269,6 +300,7 @@ APNA DECORATION _APP/
 ```
 
 ### **Available Scripts**
+
 ```bash
 # Development
 npm run start:all           # Start all applications
@@ -296,6 +328,7 @@ npm run deploy:dev         # Deploy to development
 We welcome contributions! Please follow our guidelines:
 
 ### **Development Guidelines**
+
 1. Fork the repository
 2. Create feature branch (`git checkout -b feature/amazing-feature`)
 3. Commit changes (`git commit -m 'Add amazing feature'`)
@@ -303,6 +336,7 @@ We welcome contributions! Please follow our guidelines:
 5. Open Pull Request
 
 ### **Code Standards**
+
 - ✅ Use ESLint for code formatting
 - ✅ Follow React best practices
 - ✅ Write meaningful commit messages
@@ -320,17 +354,20 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## 📞 Support & Contact
 
 ### **Project Information**
+
 - **Version**: 1.0.0
 - **Last Updated**: April 2026
 - **License**: MIT
 - **Status**: Production Ready
 
 ### **Technical Support**
+
 - **Documentation**: This README file
 - **Issues**: [GitHub Issues](https://github.com/Mayuri-Kanure/ApnaDecoration/issues)
 - **Discussions**: [GitHub Discussions](https://github.com/Mayuri-Kanure/ApnaDecoration/discussions)
 
 ### **Contact Details**
+
 - **Email**: support@apnadecoration.com
 - **Website**: https://apnadecoration.com
 - **GitHub**: https://github.com/Mayuri-Kanure/ApnaDecoration
@@ -340,18 +377,21 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## 🎯 Future Roadmap
 
 ### **Q2 2026**
+
 - 🤖 **AI Product Recommendations** - Smart suggestion engine
 - 📱 **iOS Application** - Native iPhone app
 - 🌍 **Multi-Language Support** - Internationalization
 - 🔄 **Advanced Analytics** - Business intelligence dashboard
 
 ### **Q3 2026**
+
 - 🎨 **AR Furniture Preview** - Augmented reality features
 - 🗣️ **Voice Search** - Natural language product discovery
 - 📊 **Advanced Reporting** - Custom analytics and insights
 - 🌐 **Global Expansion** - Multi-country support
 
 ### **Q4 2026**
+
 - ⚡ **Performance Optimization** - Speed and reliability improvements
 - 🔧 **API V2** - Enhanced developer experience
 - 📱 **Progressive Web App** - PWA features and offline support
@@ -362,9 +402,11 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## 🏆 Why APNA Decoration?
 
 ### **🎯 Problem Solved**
+
 Transforming the fragmented home decoration market into a unified digital ecosystem where vendors can reach customers nationwide and customers can discover quality products easily.
 
 ### **💡 Unique Value Proposition**
+
 - 🏪 **Unified Marketplace** - Single platform for multiple vendors
 - 📊 **Data-Driven Insights** - Analytics for business growth
 - 🚀 **Mobile-First Approach** - Native app experience
@@ -372,6 +414,7 @@ Transforming the fragmented home decoration market into a unified digital ecosys
 - 🌍 **Scalable Architecture** - Built for growth
 
 ### **🚀 Impact**
+
 - **For Vendors**: Increased reach and sales opportunities
 - **For Customers**: Better product discovery and experience
 - **For Market**: Digital transformation of traditional industry
@@ -380,4 +423,4 @@ Transforming the fragmented home decoration market into a unified digital ecosys
 
 **🏪 APNA Decoration - Transforming Home Decoration Shopping Experience**
 
-*Built with ❤️ using React, Node.js, and MongoDB*
+_Built with ❤️ using React, Node.js, and MongoDB_
