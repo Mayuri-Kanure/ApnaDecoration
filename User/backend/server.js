@@ -94,6 +94,7 @@ app.use(
         "https://admin.apnadecoration.com",
         "https://vendor.apnadecoration.com",
         "https://delivery.apnadecoration.com",
+        "https://user-api.apnadecoration.com",
       ];
 
       if (allowedOrigins.indexOf(origin) !== -1 || !origin) {
