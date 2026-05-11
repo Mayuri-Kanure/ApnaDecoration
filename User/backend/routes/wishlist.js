@@ -133,14 +133,59 @@ router.post("/add", async (req, res) => {
   }
 });
 
-// Remove from wishlist
+// Remove from wishlist (with productId in body - for frontend compatibility)
+router.delete("/remove", async (req, res) => {
+  try {
+    const { productId } = req.body;
+    // Get authenticated user ID
+    const userId = req.user.userId;
+
+    console.log("🔍 Removing from wishlist (body):", { productId, userId });
+
+    if (!productId) {
+      console.log("❌ Missing productId in request body");
+      return res.status(400).json({
+        success: false,
+        error: "Product ID is required",
+      });
+    }
+
+    const result = await Wishlist.deleteOne({
+      user: userId,
+      product: productId,
+    });
+
+    if (result.deletedCount === 0) {
+      console.log("❌ Item not found in wishlist:", productId);
+      return res.status(404).json({
+        success: false,
+        error: "Item not found in wishlist",
+      });
+    }
+
+    console.log("✅ Removed from wishlist successfully:", productId);
+
+    res.json({
+      success: true,
+      message: "Removed from wishlist",
+    });
+  } catch (error) {
+    console.error("Error removing from wishlist:", error);
+    res.status(500).json({
+      success: false,
+      error: "Failed to remove from wishlist",
+    });
+  }
+});
+
+// Remove from wishlist (with productId as URL parameter)
 router.delete("/:productId", async (req, res) => {
   try {
     const { productId } = req.params;
     // Get authenticated user ID
     const userId = req.user.userId;
 
-    console.log("🔍 Removing from wishlist:", { productId, userId });
+    console.log("🔍 Removing from wishlist (params):", { productId, userId });
 
     const result = await Wishlist.deleteOne({
       user: userId,
