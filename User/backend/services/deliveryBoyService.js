@@ -897,19 +897,30 @@ class DeliveryBoyService {
     try {
       console.log("🔧 Updating delivery boy:", deliveryBoyId, updateData);
 
-      // 🚨 CRITICAL FIX: Clean the data to prevent Mongoose validation errors
+      // 🚨 CRITICAL FIX: Clean data to prevent Mongoose validation errors
       const cleanData = { ...updateData };
 
-      // Handle address object - remove if empty or invalid
+      // Handle address object - remove if completely empty
       if (cleanData.address) {
-        if (
-          !cleanData.address.street ||
-          !cleanData.address.city ||
-          !cleanData.address.state ||
-          !cleanData.address.pincode
-        ) {
-          // If any required field is missing, don't update address at all
+        // Only remove address if ALL required fields are empty/null/undefined
+        const hasStreet =
+          cleanData.address.street && cleanData.address.street.trim() !== "";
+        const hasCity =
+          cleanData.address.city && cleanData.address.city.trim() !== "";
+        const hasState =
+          cleanData.address.state && cleanData.address.state.trim() !== "";
+        const hasPincode =
+          cleanData.address.pincode && cleanData.address.pincode.trim() !== "";
+
+        if (!hasStreet && !hasCity && !hasState && !hasPincode) {
+          // Only remove if completely empty
           delete cleanData.address;
+        } else {
+          // Clean up individual empty fields to prevent validation errors
+          if (!hasStreet) cleanData.address.street = undefined;
+          if (!hasCity) cleanData.address.city = undefined;
+          if (!hasState) cleanData.address.state = undefined;
+          if (!hasPincode) cleanData.address.pincode = undefined;
         }
       }
 

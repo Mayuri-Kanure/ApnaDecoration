@@ -585,8 +585,12 @@ exports.updateProfile = async (req, res) => {
     }
 
     // Get delivery boy ID from authenticated user
+    console.log("🔍 req.user object:", JSON.stringify(req.user, null, 2));
     const deliveryBoyId = req.user?._id || req.user?.userId;
     console.log("🔍 extracted deliveryBoyId:", deliveryBoyId);
+    console.log("🔍 req.body type:", typeof req.body);
+    console.log("🔍 req.body keys:", Object.keys(req.body));
+
     if (!deliveryBoyId) {
       return res.status(400).json({
         success: false,
