@@ -225,6 +225,8 @@ app.use("/api/auth", authRoutes);
 app.use("/api/vendor/auth", vendorAuthRoutes);
 app.use("/api/products", productRoutes);
 app.use("/api/vendor-products", vendorProductRoutes);
+app.use("/api/vendor-orders", require("./routes/vendorOrders"));
+app.use("/api/vendor-analytics", require("./routes/vendorAnalytics"));
 app.use("/api/cart", cartRoutes);
 app.use("/api/service-categories", serviceCategoryRoutes);
 app.use("/api/home-page-service-categories", homePageServiceCategoriesRoutes);

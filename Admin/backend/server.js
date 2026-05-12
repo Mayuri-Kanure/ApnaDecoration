@@ -244,6 +244,10 @@ app.use("/api/vendors", vendorRoutes);
 
 app.use("/api/vendor-orders", require("./routes/vendorOrders"));
 
+app.use("/api/vendor-analytics", require("./routes/vendorAnalyticsRoutes"));
+
+app.use("/api/vendor-notifications", require("./routes/vendorNotifications"));
+
 // Delivery management routes
 
 app.use("/api/deliverymen", require("./routes/deliveryMen"));

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { IMAGE_BASE_URL } from "../config/constants";
 import { useCart } from "../contexts/CartContext";
 import { useToast } from "../contexts/ToastContext";
@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 
 const Wishlist = () => {
+  const navigate = useNavigate();
   const { wishlist, removeFromWishlist, addToCart } = useCart();
   const { success, error: showError } = useToast();
   const [loading, setLoading] = useState(false);
@@ -135,6 +136,28 @@ const Wishlist = () => {
     } catch (error) {
       console.error("Failed to move to cart:", error);
       showError("Failed to move to cart");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleBuyNow = async (product) => {
+    try {
+      setLoading(true);
+      const result = await addToCart(product, 1);
+
+      if (result.success) {
+        success("Item added to cart! Redirecting to checkout...");
+        // Navigate to checkout after a short delay
+        setTimeout(() => {
+          navigate("/checkout");
+        }, 1000);
+      } else {
+        showError(result.error || "Failed to add to cart");
+      }
+    } catch (error) {
+      console.error("Failed to add to cart:", error);
+      showError("Failed to add to cart");
     } finally {
       setLoading(false);
     }
@@ -416,20 +439,34 @@ const Wishlist = () => {
 
                           {/* Action Buttons */}
                           <div className="mt-4 space-y-2">
-                            <button
-                              onClick={() => handleMoveToCart(item)}
-                              disabled={
-                                !item.inStock &&
-                                item.stock !== undefined &&
-                                item.stock !== undefined
-                              }
-                              className="w-full py-2.5 sm:py-3 px-4 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2 text-sm sm:text-base"
-                            >
-                              <ShoppingBag size={16} />
-                              {item.inStock || item.stock === undefined
-                                ? "Add to Cart"
-                                : "Out of Stock"}
-                            </button>
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => handleMoveToCart(item)}
+                                disabled={
+                                  !item.inStock &&
+                                  item.stock !== undefined &&
+                                  item.stock !== undefined
+                                }
+                                className="flex-1 py-2.5 sm:py-3 px-4 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2 text-sm sm:text-base"
+                              >
+                                <ShoppingBag size={16} />
+                                {item.inStock || item.stock === undefined
+                                  ? "Add to Cart"
+                                  : "Out of Stock"}
+                              </button>
+                              <button
+                                onClick={() => handleBuyNow(item)}
+                                disabled={
+                                  !item.inStock &&
+                                  item.stock !== undefined &&
+                                  item.stock !== undefined
+                                }
+                                className="flex-1 py-2.5 sm:py-3 px-4 bg-orange-500 text-white rounded-lg font-medium hover:bg-orange-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2 text-sm sm:text-base"
+                              >
+                                <ShoppingBag size={16} />
+                                Buy Now
+                              </button>
+                            </div>
                           </div>
                         </div>
                       </div>

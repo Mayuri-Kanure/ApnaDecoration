@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import Navigation from "../components/Navigation";
 import Footer from "../components/Footer";
 import LoadingSpinner from "../components/LoadingSpinner";
@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 
 const Contact = () => {
+  const navigate = useNavigate();
   const { success, error: showError } = useToast();
   const [formData, setFormData] = useState({
     name: "",
@@ -45,6 +46,14 @@ const Contact = () => {
   useEffect(() => {
     setIsLoaded(true);
   }, []);
+
+  const handleBack = () => {
+    if (window.history.length > 1) {
+      navigate(-1);
+    } else {
+      navigate("/");
+    }
+  };
 
   const validateForm = () => {
     const newErrors = {};
@@ -141,16 +150,16 @@ const Contact = () => {
         <div className="absolute top-0 right-0 translate-x-1/2 w-64 h-64 sm:w-80 sm:h-80 bg-white/10 rounded-full blur-3xl"></div>
         <div className="absolute bottom-0 left-0 -translate-x-1/2 w-64 h-64 sm:w-80 sm:h-80 bg-white/10 rounded-full blur-3xl"></div>
 
-        <div className="absolute inset-0 bg-black opacity-20"></div>
+        <div className="absolute inset-0 bg-black opacity-20 pointer-events-none"></div>
         {/* Back Button */}
-        <div className="w-full px-4 py-4">
-          <Link
-            to="/"
-            className="inline-flex items-center gap-2 text-white hover:text-indigo-600 transition-colors"
+        <div className="relative z-50 w-full px-4 py-4">
+          <button
+            onClick={handleBack}
+            className="inline-flex items-center gap-2 text-white hover:text-brand-accent transition-colors duration-200 hover:scale-105"
           >
             <ChevronLeft size={20} />
-            Back to Home
-          </Link>
+            Back
+          </button>
         </div>
         <div className="relative w-full px-4 sm:px-6">
           <div className="py-12 sm:py-16 lg:py-20">

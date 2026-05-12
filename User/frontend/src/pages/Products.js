@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext, useMemo } from "react";
+import React, { useState, useEffect, useContext, useMemo, useRef } from "react";
 import { Link, useSearchParams, useNavigate } from "react-router-dom";
 import { IMAGE_BASE_URL } from "../config/constants";
 import { useProducts } from "../contexts/ProductContext";
@@ -42,7 +42,7 @@ const Products = () => {
     isInWishlist,
     removeFromWishlist,
   } = useCart();
-  const { success } = useToast();
+  const { success, error: showError } = useToast();
   const navigate = useNavigate();
 
   // Debug logging
@@ -62,6 +62,10 @@ const Products = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [showFeaturedOnly, setShowFeaturedOnly] = useState(false);
   const [showMobileFilters, setShowMobileFilters] = useState(false);
+  const [searchResults, setSearchResults] = useState({ products: [] });
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [searchDropdownOpen, setSearchDropdownOpen] = useState(false);
+  const searchRef = useRef(null);
 
   // Fetch categories
   useEffect(() => {
@@ -97,6 +101,91 @@ const Products = () => {
     };
 
     fetchCategories();
+  }, []);
+
+  // Enhanced Search functionality - Real-time suggestions
+  useEffect(() => {
+    if (searchTerm.trim().length >= 2) {
+      // Show suggestions after 2 letters
+      performSearch(searchTerm);
+    } else if (searchTerm.trim().length === 0) {
+      setSearchResults({ products: [] });
+    }
+  }, [searchTerm]);
+
+  const performSearch = async (term) => {
+    try {
+      setSearchLoading(true);
+      console.log("Searching for:", term);
+
+      // Enhanced search with partial matching and priority
+      const searchLower = term.toLowerCase();
+
+      // Filter products with enhanced matching
+      const filteredProducts = products
+        .map((product) => {
+          const name = product.name?.toLowerCase() || "";
+          const description = product.description?.toLowerCase() || "";
+          const categoryName =
+            typeof product.category === "object"
+              ? product.category?.name?.toLowerCase() || ""
+              : product.category?.toLowerCase() || "";
+
+          // Calculate match score for better ranking
+          let score = 0;
+
+          // Exact name match gets highest score
+          if (name === searchLower) score += 100;
+          // Name starts with search term
+          else if (name.startsWith(searchLower)) score += 80;
+          // Name contains search term
+          else if (name.includes(searchLower)) score += 60;
+
+          // Category name matching
+          if (categoryName === searchLower) score += 40;
+          else if (categoryName.startsWith(searchLower)) score += 30;
+          else if (categoryName.includes(searchLower)) score += 20;
+
+          // Description matching (lower priority)
+          if (description.includes(searchLower)) score += 10;
+
+          return {
+            product,
+            score,
+            matchType:
+              name === searchLower
+                ? "exact"
+                : name.startsWith(searchLower)
+                  ? "startsWith"
+                  : name.includes(searchLower)
+                    ? "contains"
+                    : "other",
+          };
+        })
+        .filter((item) => item.score > 0) // Only show products that match
+        .sort((a, b) => b.score - a.score) // Sort by score (highest first)
+        .slice(0, 5) // Show max 5 results
+        .map((item) => item.product);
+
+      console.log("Search results:", filteredProducts);
+      setSearchResults({ products: filteredProducts });
+    } catch (err) {
+      console.error("Search error:", err);
+      setSearchResults({ products: [] });
+    } finally {
+      setSearchLoading(false);
+    }
+  };
+
+  // Close search dropdown on outside click
+  useEffect(() => {
+    const handler = (e) => {
+      if (searchRef.current && !searchRef.current.contains(e.target)) {
+        setSearchDropdownOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
   }, []);
 
   useEffect(() => {
@@ -218,20 +307,20 @@ const Products = () => {
     }
 
     return (
-      <Link
-        to={isService ? `/service/${productId}` : `/product/${productId}`}
-        className="block group focus:outline-none focus:ring-0 active:outline-none"
-        onClick={(e) => {
-          // Smooth scroll to top when navigating to product detail
-          window.scrollTo({ top: 0, behavior: "smooth" });
-        }}
-      >
-        <div className="bg-white rounded-xl shadow-sm hover:shadow-2xl transition-all duration-500 overflow-hidden border border-gray-100 hover:border-purple-200 transform hover:-translate-y-2 relative h-full flex flex-col">
-          {/* Gradient overlay on hover */}
-          <div className="absolute inset-0 bg-gradient-to-t from-purple-600/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"></div>
+      <div className="bg-white rounded-xl shadow-sm hover:shadow-2xl transition-all duration-500 overflow-hidden border border-gray-100 hover:border-purple-200 transform hover:-translate-y-2 relative h-full flex flex-col group">
+        {/* Gradient overlay on hover */}
+        <div className="absolute inset-0 bg-gradient-to-t from-purple-600/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"></div>
 
-          {/* Product Image */}
-          <div className="relative overflow-hidden">
+        {/* Product Image */}
+        <div className="relative overflow-hidden">
+          <Link
+            to={isService ? `/service/${productId}` : `/product/${productId}`}
+            className="block focus:outline-none focus:ring-0 active:outline-none"
+            onClick={(e) => {
+              // Smooth scroll to top when navigating to product detail
+              window.scrollTo({ top: 0, behavior: "smooth" });
+            }}
+          >
             <img
               src={image}
               alt={product.name}
@@ -244,30 +333,39 @@ const Products = () => {
 
             {/* Image overlay gradient */}
             <div className="absolute inset-0 bg-gradient-to-t from-black/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+          </Link>
 
-            {/* Wishlist Button */}
-            <button
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                handleWishlist(e, product);
-              }}
-              className={`absolute top-3 right-3 p-2.5 rounded-full bg-white/90 backdrop-blur-sm shadow-lg transition-all duration-300 hover:scale-110 hover:bg-white ${
-                isInWishlist(productId)
-                  ? "text-red-500 shadow-red-200"
-                  : "text-gray-400 hover:text-red-500"
-              }`}
-            >
-              <Heart
-                size={16}
-                fill={isInWishlist(productId) ? "currentColor" : "none"}
-                className={`transition-all duration-300 ${isInWishlist(productId) ? "scale-110" : ""}`}
-              />
-            </button>
-          </div>
+          {/* Wishlist Button - OUTSIDE the Link */}
+          <button
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              handleWishlist(e, product);
+            }}
+            className={`absolute top-3 right-3 p-2.5 rounded-full bg-white/90 backdrop-blur-sm shadow-lg transition-all duration-300 hover:scale-110 hover:bg-white ${
+              isInWishlist(productId)
+                ? "text-red-500 shadow-red-200"
+                : "text-gray-400 hover:text-red-500"
+            }`}
+          >
+            <Heart
+              size={16}
+              fill={isInWishlist(productId) ? "currentColor" : "none"}
+              className={`transition-all duration-300 ${isInWishlist(productId) ? "scale-110" : ""}`}
+            />
+          </button>
+        </div>
 
-          {/* Product Info */}
-          <div className="p-4 relative flex-1 flex flex-col">
+        {/* Product Info */}
+        <div className="p-4 relative flex-1 flex flex-col">
+          <Link
+            to={isService ? `/service/${productId}` : `/product/${productId}`}
+            className="block focus:outline-none focus:ring-0 active:outline-none flex-1"
+            onClick={(e) => {
+              // Smooth scroll to top when navigating to product detail
+              window.scrollTo({ top: 0, behavior: "smooth" });
+            }}
+          >
             {/* Product Name */}
             <h3 className="font-bold text-gray-900 mb-2 line-clamp-2 group-hover:text-purple-700 transition-colors duration-300 text-lg min-h-[48px]">
               {product.name}
@@ -326,70 +424,61 @@ const Products = () => {
                 })()}
               </span>
             </div>
+          </Link>
 
-            {/* Action Buttons */}
-            <div className="mt-auto flex gap-2">
-              {isService ? (
+          {/* Action Buttons - OUTSIDE the Link */}
+          <div className="mt-auto flex gap-2">
+            {isService ? (
+              <button
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  // Navigate to booking or service detail
+                  window.location.href = `/service/${productId}`;
+                }}
+                className="flex-1 bg-gradient-to-r from-blue-600 to-purple-600 text-white py-2.5 rounded-lg flex items-center justify-center gap-2"
+              >
+                <Calendar size={16} />
+                Book Service
+              </button>
+            ) : (
+              <>
                 <button
                   onClick={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
-                    // Navigate to booking or service detail
-                    window.location.href = `/service/${productId}`;
+                    // Normalize product category before adding to cart
+                    const normalizedProduct = {
+                      ...product,
+                      category:
+                        typeof product.category === "object"
+                          ? product.category?.name || ""
+                          : product.category || "",
+                    };
+                    addToCart(normalizedProduct, 1);
+                    success(`${product.name} added to cart!`);
                   }}
-                  className="flex-1 bg-gradient-to-r from-blue-600 to-purple-600 text-white py-2.5 rounded-lg flex items-center justify-center gap-2"
+                  className="flex-1 bg-gradient-to-r from-purple-600 to-pink-600 text-white py-2.5 rounded-lg flex items-center justify-center gap-2"
                 >
-                  <Calendar size={16} />
-                  Book Service
+                  <ShoppingBag size={16} />
+                  {isInCart(productId) ? "In Cart" : "Add to Cart"}
                 </button>
-              ) : (
-                <>
-                  <button
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      // Normalize product category before adding to cart
-                      const normalizedProduct = {
-                        ...product,
-                        category:
-                          typeof product.category === "object"
-                            ? product.category?.name || ""
-                            : product.category || "",
-                      };
-                      addToCart(normalizedProduct, 1);
-                      success(`${product.name} added to cart!`);
-                    }}
-                    className="flex-1 bg-gradient-to-r from-purple-600 to-pink-600 text-white py-2.5 rounded-lg flex items-center justify-center gap-2"
-                  >
-                    <ShoppingBag size={16} />
-                    {isInCart(productId) ? "In Cart" : "Add to Cart"}
-                  </button>
-                  <button
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      // Normalize product category before adding to cart
-                      const normalizedProduct = {
-                        ...product,
-                        category:
-                          typeof product.category === "object"
-                            ? product.category?.name || ""
-                            : product.category || "",
-                      };
-                      addToCart(normalizedProduct, 1);
-                      navigate("/cart");
-                    }}
-                    className="flex-1 bg-gradient-to-r from-green-600 to-emerald-600 text-white py-2.5 rounded-lg flex items-center justify-center gap-2"
-                  >
-                    <ShoppingBag size={16} />
-                    Buy Now
-                  </button>
-                </>
-              )}
-            </div>
+                <button
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    handleBuyNow(product, e);
+                  }}
+                  className="flex-1 bg-gradient-to-r from-orange-500 to-orange-600 text-white py-2.5 rounded-lg flex items-center justify-center gap-2"
+                >
+                  <ShoppingBag size={16} />
+                  Buy Now
+                </button>
+              </>
+            )}
           </div>
         </div>
-      </Link>
+      </div>
     );
   };
 
@@ -403,6 +492,31 @@ const Products = () => {
       </div>
     );
   }
+
+  // Handle buy now functionality
+  const handleBuyNow = async (product, e) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    try {
+      // Normalize product category before adding to cart
+      const normalizedProduct = {
+        ...product,
+        category:
+          typeof product.category === "object"
+            ? product.category?.name || ""
+            : product.category || "",
+      };
+      await addToCart(normalizedProduct, 1);
+      success(`${product.name} added to cart! Redirecting to checkout...`);
+      // Navigate to checkout after a short delay
+      setTimeout(() => {
+        navigate("/checkout");
+      }, 1000);
+    } catch (error) {
+      showError("Failed to add to cart");
+    }
+  };
 
   /* ---------------- UI ---------------- */
   return (
@@ -436,13 +550,128 @@ const Products = () => {
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Search
             </label>
-            <input
-              type="text"
-              placeholder="Search products..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-gray-700"
-            />
+            <div className="relative" ref={searchRef}>
+              <Search
+                className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
+                size={16}
+              />
+              <input
+                type="text"
+                placeholder="Search products (e.g., Birthday, Wedding, Flowers)..."
+                value={searchTerm}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setSearchTerm(value);
+                  // Auto-open dropdown when typing
+                  if (value.trim().length >= 2) {
+                    setSearchDropdownOpen(true);
+                  } else if (value.trim().length === 0) {
+                    setSearchDropdownOpen(false);
+                  }
+                }}
+                onFocus={() => setSearchDropdownOpen(true)}
+                onBlur={() =>
+                  setTimeout(() => setSearchDropdownOpen(false), 200)
+                }
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-gray-700"
+              />
+
+              {/* Search Dropdown */}
+              {searchDropdownOpen && (
+                <div className="absolute left-0 right-0 mt-2 bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden z-[99999] max-h-96">
+                  {searchLoading ? (
+                    <div className="px-4 py-3 text-sm text-gray-500">
+                      Searching...
+                    </div>
+                  ) : (
+                    <>
+                      {/* Search Results */}
+                      {searchResults.products.length > 0 && (
+                        <div>
+                          <div className="px-4 py-2 text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Products ({searchResults.products.length})
+                          </div>
+                          {searchResults.products.map((product) => {
+                            const highlightText = (text, term) => {
+                              if (!text || !term) return text;
+                              const regex = new RegExp(`(${term})`, "gi");
+                              return text.replace(
+                                regex,
+                                '<mark class="bg-yellow-200 text-yellow-900 px-1 rounded">$1</mark>',
+                              );
+                            };
+
+                            return (
+                              <button
+                                key={product.id || product._id}
+                                onClick={() => {
+                                  setSearchTerm(product.name);
+                                  setSearchDropdownOpen(false);
+                                }}
+                                className="w-full text-left px-4 py-3 hover:bg-purple-50 transition-colors border-b border-gray-50 last:border-b-0"
+                              >
+                                <div className="flex items-center justify-between">
+                                  <div className="flex-1 min-w-0">
+                                    <div
+                                      className="font-medium text-gray-900 text-sm truncate"
+                                      dangerouslySetInnerHTML={{
+                                        __html: highlightText(
+                                          product.name,
+                                          searchTerm,
+                                        ),
+                                      }}
+                                    />
+                                    <div className="flex items-center gap-2 mt-1">
+                                      {product.price && (
+                                        <span className="text-xs font-semibold text-purple-600">
+                                          ₹{product.price}
+                                        </span>
+                                      )}
+                                      {product.rating && (
+                                        <div className="flex items-center gap-1">
+                                          <Star
+                                            size={12}
+                                            className="text-yellow-400 fill-current"
+                                          />
+                                          <span className="text-xs text-gray-600">
+                                            {product.rating}
+                                          </span>
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                                  <svg
+                                    className="w-4 h-4 text-gray-400 flex-shrink-0"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
+                                  >
+                                    <path
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      strokeWidth={2}
+                                      d="M9 5l7 7-7 7"
+                                    />
+                                  </svg>
+                                </div>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
+
+                      {/* No Results */}
+                      {searchResults.products.length === 0 &&
+                        searchTerm.trim() !== "" && (
+                          <div className="px-4 py-3 text-sm text-gray-500">
+                            No products found for "{searchTerm}"
+                          </div>
+                        )}
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Categories */}

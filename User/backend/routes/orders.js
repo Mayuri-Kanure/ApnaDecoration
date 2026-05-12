@@ -199,6 +199,91 @@ router.put("/:id/cancel", async (req, res) => {
   }
 });
 
+// Cancel individual item from order
+router.put("/:id/items/:itemId/cancel", async (req, res) => {
+  console.log("🔍 CANCEL ITEM ENDPOINT HIT");
+
+  try {
+    const { id, itemId } = req.params;
+    const userId = req.user?._id || req.user?.id;
+
+    console.log("🔍 CANCEL ITEM REQUEST:", { orderId: id, itemId, userId });
+
+    // Find the order
+    const Order = require("../models/Order");
+    const order = await Order.findOne({ _id: id, userId });
+
+    if (!order) {
+      return res.status(404).json({
+        success: false,
+        message: "Order not found",
+      });
+    }
+
+    // Check if order can be modified
+    const cancellableStatuses = ["pending", "confirmed"];
+    if (!cancellableStatuses.includes(order.status)) {
+      return res.status(400).json({
+        success: false,
+        message: `Cannot cancel items from ${order.status} orders`,
+      });
+    }
+
+    // Find and remove the item
+    const itemIndex = order.items.findIndex(
+      (item) => item._id.toString() === itemId,
+    );
+    if (itemIndex === -1) {
+      return res.status(404).json({
+        success: false,
+        message: "Item not found in order",
+      });
+    }
+
+    const cancelledItem = order.items[itemIndex];
+    order.items.splice(itemIndex, 1);
+
+    // Recalculate order total
+    const newTotal = order.items.reduce((sum, item) => {
+      return (
+        sum +
+        (item.totalPrice ||
+          (item.quantity || 0) * (item.unitPrice || item.price || 0))
+      );
+    }, 0);
+
+    order.total = newTotal;
+    if (order.pricing) {
+      order.pricing.total = newTotal;
+    }
+
+    // If no items left, cancel the entire order
+    if (order.items.length === 0) {
+      order.status = "cancelled";
+    }
+
+    await order.save();
+    console.log("✅ Item cancelled successfully:", cancelledItem._id);
+
+    res.json({
+      success: true,
+      message: "Item cancelled successfully",
+      data: {
+        cancelledItem,
+        updatedOrder: order,
+        newTotal,
+      },
+    });
+  } catch (error) {
+    console.error("❌ Cancel item error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to cancel item",
+      error: error.message,
+    });
+  }
+});
+
 // Update order status
 router.put("/:id/status", orderController.updateOrderStatus);
 

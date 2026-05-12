@@ -86,6 +86,7 @@ const Profile = () => {
   const [orderTab, setOrderTab] = useState("active"); // 'active' or 'cancelled'
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [showOrderDetails, setShowOrderDetails] = useState(false);
+  const [cancellingItems, setCancellingItems] = useState(new Set()); // Track items being cancelled
   const fileInputRef = useRef(null);
 
   // Sync userData with AuthContext user changes
@@ -531,6 +532,130 @@ const Profile = () => {
     setShowOrderDetails(false);
   };
 
+  // Handle cancelling individual items
+  const handleCancelItem = async (orderId, itemId) => {
+    const itemKey = `${orderId}-${itemId}`;
+
+    if (cancellingItems.has(itemKey)) {
+      return; // Prevent double-click
+    }
+
+    // Check if order can be modified
+    const order = allOrders.find((o) => o._id === orderId);
+    if (!order) {
+      toast.error("Order not found");
+      return;
+    }
+
+    // Only allow item cancellation for pending and confirmed orders
+    const cancellableStatuses = ["pending", "confirmed"];
+    if (!cancellableStatuses.includes(order.status)) {
+      toast.error(`Cannot cancel items from ${order.status} orders`);
+      return;
+    }
+
+    if (!window.confirm("Are you sure you want to cancel this item?")) {
+      return;
+    }
+
+    try {
+      // Add to cancelling set to prevent double-click
+      setCancellingItems((prev) => new Set(prev).add(itemKey));
+
+      const token = localStorage.getItem("token");
+      const response = await fetch(
+        `${API_BASE_URL}/orders/${orderId}/items/${itemId}/cancel`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+        },
+      );
+
+      if (!response.ok) {
+        throw new Error(`Failed to cancel item: ${response.status}`);
+      }
+
+      const result = await response.json();
+      console.log("Item cancelled successfully:", result);
+
+      // Update the order in state to reflect the item cancellation
+      setAllOrders((prevOrders) =>
+        prevOrders.map((order) => {
+          if (order._id === orderId) {
+            // Remove the cancelled item from the order
+            const updatedItems = order.items.filter(
+              (item) => item._id !== itemId,
+            );
+
+            // Recalculate order total
+            const newTotal = updatedItems.reduce((sum, item) => {
+              return (
+                sum +
+                (item.totalPrice ||
+                  (item.quantity || 0) * (item.unitPrice || item.price || 0))
+              );
+            }, 0);
+
+            return {
+              ...order,
+              items: updatedItems,
+              total: newTotal,
+              pricing: {
+                ...order.pricing,
+                total: newTotal,
+              },
+            };
+          }
+          return order;
+        }),
+      );
+
+      // Also update selectedOrder if it's currently being viewed
+      if (selectedOrder && selectedOrder._id === orderId) {
+        setSelectedOrder((prev) => {
+          if (prev && prev._id === orderId) {
+            const updatedItems = prev.items.filter(
+              (item) => item._id !== itemId,
+            );
+            const newTotal = updatedItems.reduce((sum, item) => {
+              return (
+                sum +
+                (item.totalPrice ||
+                  (item.quantity || 0) * (item.unitPrice || item.price || 0))
+              );
+            }, 0);
+
+            return {
+              ...prev,
+              items: updatedItems,
+              total: newTotal,
+              pricing: {
+                ...prev.pricing,
+                total: newTotal,
+              },
+            };
+          }
+          return prev;
+        });
+      }
+
+      toast.success("Item cancelled successfully!");
+    } catch (error) {
+      console.error("Error cancelling item:", error);
+      toast.error(`Failed to cancel item: ${error.message}`);
+    } finally {
+      // Remove from cancelling set
+      setCancellingItems((prev) => {
+        const newSet = new Set(prev);
+        newSet.delete(itemKey);
+        return newSet;
+      });
+    }
+  };
+
   // PRODUCTION-READY status normalization
   const normalizeStatus = (status) => {
     return status?.toLowerCase() || "pending";
@@ -805,9 +930,69 @@ const Profile = () => {
       } catch (error) {
         console.error("🔔 Notifications fetch error:", error);
         console.log(
-          "🔔 Notifications endpoint not available yet, using empty array",
+          "🔔 Notifications endpoint not available yet, using mock data",
         );
-        setNotifications([]); // Set empty array instead of failing
+
+        // Use mock notifications for testing date grouping
+        const mockNotifications = [
+          {
+            _id: "notif-1",
+            type: "order_update",
+            title: "Order Confirmed",
+            message:
+              "Your order #12345 has been confirmed and is being prepared",
+            read: false,
+            createdAt: new Date().toISOString(),
+            actionUrl: "/orders",
+          },
+          {
+            _id: "notif-2",
+            type: "product_approved",
+            title: "Product Approved",
+            message: "Your product listing has been approved",
+            read: true,
+            createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(), // 2 hours ago
+            actionUrl: "/products",
+          },
+          {
+            _id: "notif-3",
+            type: "system",
+            title: "System Update",
+            message: "New features have been added to your dashboard",
+            read: false,
+            createdAt: new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString(), // 5 hours ago
+          },
+          {
+            _id: "notif-4",
+            type: "order_update",
+            title: "Order Delivered",
+            message: "Your order #12344 has been delivered successfully",
+            read: true,
+            createdAt: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(), // 1 day ago
+          },
+          {
+            _id: "notif-5",
+            type: "payment_alert",
+            title: "Payment Received",
+            message: "Payment of ₹1299 has been received for your order",
+            read: false,
+            createdAt: new Date(
+              Date.now() - 2 * 24 * 60 * 60 * 1000,
+            ).toISOString(), // 2 days ago
+          },
+          {
+            _id: "notif-6",
+            type: "system",
+            title: "Account Update",
+            message: "Your profile information has been updated",
+            read: true,
+            createdAt: new Date(
+              Date.now() - 5 * 24 * 60 * 60 * 1000,
+            ).toISOString(), // 5 days ago
+          },
+        ];
+
+        setNotifications(mockNotifications);
       }
     };
 
@@ -871,6 +1056,57 @@ const Profile = () => {
     console.log("Notification state changed:", notifications);
     console.log("Notifications length:", notifications.length);
   }, [notifications]);
+
+  // Group notifications by date
+  const groupNotificationsByDate = (notifications) => {
+    if (!notifications || notifications.length === 0) return {};
+
+    const grouped = {};
+
+    notifications.forEach((notification) => {
+      const createdAt = new Date(
+        notification.createdAt || notification.date || Date.now(),
+      );
+      const today = new Date();
+      const yesterday = new Date(today);
+      yesterday.setDate(yesterday.getDate() - 1);
+
+      let dateKey;
+      if (createdAt.toDateString() === today.toDateString()) {
+        dateKey = "Today";
+      } else if (createdAt.toDateString() === yesterday.toDateString()) {
+        dateKey = "Yesterday";
+      } else if (createdAt.getFullYear() === today.getFullYear()) {
+        dateKey = createdAt.toLocaleDateString("en-US", {
+          month: "short",
+          day: "numeric",
+          weekday: "short",
+        });
+      } else {
+        dateKey = createdAt.toLocaleDateString("en-US", {
+          month: "short",
+          day: "numeric",
+          year: "numeric",
+        });
+      }
+
+      if (!grouped[dateKey]) {
+        grouped[dateKey] = [];
+      }
+      grouped[dateKey].push(notification);
+    });
+
+    // Sort notifications within each date group by creation time (newest first)
+    Object.keys(grouped).forEach((dateKey) => {
+      grouped[dateKey].sort((a, b) => {
+        const dateA = new Date(a.createdAt || a.date || Date.now());
+        const dateB = new Date(b.createdAt || b.date || Date.now());
+        return dateB - dateA; // Newest first
+      });
+    });
+
+    return grouped;
+  };
 
   // Notification settings handlers
   const handleNotificationSettingChange = async (setting, value) => {
@@ -2319,7 +2555,7 @@ const Profile = () => {
                         </div>
 
                         {/* Price */}
-                        <div className="text-right">
+                        <div className="text-right flex flex-col gap-2">
                           <p className="font-semibold text-gray-900">
                             ₹{(item.unitPrice || item.price || 0).toFixed(2)}
                           </p>
@@ -2330,6 +2566,27 @@ const Profile = () => {
                               (item.quantity || 1)
                             ).toFixed(2)}
                           </p>
+                          {selectedOrder &&
+                            ["pending", "confirmed"].includes(
+                              selectedOrder.status,
+                            ) && (
+                              <button
+                                onClick={() =>
+                                  handleCancelItem(selectedOrder._id, item._id)
+                                }
+                                disabled={cancellingItems.has(
+                                  `${selectedOrder._id}-${item._id}`,
+                                )}
+                                className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-red-600 hover:text-red-800 hover:bg-red-50 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                              >
+                                <Trash2 size={12} />
+                                {cancellingItems.has(
+                                  `${selectedOrder._id}-${item._id}`,
+                                )
+                                  ? "Cancelling..."
+                                  : "Cancel"}
+                              </button>
+                            )}
                         </div>
                       </div>
                     ))
@@ -3239,7 +3496,7 @@ const Profile = () => {
       </div>
 
       {/* Notification List */}
-      <div className="space-y-4 mb-8">
+      <div className="space-y-6 mb-8">
         {notifications.length === 0 ? (
           <div className="text-center py-12 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
             <Bell size={48} className="mx-auto text-gray-400 mb-4 " />
@@ -3250,113 +3507,138 @@ const Profile = () => {
           </div>
         ) : (
           <>
-            {notifications.map((notification) => (
-              <div
-                key={notification._id}
-                className={`bg-white border rounded-lg p-4 hover:shadow-md transition-shadow duration-200 ${
-                  !notification.read
-                    ? "border-blue-200 bg-blue-50"
-                    : "border-gray-200"
-                }`}
-              >
-                <div className="flex items-start justify-between">
-                  <div className="flex items-start gap-3 flex-1">
-                    <div
-                      className={`p-2 rounded-full ${
-                        notification.type === "order_update"
-                          ? "bg-blue-100 text-blue-600"
-                          : notification.type === "product_approved"
-                            ? "bg-green-100 text-green-600"
-                            : notification.type === "product_denied"
-                              ? "bg-red-100 text-red-600"
-                              : notification.type === "system"
-                                ? "bg-purple-100 text-purple-600"
-                                : "bg-gray-100 text-gray-600"
-                      }`}
-                    >
-                      {notification.type === "order_update" ? (
-                        <Package size={16} />
-                      ) : notification.type === "product_approved" ? (
-                        <Check size={16} />
-                      ) : notification.type === "product_denied" ? (
-                        <X size={16} />
-                      ) : notification.type === "system" ? (
-                        <Bell size={16} />
-                      ) : (
-                        <Bell size={16} />
-                      )}
-                    </div>
-                    <div className="flex-1">
-                      <div className="flex items-center justify-between mb-1">
-                        <h3 className="font-semibold text-gray-900">
-                          {notification.title}
-                        </h3>
-                        <span className="text-xs text-gray-500">
-                          {new Date(
-                            notification.createdAt,
-                          ).toLocaleDateString()}
-                        </span>
-                      </div>
-                      <p className="text-sm text-gray-600 mb-2">
-                        {notification.message}
-                      </p>
-                      {notification.actionUrl && (
-                        <button
-                          onClick={async () => {
-                            try {
-                              // Mark as read first
-                              await notificationService.markAsRead(
-                                notification._id,
-                              );
-                              // Then navigate or handle action
-                              console.log(
-                                "Navigate to:",
-                                notification.actionUrl,
-                              );
-                              // Reload notifications to update read status
-                              const notificationData =
-                                await notificationService.getNotifications();
-                              setNotifications(notificationData || []);
-                            } catch (error) {
-                              console.error(
-                                "Handle notification action error:",
-                                error,
-                              );
-                            }
-                          }}
-                          className="text-sm text-blue-600 hover:text-blue-700 font-medium"
-                        >
-                          {notification.actionText || "View Details"}
-                        </button>
-                      )}
-                    </div>
+            {Object.entries(groupNotificationsByDate(notifications)).map(
+              ([dateKey, dateNotifications]) => (
+                <div key={dateKey} className="space-y-3">
+                  {/* Date Header */}
+                  <div className="flex items-center gap-2 mb-3">
+                    <div className="h-px bg-gray-300 flex-1"></div>
+                    <h3 className="text-sm font-semibold text-gray-600 whitespace-nowrap px-2">
+                      {dateKey}
+                    </h3>
+                    <div className="h-px bg-gray-300 flex-1"></div>
                   </div>
-                  <div className="flex items-center gap-2 ml-4">
-                    {!notification.read && (
-                      <div className="w-2 h-2 bg-blue-600 rounded-full"></div>
-                    )}
-                    <button
-                      onClick={async () => {
-                        try {
-                          await notificationService.deleteNotification(
-                            notification._id,
-                          );
-                          // Reload notifications after deletion
-                          const notificationData =
-                            await notificationService.getNotifications();
-                          setNotifications(notificationData || []);
-                        } catch (error) {
-                          console.error("Delete notification error:", error);
-                        }
-                      }}
-                      className="text-gray-400 hover:text-red-600 transition-colors duration-200"
-                    >
-                      <X size={16} />
-                    </button>
+
+                  {/* Notifications for this date */}
+                  <div className="space-y-3">
+                    {dateNotifications.map((notification) => (
+                      <div
+                        key={notification._id}
+                        className={`bg-white border rounded-lg p-4 hover:shadow-md transition-shadow duration-200 ${
+                          !notification.read
+                            ? "border-blue-200 bg-blue-50"
+                            : "border-gray-200"
+                        }`}
+                      >
+                        <div className="flex items-start justify-between">
+                          <div className="flex items-start gap-3 flex-1">
+                            <div
+                              className={`p-2 rounded-full ${
+                                notification.type === "order_update"
+                                  ? "bg-blue-100 text-blue-600"
+                                  : notification.type === "product_approved"
+                                    ? "bg-green-100 text-green-600"
+                                    : notification.type === "product_denied"
+                                      ? "bg-red-100 text-red-600"
+                                      : notification.type === "system"
+                                        ? "bg-purple-100 text-purple-600"
+                                        : notification.type === "payment_alert"
+                                          ? "bg-yellow-100 text-yellow-600"
+                                          : "bg-gray-100 text-gray-600"
+                              }`}
+                            >
+                              {notification.type === "order_update" ? (
+                                <Package size={16} />
+                              ) : notification.type === "product_approved" ? (
+                                <Check size={16} />
+                              ) : notification.type === "product_denied" ? (
+                                <X size={16} />
+                              ) : notification.type === "system" ? (
+                                <Bell size={16} />
+                              ) : notification.type === "payment_alert" ? (
+                                <Bell size={16} />
+                              ) : (
+                                <Bell size={16} />
+                              )}
+                            </div>
+                            <div className="flex-1">
+                              <div className="flex items-center justify-between mb-1">
+                                <h3 className="font-semibold text-gray-900">
+                                  {notification.title}
+                                </h3>
+                                <span className="text-xs text-gray-500">
+                                  {new Date(
+                                    notification.createdAt,
+                                  ).toLocaleDateString()}
+                                </span>
+                              </div>
+                              <p className="text-sm text-gray-600 mb-2">
+                                {notification.message}
+                              </p>
+                              {notification.actionUrl && (
+                                <button
+                                  onClick={async () => {
+                                    try {
+                                      // Mark as read first
+                                      await notificationService.markAsRead(
+                                        notification._id,
+                                      );
+                                      // Then navigate or handle action
+                                      console.log(
+                                        "Navigate to:",
+                                        notification.actionUrl,
+                                      );
+                                      // Reload notifications to update read status
+                                      const notificationData =
+                                        await notificationService.getNotifications();
+                                      setNotifications(notificationData || []);
+                                    } catch (error) {
+                                      console.error(
+                                        "Handle notification action error:",
+                                        error,
+                                      );
+                                    }
+                                  }}
+                                  className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+                                >
+                                  {notification.actionText || "View Details"}
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2 ml-4">
+                            {!notification.read && (
+                              <div className="w-2 h-2 bg-blue-600 rounded-full"></div>
+                            )}
+                            <button
+                              onClick={async () => {
+                                try {
+                                  await notificationService.deleteNotification(
+                                    notification._id,
+                                  );
+                                  // Reload notifications after deletion
+                                  const notificationData =
+                                    await notificationService.getNotifications();
+                                  setNotifications(notificationData || []);
+                                } catch (error) {
+                                  console.error(
+                                    "Delete notification error:",
+                                    error,
+                                  );
+                                }
+                              }}
+                              className="text-gray-400 hover:text-red-600 transition-colors duration-200"
+                            >
+                              <X size={16} />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </div>
-              </div>
-            ))}
+              ),
+            )}
           </>
         )}
       </div>

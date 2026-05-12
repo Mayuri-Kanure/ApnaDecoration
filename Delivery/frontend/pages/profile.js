@@ -113,12 +113,10 @@ export default function DeliveryBoyProfile() {
         ifscCode: apiData.bankDetails?.ifscCode || "",
         bankName: apiData.bankDetails?.bankName || "",
         accountHolderName: apiData.bankDetails?.accountHolderName || "",
-        address: {
-          street: apiData.address?.street || "",
-          city: apiData.address?.city || "",
-          state: apiData.address?.state || "",
-          pincode: apiData.address?.pincode || "",
-        },
+        street: apiData.address?.street || "",
+        city: apiData.address?.city || "",
+        state: apiData.address?.state || "",
+        pincode: apiData.address?.pincode || "",
         emergencyContact: apiData.emergencyContact?.phone || "",
         isAvailable:
           apiData.isAvailable !== undefined ? apiData.isAvailable : true,
@@ -161,7 +159,48 @@ export default function DeliveryBoyProfile() {
 
     try {
       const token = localStorage.getItem("deliveryBoyToken");
-      await axios.put(`${DELIVERY_API_URL}/delivery-boys/profile`, profile, {
+
+      // Format the payload to strictly match Backend Mongoose Schema
+      const formattedPayload = {
+        name: profile.name,
+        email: profile.email,
+        phone: profile.phone,
+        vehicleType: profile.vehicleType,
+        vehicleNumber: profile.vehicleNumber,
+        isAvailable: profile.isAvailable,
+        currentLocation: profile.currentLocation,
+      };
+
+      // ONLY add address if it has actual data, otherwise Express validator crashes
+      if (
+        profile.address?.street ||
+        profile.address?.city ||
+        profile.address?.pincode
+      ) {
+        formattedPayload.address = {
+          street: profile.address.street || undefined,
+          city: profile.address.city || undefined,
+          state: profile.address.state || undefined,
+          pincode: profile.address.pincode || undefined,
+        };
+      }
+
+      // ONLY add bankAccount if it has actual data
+      if (profile.bankAccount || profile.ifscCode) {
+        formattedPayload.bankAccount = {
+          accountNumber: profile.bankAccount || undefined,
+          bankName: profile.bankName || undefined,
+          ifscCode: profile.ifscCode || undefined,
+          accountHolderName: profile.accountHolderName || undefined,
+        };
+      }
+
+      if (profile.emergencyContact) {
+        formattedPayload.emergencyContact = profile.emergencyContact;
+      }
+
+      // Send formattedPayload instead of the raw profile state
+      await axios.put(`${DELIVERY_API_URL}/profile`, formattedPayload, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
@@ -172,9 +211,13 @@ export default function DeliveryBoyProfile() {
       });
     } catch (error) {
       console.error("Error saving profile:", error);
+
+      // Better error logging to see exactly what Mongoose is rejecting
+      const errorMessage =
+        error.response?.data?.message || "Error updating profile";
       setSnackbar({
         open: true,
-        message: "Error updating profile",
+        message: errorMessage,
         severity: "error",
       });
     } finally {
@@ -268,7 +311,7 @@ export default function DeliveryBoyProfile() {
     try {
       const token = localStorage.getItem("deliveryBoyToken");
       const response = await axios.post(
-        `${DELIVERY_API_URL}/delivery-boys/upload-profile-image`,
+        `${DELIVERY_API_URL}/upload-profile-image`,
         formData,
         {
           headers: {

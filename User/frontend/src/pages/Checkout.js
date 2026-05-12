@@ -26,6 +26,7 @@ import {
 
 import { useCart } from "../contexts/CartContext";
 import { useToast } from "../contexts/ToastContext";
+import { useAuth } from "../contexts/AuthContext";
 
 import { IMAGE_BASE_URL } from "../config/constants";
 
@@ -37,6 +38,7 @@ const Checkout = () => {
 
   const { cartItems, getTotalPrice } = useCart();
   const { success: showSuccess, error: showError } = useToast();
+  const { user, isAuthenticated } = useAuth();
 
   const [step, setStep] = useState(1);
 
@@ -53,6 +55,9 @@ const Checkout = () => {
   const [appliedCoupon, setAppliedCoupon] = useState(null);
   const [couponDiscount, setCouponDiscount] = useState(0);
   const [couponLoading, setCouponLoading] = useState(false);
+  const [availableCoupons, setAvailableCoupons] = useState([]);
+  const [showCoupons, setShowCoupons] = useState(false);
+  const [loadingCoupons, setLoadingCoupons] = useState(false);
 
   const [eventInfo, setEventInfo] = useState({
     eventType: "",
@@ -94,6 +99,63 @@ const Checkout = () => {
 
   const [validatingStock, setValidatingStock] = useState(false);
 
+  // Auto-fill shipping information from user profile and localStorage
+  useEffect(() => {
+    // Load saved shipping info from localStorage first
+    const savedShippingInfo = localStorage.getItem("shippingInfo");
+    let initialShippingInfo = {
+      firstName: "",
+      lastName: "",
+      email: "",
+      phone: "",
+      address: "",
+      city: "",
+      state: "",
+      pincode: "",
+      country: "India",
+    };
+
+    if (savedShippingInfo) {
+      try {
+        initialShippingInfo = JSON.parse(savedShippingInfo);
+      } catch (error) {
+        console.error("Error parsing saved shipping info:", error);
+      }
+    }
+
+    // Then auto-fill from user profile if authenticated
+    if (isAuthenticated && user) {
+      // Merge saved info with user profile data
+      const mergedShippingInfo = {
+        ...initialShippingInfo,
+        firstName: initialShippingInfo.firstName || user.firstName || "",
+        lastName: initialShippingInfo.lastName || user.lastName || "",
+        email: initialShippingInfo.email || user.email || "",
+        phone: initialShippingInfo.phone || user.phone || "",
+        address: initialShippingInfo.address || user.address || "",
+        city: initialShippingInfo.city || user.city || "",
+        state: initialShippingInfo.state || user.state || "",
+        pincode: initialShippingInfo.pincode || user.pincode || "",
+        country: initialShippingInfo.country || user.country || "India",
+      };
+
+      setShippingInfo(mergedShippingInfo);
+
+      // Also update billing info if same as shipping
+      setBillingInfo((prev) => ({
+        ...prev,
+        ...mergedShippingInfo,
+      }));
+    } else {
+      // If not authenticated, use saved info only
+      setShippingInfo(initialShippingInfo);
+      setBillingInfo((prev) => ({
+        ...prev,
+        ...initialShippingInfo,
+      }));
+    }
+  }, [isAuthenticated, user]);
+
   // 🔄 CRITICAL: Fetch latest stock from backend before checkout
   const fetchLatestStock = async () => {
     setValidatingStock(true);
@@ -102,13 +164,25 @@ const Checkout = () => {
       const stockValidations = [];
 
       for (const item of cartItems) {
+        console.log("🔍 Stock validation for item:", {
+          name: item.name,
+          productId: item.productId,
+          _id: item._id,
+          id: item.id,
+          type: item.type,
+        });
         try {
-          const response = await fetch(
-            `${API_BASE_URL}/products/${item.productId}`,
-            {
-              headers: { Authorization: `Bearer ${token}` },
-            },
-          );
+          // For vendor products, we might need a different endpoint
+          const endpoint =
+            item.type === "vendor-product"
+              ? `${API_BASE_URL}/vendor-products/${item.productId}`
+              : `${API_BASE_URL}/products/${item.productId}`;
+
+          console.log("🔍 Using endpoint:", endpoint);
+
+          const response = await fetch(endpoint, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
           const productData = await response.json();
           const currentStock = productData.data?.stock || 0;
 
@@ -220,6 +294,57 @@ const Checkout = () => {
     setCouponCode("");
   };
 
+  // Fetch available coupons
+  const fetchAvailableCoupons = async () => {
+    setLoadingCoupons(true);
+    try {
+      const response = await fetch(`${API_BASE_URL}/coupons/available`);
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success) {
+          setAvailableCoupons(data.data || []);
+        }
+      }
+    } catch (error) {
+      console.error("Failed to fetch coupons:", error);
+    } finally {
+      setLoadingCoupons(false);
+    }
+  };
+
+  // Apply coupon from available list
+  const handleApplyAvailableCoupon = async (coupon) => {
+    setCouponCode(coupon.code);
+    setShowCoupons(false);
+
+    setCouponLoading(true);
+    try {
+      const result = await couponService.applyCoupon(
+        coupon.code,
+        subtotal + tax + setupCharges,
+      );
+
+      if (result.success) {
+        setAppliedCoupon(result.data.coupon);
+        setCouponDiscount(result.data.discountAmount);
+        showSuccess(
+          `Coupon applied! You saved ₹${result.data.discountAmount.toFixed(2)}`,
+        );
+      } else {
+        showError(result.message || "Invalid coupon code");
+      }
+    } catch (error) {
+      showError("Failed to apply coupon. Please try again.");
+    } finally {
+      setCouponLoading(false);
+    }
+  };
+
+  // Load available coupons on component mount
+  useEffect(() => {
+    fetchAvailableCoupons();
+  }, []);
+
   // Create order for payment (card payment method)
   const openRazorpayDirectly = async (order) => {
     try {
@@ -241,7 +366,7 @@ const Checkout = () => {
 
       // Prepare Razorpay options
       const options = {
-        key: razorpayOrder.keyId,
+        key: process.env.REACT_APP_RAZORPAY_KEY || "rzp_live_RsakLTdHRff3gk",
         amount: razorpayOrder.order.amount,
         currency: razorpayOrder.order.currency,
         name: "APNA DECORATION",
@@ -319,14 +444,8 @@ const Checkout = () => {
   const handlePaymentSuccess = (paymentResult) => {
     console.log("✅ Payment successful:", paymentResult);
     setPaymentCompleted(true);
-    // Navigate to order confirmation instead of review step
-    navigate("/order-confirmation", {
-      state: {
-        order: createdOrder,
-        orderNumber: createdOrder?.orderNumber,
-        paymentResult: paymentResult,
-      },
-    });
+    // Move to review step after successful payment
+    setStep(4);
   };
 
   // Handle payment error
@@ -453,15 +572,17 @@ const Checkout = () => {
             productId: item.productId,
             price: item.price,
             quantity: item.quantity,
+            vendorId: item.vendorId,
           });
           return {
             product: item._id || item.productId, // Handle both cases
-            productModel: "VendorProduct",
+            productModel: item.vendorId ? "VendorProduct" : "Product",
             quantity: item.quantity || 1,
             unitPrice: Number(item.price) || 0,
             totalPrice: Number(item.price * (item.quantity || 1)) || 0,
             name: item.name,
             thumbnail: item.thumbnail || item.image,
+            vendor: item.vendorId, // Match schema field name exactly
           };
         }),
         shippingAddress: {
@@ -644,12 +765,21 @@ const Checkout = () => {
           console.log("🆔 productId:", item.productId);
           console.log("💰 price:", item.price);
           console.log("📊 quantity:", item.quantity);
+          console.log("🏷️ type:", item.type); // Debug: Check if type field is present
+          console.log("🏪 vendorId:", item.vendorId); // Debug: Check vendorId
+
+          // 🔧 FIX: Force type detection if missing
+          const productType =
+            item.type || (item.vendorId ? "vendor-product" : "product");
+          console.log("🔧 Fixed type:", productType);
           return {
             product: item.productId, // ✅ Schema expects 'product'
-            productModel: "Product", // ✅ Required field
+            productModel:
+              productType === "vendor-product" ? "VendorProduct" : "Product", // ✅ Use fixed type
             quantity: item.quantity,
             unitPrice: Number(item.price) || 0, // ✅ Schema expects this
             totalPrice: Number(item.price * item.quantity) || 0, // ✅ Schema expects this
+            vendor: item.vendorId, // Match schema field name exactly
           };
         }),
         // Force cache bust
@@ -684,15 +814,9 @@ const Checkout = () => {
       if (!response.ok) {
         throw new Error(JSON.stringify(result));
       }
-      // Clear cart after successful order
-      // Navigate to order confirmation with order data
-
-      navigate("/order-confirmation", {
-        state: {
-          order: result.data,
-          orderNumber: result.data.orderNumber,
-        },
-      });
+      // Set created order and move to review step
+      setCreatedOrder(result.data);
+      setStep(4); // Move to review step
     } catch (error) {
       console.error("Order creation error:", error);
       alert(`Order failed: ${error.message}`);
@@ -1111,12 +1235,18 @@ const Checkout = () => {
                         type="text"
                         required
                         value={shippingInfo.firstName}
-                        onChange={(e) =>
-                          setShippingInfo({
+                        onChange={(e) => {
+                          const newShippingInfo = {
                             ...shippingInfo,
                             firstName: e.target.value,
-                          })
-                        }
+                          };
+                          setShippingInfo(newShippingInfo);
+                          // Auto-save to localStorage
+                          localStorage.setItem(
+                            "shippingInfo",
+                            JSON.stringify(newShippingInfo),
+                          );
+                        }}
                         className="w-full min-w-0 border rounded-lg px-3 py-2 focus:outline-none focus:border-blue-600 text-gray-600 text-sm sm:text-base"
                       />
                     </div>
@@ -1130,12 +1260,18 @@ const Checkout = () => {
                         type="text"
                         required
                         value={shippingInfo.lastName}
-                        onChange={(e) =>
-                          setShippingInfo({
+                        onChange={(e) => {
+                          const newShippingInfo = {
                             ...shippingInfo,
                             lastName: e.target.value,
-                          })
-                        }
+                          };
+                          setShippingInfo(newShippingInfo);
+                          // Auto-save to localStorage
+                          localStorage.setItem(
+                            "shippingInfo",
+                            JSON.stringify(newShippingInfo),
+                          );
+                        }}
                         className="w-full min-w-0 border rounded-lg px-3 py-2 focus:outline-none focus:border-blue-600 text-gray-600 text-sm sm:text-base"
                       />
                     </div>
@@ -1149,12 +1285,18 @@ const Checkout = () => {
                         type="email"
                         required
                         value={shippingInfo.email}
-                        onChange={(e) =>
-                          setShippingInfo({
+                        onChange={(e) => {
+                          const newShippingInfo = {
                             ...shippingInfo,
                             email: e.target.value,
-                          })
-                        }
+                          };
+                          setShippingInfo(newShippingInfo);
+                          // Auto-save to localStorage
+                          localStorage.setItem(
+                            "shippingInfo",
+                            JSON.stringify(newShippingInfo),
+                          );
+                        }}
                         className="w-full min-w-0 border rounded-lg px-3 py-2 focus:outline-none focus:border-blue-600 text-gray-600 text-sm sm:text-base"
                       />
                     </div>
@@ -1168,12 +1310,18 @@ const Checkout = () => {
                         type="tel"
                         required
                         value={shippingInfo.phone}
-                        onChange={(e) =>
-                          setShippingInfo({
+                        onChange={(e) => {
+                          const newShippingInfo = {
                             ...shippingInfo,
                             phone: e.target.value,
-                          })
-                        }
+                          };
+                          setShippingInfo(newShippingInfo);
+                          // Auto-save to localStorage
+                          localStorage.setItem(
+                            "shippingInfo",
+                            JSON.stringify(newShippingInfo),
+                          );
+                        }}
                         className="w-full min-w-0 border rounded-lg px-3 py-2 focus:outline-none focus:border-blue-600 text-gray-600 text-sm sm:text-base"
                       />
                     </div>
@@ -1188,12 +1336,18 @@ const Checkout = () => {
                       type="text"
                       required
                       value={shippingInfo.address}
-                      onChange={(e) =>
-                        setShippingInfo({
+                      onChange={(e) => {
+                        const newShippingInfo = {
                           ...shippingInfo,
                           address: e.target.value,
-                        })
-                      }
+                        };
+                        setShippingInfo(newShippingInfo);
+                        // Auto-save to localStorage
+                        localStorage.setItem(
+                          "shippingInfo",
+                          JSON.stringify(newShippingInfo),
+                        );
+                      }}
                       className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:border-blue-600 text-gray-600"
                     />
                   </div>
@@ -1208,12 +1362,18 @@ const Checkout = () => {
                         type="text"
                         required
                         value={shippingInfo.city}
-                        onChange={(e) =>
-                          setShippingInfo({
+                        onChange={(e) => {
+                          const newShippingInfo = {
                             ...shippingInfo,
                             city: e.target.value,
-                          })
-                        }
+                          };
+                          setShippingInfo(newShippingInfo);
+                          // Auto-save to localStorage
+                          localStorage.setItem(
+                            "shippingInfo",
+                            JSON.stringify(newShippingInfo),
+                          );
+                        }}
                         className="w-full min-w-0 border rounded-lg px-3 py-2 focus:outline-none focus:border-blue-600 text-gray-600 text-sm sm:text-base"
                       />
                     </div>
@@ -1227,12 +1387,18 @@ const Checkout = () => {
                         type="text"
                         required
                         value={shippingInfo.state}
-                        onChange={(e) =>
-                          setShippingInfo({
+                        onChange={(e) => {
+                          const newShippingInfo = {
                             ...shippingInfo,
                             state: e.target.value,
-                          })
-                        }
+                          };
+                          setShippingInfo(newShippingInfo);
+                          // Auto-save to localStorage
+                          localStorage.setItem(
+                            "shippingInfo",
+                            JSON.stringify(newShippingInfo),
+                          );
+                        }}
                         className="w-full min-w-0 border rounded-lg px-3 py-2 focus:outline-none focus:border-blue-600 text-gray-600 text-sm sm:text-base"
                       />
                     </div>
@@ -1246,12 +1412,37 @@ const Checkout = () => {
                         type="text"
                         required
                         value={shippingInfo.pincode}
-                        onChange={(e) =>
-                          setShippingInfo({
+                        onChange={(e) => {
+                          // Only allow numbers
+                          const numericValue = e.target.value.replace(
+                            /\D/g,
+                            "",
+                          );
+                          const newShippingInfo = {
                             ...shippingInfo,
-                            pincode: e.target.value,
-                          })
-                        }
+                            pincode: numericValue,
+                          };
+                          setShippingInfo(newShippingInfo);
+                          // Auto-save to localStorage
+                          localStorage.setItem(
+                            "shippingInfo",
+                            JSON.stringify(newShippingInfo),
+                          );
+                        }}
+                        onKeyPress={(e) => {
+                          // Prevent non-numeric input
+                          if (
+                            !/[0-9]/.test(e.key) &&
+                            e.key !== "Backspace" &&
+                            e.key !== "Delete" &&
+                            e.key !== "Tab" &&
+                            e.key !== "Enter"
+                          ) {
+                            e.preventDefault();
+                          }
+                        }}
+                        placeholder="Enter 6-digit pincode"
+                        maxLength={6}
                         className="w-full min-w-0 border rounded-lg px-3 py-2 focus:outline-none focus:border-blue-600 text-gray-600 text-sm sm:text-base"
                       />
                     </div>
@@ -1381,6 +1572,25 @@ const Checkout = () => {
                             </button>
                           </div>
                         )}
+                        {paymentCompleted && (
+                          <div className="space-y-3">
+                            <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                              <h4 className="font-medium text-green-900 mb-2">
+                                Payment Completed
+                              </h4>
+                              <p className="text-sm text-green-700">
+                                Payment completed successfully. Proceed to
+                                review your order.
+                              </p>
+                            </div>
+                            <button
+                              onClick={() => setStep(4)}
+                              className="w-full bg-green-600 text-white py-3 rounded-lg font-medium hover:bg-green-700 transition-colors"
+                            >
+                              Review Order
+                            </button>
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
@@ -1501,18 +1711,14 @@ const Checkout = () => {
 
                 <button
                   onClick={() => {
-                    // For COD orders, create order first then navigate
-                    if (paymentMethod === "cod") {
-                      handlePaymentSubmit({ preventDefault: () => {} });
-                    } else {
-                      // For paid orders, navigate to confirmation
-                      navigate("/order-confirmation", {
-                        state: {
-                          order: createdOrder,
-                          orderNumber: createdOrder?.orderNumber,
-                        },
-                      });
-                    }
+                    // Navigate to order confirmation for final step
+                    navigate("/order-confirmation", {
+                      state: {
+                        order: createdOrder,
+                        orderNumber: createdOrder?.orderNumber,
+                        paymentMethod: paymentMethod,
+                      },
+                    });
                   }}
                   className="w-full bg-green-600 text-white py-3 rounded-lg font-medium hover:bg-green-700 transition-colors"
                 >
@@ -1647,10 +1853,80 @@ const Checkout = () => {
 
               {/* Coupon Section */}
               <div className="mt-6 pt-4 border-t">
-                <h3 className="font-medium mb-3 flex items-center gap-2 text-gray-600">
-                  <Tag size={16} className="text-green-600" />
-                  Have a coupon?
-                </h3>
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="font-medium flex items-center gap-2 text-gray-600">
+                    <Tag size={16} className="text-green-600" />
+                    Have a coupon?
+                  </h3>
+                  {availableCoupons.length > 0 && (
+                    <button
+                      onClick={() => setShowCoupons(!showCoupons)}
+                      className="text-blue-600 hover:text-blue-800 text-sm font-medium transition-colors flex items-center gap-1"
+                    >
+                      {showCoupons ? "Hide" : "Show"} Available Coupons
+                      <ChevronRight
+                        size={16}
+                        className={`transform transition-transform ${showCoupons ? "rotate-90" : ""}`}
+                      />
+                    </button>
+                  )}
+                </div>
+
+                {/* Available Coupons List */}
+                {showCoupons && availableCoupons.length > 0 && (
+                  <div className="mb-4 bg-gray-50 rounded-lg p-3 border border-gray-200">
+                    <h4 className="text-sm font-medium text-gray-700 mb-2">
+                      Available Coupons:
+                    </h4>
+                    <div className="space-y-2 max-h-40 overflow-y-auto">
+                      {loadingCoupons ? (
+                        <div className="text-center py-2 text-sm text-gray-500">
+                          Loading coupons...
+                        </div>
+                      ) : (
+                        availableCoupons.map((coupon) => (
+                          <div
+                            key={coupon._id}
+                            className="bg-white border border-gray-200 rounded-lg p-3 hover:border-blue-300 transition-colors cursor-pointer"
+                            onClick={() => handleApplyAvailableCoupon(coupon)}
+                          >
+                            <div className="flex items-center justify-between">
+                              <div className="flex-1">
+                                <div className="font-medium text-sm text-gray-900">
+                                  {coupon.code}
+                                </div>
+                                <div className="text-xs text-gray-600">
+                                  {coupon.description}
+                                </div>
+                                <div className="flex items-center gap-2 mt-1">
+                                  <span className="text-xs font-medium text-green-600">
+                                    {coupon.discountType === "percentage"
+                                      ? `${coupon.discountValue}% OFF`
+                                      : `₹${coupon.discountValue} OFF`}
+                                  </span>
+                                  {coupon.minOrderAmount && (
+                                    <span className="text-xs text-gray-500">
+                                      Min: ₹{coupon.minOrderAmount}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                              <button
+                                className="px-2 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 transition-colors"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleApplyAvailableCoupon(coupon);
+                                }}
+                              >
+                                Apply
+                              </button>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                )}
 
                 {!appliedCoupon ? (
                   <div className="flex flex-col sm:flex-row gap-2">
@@ -1672,19 +1948,24 @@ const Checkout = () => {
                     </button>
                   </div>
                 ) : (
-                  <div className="flex items-center justify-between p-3 bg-green-50 border border-green-200 rounded-lg">
-                    <div className="flex items-center gap-2">
-                      <Tag size={16} className="text-green-600" />
-                      <span className="text-sm font-medium text-green-800">
-                        {appliedCoupon.code} applied
-                      </span>
+                  <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Tag size={16} className="text-green-600" />
+                        <span className="text-sm font-medium text-green-800">
+                          {appliedCoupon.code} applied
+                        </span>
+                      </div>
+                      <button
+                        onClick={handleRemoveCoupon}
+                        className="text-green-600 hover:text-green-800 transition-colors"
+                      >
+                        <X size={16} />
+                      </button>
                     </div>
-                    <button
-                      onClick={handleRemoveCoupon}
-                      className="text-green-600 hover:text-green-800 transition-colors"
-                    >
-                      <X size={16} />
-                    </button>
+                    <div className="text-xs text-green-700 mt-1">
+                      You saved ₹{couponDiscount.toFixed(2)} on this order
+                    </div>
                   </div>
                 )}
               </div>
@@ -1692,7 +1973,6 @@ const Checkout = () => {
           </div>
         </div>
       </div>
-
       <Footer />
     </div>
   );

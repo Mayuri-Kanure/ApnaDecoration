@@ -8,6 +8,7 @@ import { useToast } from "../contexts/ToastContext";
 import { PRODUCT_API_URL } from "../config/constants";
 
 const ClearanceSale = () => {
+  const navigate = useNavigate();
   const { addToCart, isInCart } = useCart();
   const { success, error: showError } = useToast();
 
@@ -106,7 +107,7 @@ const ClearanceSale = () => {
     return price;
   };
 
-  const ProductCard = ({ product, offerType = "inhouse" }) => {
+  const ProductCard = ({ product, offerType = "inhouse", navigate }) => {
     const originalPrice = parseFloat(product.price) || 0;
     const discountPrice = calculateDiscountPrice(product);
     const discountPercentage =
@@ -154,6 +155,38 @@ const ClearanceSale = () => {
           success(
             `${product.displayName || product.name} added to cart at ₹${discountPrice.toFixed(2)}`,
           );
+        } else {
+          showError(result.error || "Failed to add to cart");
+        }
+      } catch {
+        showError("Failed to add to cart");
+      }
+    };
+
+    const handleBuyNow = async (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+
+      try {
+        // Create product object with sale information
+        const cartProduct = {
+          ...product,
+          isOnSale: true,
+          discountPrice,
+          originalPrice,
+          discountPercentage,
+          finalPrice: discountPrice,
+        };
+
+        const result = await addToCart(cartProduct, 1);
+        if (result.success) {
+          success(
+            `${product.displayName || product.name} added to cart at ₹${discountPrice.toFixed(2)}! Redirecting to checkout...`,
+          );
+          // Navigate to checkout after a short delay
+          setTimeout(() => {
+            navigate("/checkout");
+          }, 1000);
         } else {
           showError(result.error || "Failed to add to cart");
         }
@@ -249,6 +282,12 @@ const ClearanceSale = () => {
                 className="flex-1 bg-blue-600 text-white py-2 sm:py-3 px-3 rounded-lg hover:bg-blue-700 transition-colors text-sm sm:text-base"
               >
                 Add to Cart
+              </button>
+              <button
+                onClick={handleBuyNow}
+                className="flex-1 bg-orange-500 text-white py-2 sm:py-3 px-3 rounded-lg hover:bg-orange-600 transition-colors text-sm sm:text-base"
+              >
+                Buy Now
               </button>
               <button
                 onClick={handleWishlist}
@@ -402,6 +441,7 @@ const ClearanceSale = () => {
                 offerType={
                   inhouseProducts.includes(product) ? "inhouse" : "vendor"
                 }
+                navigate={navigate}
               />
             ))}
           </div>

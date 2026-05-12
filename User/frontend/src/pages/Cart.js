@@ -77,15 +77,25 @@ const Cart = () => {
   };
 
   const handleRemoveItem = async (productId, color = null, size = null) => {
+    console.log("🛒 Cart.js - Removing item:", productId);
+    console.log("🛒 Cart.js - Current cart items:", cartItems.length);
+
     setIsUpdating(true);
     try {
       const result = await removeFromCart(productId, color, size);
+      console.log("🛒 Cart.js - Delete result:", result);
+
       if (result.success) {
         success("Item removed from cart");
+        console.log(
+          "🛒 Cart.js - After delete - cart items:",
+          cartItems.length,
+        );
       } else {
         showError(result.error || "Failed to remove item from cart");
       }
     } catch (err) {
+      console.error("🛒 Cart.js - Delete error:", err);
       showError("Failed to remove item from cart");
     } finally {
       setIsUpdating(false);
@@ -237,6 +247,16 @@ const Cart = () => {
         <Navigation />
         <div className="container mx-auto px-4 py-8 md:py-12">
           <div className="max-w-4xl mx-auto">
+            {/* Back Navigation */}
+            <div className="mb-6">
+              <Link
+                to="/products"
+                className="inline-flex items-center gap-2 text-gray-600 hover:text-blue-600 transition-colors"
+              >
+                <ArrowLeft size={20} />
+                Back to Shopping
+              </Link>
+            </div>
             <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
               <div className="bg-gradient-to-r from-blue-600 to-purple-600 p-6 md:p-8 text-center">
                 <h1 className="text-2xl md:text-3xl font-bold text-white mb-2">
@@ -262,9 +282,41 @@ const Cart = () => {
       <Navigation />
 
       <div className="max-w-6xl mx-auto px-3 sm:px-4 md:px-6 py-6 md:py-8">
+        {/* Navigation Options */}
         <div className="mb-4 md:mb-6">
+          <div className="flex flex-wrap items-center gap-2 mb-4">
+            <Link
+              to="/products"
+              className="inline-flex items-center gap-2 text-gray-600 hover:text-blue-600 transition-colors"
+            >
+              <ArrowLeft size={20} />
+              Back to Shopping
+            </Link>
+            <span className="text-gray-300">|</span>
+            <Link
+              to="/"
+              className="text-gray-600 hover:text-blue-600 transition-colors"
+            >
+              Home
+            </Link>
+            <span className="text-gray-300">|</span>
+            <Link
+              to="/wishlist"
+              className="text-gray-600 hover:text-blue-600 transition-colors"
+            >
+              Wishlist
+            </Link>
+            <span className="text-gray-300">|</span>
+            <Link
+              to="/services"
+              className="text-gray-600 hover:text-blue-600 transition-colors"
+            >
+              Services
+            </Link>
+          </div>
           <h1 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-900">
-            Shopping Cart
+            Shopping Cart ({cartItems.length}{" "}
+            {cartItems.length === 1 ? "item" : "items"})
           </h1>
         </div>
 
@@ -283,22 +335,34 @@ const Cart = () => {
                       {item.thumbnail || item.image ? (
                         <img
                           src={
-                            item.thumbnail?.startsWith("http")
+                            item.thumbnail?.startsWith("data:")
                               ? item.thumbnail
-                              : item.image?.startsWith("http")
-                                ? item.image
-                                : `${IMAGE_BASE_URL}${item.thumbnail || item.image}`
+                              : item.thumbnail?.startsWith("http")
+                                ? item.thumbnail
+                                : item.image?.startsWith("data:")
+                                  ? item.image
+                                  : item.image?.startsWith("http")
+                                    ? item.image
+                                    : `${IMAGE_BASE_URL}${item.thumbnail || item.image}`
                           }
                           alt={item.name}
                           className="w-full h-full object-cover"
                           onError={(e) => {
+                            console.log("Image failed to load:", e.target.src);
                             e.target.style.display = "none";
+                            // Show fallback icon
                             e.target.parentElement.innerHTML = `
                               <div class="w-full h-full flex items-center justify-center bg-gray-200">
                                 <svg class="w-6 h-6 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
                                   <path fillRule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clipRule="evenodd" />
                                 </svg>
                               </div>`;
+                          }}
+                          onLoad={() => {
+                            console.log(
+                              "Image loaded successfully:",
+                              item.name,
+                            );
                           }}
                         />
                       ) : (

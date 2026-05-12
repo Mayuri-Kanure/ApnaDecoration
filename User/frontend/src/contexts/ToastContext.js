@@ -42,10 +42,10 @@ const Toast = ({ message, type = "info", duration = 3000, onClose }) => {
 
   return (
     <div
-      className={`fixed top-4 right-4 z-[9999] max-w-sm w-full transition-all duration-300 transform ${
+      className={`fixed bottom-4 right-4 z-[9999] max-w-sm w-full transition-all duration-300 transform ${
         isVisible
-          ? "translate-x-0 opacity-100 scale-100"
-          : "translate-x-full opacity-0 scale-95"
+          ? "translate-y-0 opacity-100 scale-100"
+          : "translate-y-full opacity-0 scale-95"
       }`}
     >
       <div
@@ -112,7 +112,7 @@ export const ToastProvider = ({ children }) => {
   return (
     <ToastContext.Provider value={value}>
       {children}
-      <div className="fixed top-4 right-4 z-50 space-y-2">
+      <div className="fixed bottom-4 right-4 z-50 space-y-2">
         {toasts.map((toast) => (
           <Toast
             key={toast.id}

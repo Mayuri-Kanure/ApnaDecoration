@@ -177,8 +177,8 @@ function Orders({ status: statusProp, showCancelled = false, title }) {
         index + 1,
         order.orderNumber || "",
         new Date(order.createdAt).toLocaleString(),
-        `${order.customer?.firstName || ""} ${order.customer?.lastName || ""}`,
-        order.customer?.phone || "",
+        `${order.customer?.firstName || order.customerInfo?.name || ""} ${order.customer?.lastName || ""}`,
+        order.customer?.phone || order.customerInfo?.phone || "",
         order.store || "In-house",
         order.pricing?.total ? `₹${order.pricing.total.toFixed(2)}` : "₹0.00",
         order.paymentStatus || "unpaid",
@@ -534,10 +534,15 @@ function Orders({ status: statusProp, showCancelled = false, title }) {
                   <TableCell>
                     <Box>
                       <Typography variant="body2" fontWeight={500}>
-                        {order.customer?.firstName} {order.customer?.lastName}
+                        {order.customer?.firstName ||
+                          order.customerInfo?.name ||
+                          "N/A"}{" "}
+                        {order.customer?.lastName || ""}
                       </Typography>
                       <Typography variant="caption" color="text.secondary">
-                        {order.customer?.phone || "N/A"}
+                        {order.customer?.phone ||
+                          order.customerInfo?.phone ||
+                          "N/A"}
                       </Typography>
                     </Box>
                   </TableCell>

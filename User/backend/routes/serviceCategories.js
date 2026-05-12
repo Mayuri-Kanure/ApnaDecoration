@@ -1,83 +1,109 @@
 const express = require("express");
-const axios = require("axios");
 const router = express.Router();
+const ServiceCategory = require("../models").ServiceCategory;
 
-const ADMIN_API = "https://admin-api.apnadecoration.com/api";
-
-// Get home page service categories - Fetch from Admin backend
+// Get home page service categories - Query database directly
 router.get("/home-page-service-categories", async (req, res) => {
   try {
     const { homeCategory, status } = req.query;
 
-    // Fetch from Admin backend
-    const response = await axios.get(`${ADMIN_API}/service-categories`, {
-      params: { homeCategory, status },
+    // Build filter
+    const filter = {};
+    if (status) filter.status = status;
+    if (homeCategory !== undefined)
+      filter.homeCategory = homeCategory === "true";
+
+    const categories = await ServiceCategory.find(filter).sort({
+      priority: 1,
+      createdAt: -1,
     });
 
-    // Transform response to match expected format
     res.json({
       success: true,
-      data: response.data.data || response.data.categories || [],
+      data: categories,
     });
   } catch (error) {
     console.error(
       "Error fetching home page service categories:",
       error.message,
     );
-    // Provide fallback empty array instead of 500 error
-    res.json({
-      success: true,
-      data: [],
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch service categories",
+      error: error.message,
     });
   }
 });
 
-// Get public service categories - Fetch from Admin backend
+// Get public service categories - Query database directly
 router.get("/public", async (req, res) => {
   try {
     const { homeCategory, status } = req.query;
 
-    // Fetch from Admin backend
-    const response = await axios.get(`${ADMIN_API}/service-categories`, {
-      params: { homeCategory, status },
+    // Build filter
+    const filter = {};
+    if (status) filter.status = status;
+    if (homeCategory !== undefined)
+      filter.homeCategory = homeCategory === "true";
+
+    const categories = await ServiceCategory.find(filter).sort({
+      priority: 1,
+      createdAt: -1,
     });
 
-    // Transform response to match expected format
     res.json({
       success: true,
-      data: response.data.data || response.data.categories || [],
+      data: categories,
     });
   } catch (error) {
     console.error("Error fetching service categories:", error.message);
-    // Provide fallback empty array instead of 500 error
-    res.json({
-      success: true,
-      data: [],
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch service categories",
+      error: error.message,
     });
   }
 });
 
-// Get all service categories - Fetch from Admin backend with fallback
+// Get all service categories - Query database directly
 router.get("/", async (req, res) => {
   try {
-    const { homeCategory, status } = req.query;
+    const { page = 1, limit = 10, search, status, homeCategory } = req.query;
 
-    // Try Admin backend first
-    const response = await axios.get(`${ADMIN_API}/service-categories/public`, {
-      params: { homeCategory, status },
-    });
+    // Build filter
+    const filter = {};
+    if (status) filter.status = status;
+    if (homeCategory !== undefined)
+      filter.homeCategory = homeCategory === "true";
+    if (search) {
+      filter.$or = [
+        { name: { $regex: search, $options: "i" } },
+        { description: { $regex: search, $options: "i" } },
+      ];
+    }
 
-    // Transform response to match expected format
+    const categories = await ServiceCategory.find(filter)
+      .sort({ priority: 1, createdAt: -1 })
+      .limit(limit * 1)
+      .skip((page - 1) * limit);
+
+    const total = await ServiceCategory.countDocuments(filter);
+
     res.json({
       success: true,
-      data: response.data.data || response.data.categories || [],
+      data: categories,
+      pagination: {
+        current: page,
+        pages: Math.ceil(total / limit),
+        total,
+      },
     });
   } catch (error) {
     console.error("Error fetching service categories:", error.message);
-    // Provide fallback empty array instead of 500 error
-    res.json({
-      success: true,
-      data: [],
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch service categories",
+      error: error.message,
     });
   }
 });

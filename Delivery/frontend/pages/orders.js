@@ -48,11 +48,13 @@ import {
   Refresh,
   Phone,
   Email,
+  Message,
   LocationOn,
   Map,
   FilterList,
   Search,
   AccessTime,
+  ContactPhone,
 } from "@mui/icons-material";
 
 function TabPanel({ children = null, value = 0, index = 0, ...other }) {
@@ -85,6 +87,7 @@ export default function OrdersPage() {
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [orderDialogOpen, setOrderDialogOpen] = useState(false);
   const [mapDialogOpen, setMapDialogOpen] = useState(false);
+  const [contactDialogOpen, setContactDialogOpen] = useState(false);
 
   // Orders data
   const [orders, setOrders] = useState([]);
@@ -348,12 +351,8 @@ export default function OrdersPage() {
   };
 
   const handleContactCustomer = (order) => {
-    // TODO: Implement customer contact
-    setSnackbar({
-      open: true,
-      message: "Contacting customer...",
-      severity: "info",
-    });
+    setSelectedOrder(order);
+    setContactDialogOpen(true);
   };
 
   const handleViewOrder = (order) => {
@@ -364,6 +363,49 @@ export default function OrdersPage() {
   const handleViewMap = (order) => {
     setSelectedOrder(order);
     setMapDialogOpen(true);
+  };
+
+  const handleCallCustomer = (phone) => {
+    if (phone) {
+      window.open(`tel:${phone}`, "_blank");
+      setSnackbar({
+        open: true,
+        message: "Opening phone dialer...",
+        severity: "info",
+      });
+    } else {
+      setSnackbar({
+        open: true,
+        message: "No phone number available",
+        severity: "warning",
+      });
+    }
+  };
+
+  const handleEmailCustomer = (email) => {
+    if (email) {
+      window.open(`mailto:${email}`, "_blank");
+      setSnackbar({
+        open: true,
+        message: "Opening email client...",
+        severity: "info",
+      });
+    } else {
+      setSnackbar({
+        open: true,
+        message: "No email address available",
+        severity: "warning",
+      });
+    }
+  };
+
+  const handleSendMessage = (order) => {
+    // TODO: Implement in-app messaging
+    setSnackbar({
+      open: true,
+      message: "Message feature coming soon!",
+      severity: "info",
+    });
   };
 
   const getStatusColor = (status) => {
@@ -1368,18 +1410,279 @@ export default function OrdersPage() {
       <Dialog
         open={mapDialogOpen}
         onClose={() => setMapDialogOpen(false)}
+        maxWidth="lg"
+        fullWidth
+      >
+        <DialogTitle>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+            <LocationOn sx={{ mr: 1, color: "#1976d2" }} />
+            Delivery Location & Route
+          </Box>
+        </DialogTitle>
+        <DialogContent>
+          {selectedOrder && (
+            <Box>
+              {/* Delivery Address */}
+              <Box sx={{ mb: 3 }}>
+                <Typography variant="h6" sx={{ mb: 2, color: "#1976d2" }}>
+                  <LocationOn sx={{ mr: 1, fontSize: 20 }} />
+                  Delivery Address
+                </Typography>
+                <Box
+                  sx={{
+                    p: 2,
+                    border: "1px solid #e0e0e0",
+                    borderRadius: 1,
+                    backgroundColor: "#f8f9fa",
+                  }}
+                >
+                  <Typography variant="body1" sx={{ fontWeight: "medium" }}>
+                    {selectedOrder.customerName}
+                  </Typography>
+                  <Typography
+                    variant="body2"
+                    color="textSecondary"
+                    sx={{ mt: 1 }}
+                  >
+                    {selectedOrder.deliveryAddress &&
+                    typeof selectedOrder.deliveryAddress === "object"
+                      ? `${selectedOrder.deliveryAddress.street || ""}, ${selectedOrder.deliveryAddress.city || ""}, ${selectedOrder.deliveryAddress.state || ""} - ${selectedOrder.deliveryAddress.pincode || ""}`
+                      : selectedOrder.deliveryAddress || "N/A"}
+                  </Typography>
+                  {selectedOrder.customerPhone && (
+                    <Typography variant="body2" color="primary" sx={{ mt: 1 }}>
+                      <Phone sx={{ mr: 1, fontSize: 16 }} />
+                      {selectedOrder.customerPhone}
+                    </Typography>
+                  )}
+                </Box>
+              </Box>
+
+              {/* Google Map Embed */}
+              <Box sx={{ mb: 3 }}>
+                <Typography variant="h6" sx={{ mb: 2, color: "#1976d2" }}>
+                  <Map sx={{ mr: 1, fontSize: 20 }} />
+                  Live Location Map
+                </Typography>
+                <Box
+                  sx={{
+                    width: "100%",
+                    height: 400,
+                    border: "1px solid #e0e0e0",
+                    borderRadius: 1,
+                    overflow: "hidden",
+                    backgroundColor: "#f0f0f0",
+                  }}
+                >
+                  {/* Google Maps Embed - Replace with actual API key */}
+                  <iframe
+                    width="100%"
+                    height="100%"
+                    frameBorder="0"
+                    style={{ border: 0 }}
+                    src={`https://maps.google.com/maps?q=${encodeURIComponent(
+                      selectedOrder.deliveryAddress &&
+                        typeof selectedOrder.deliveryAddress === "object"
+                        ? `${selectedOrder.deliveryAddress.street || ""}, ${selectedOrder.deliveryAddress.city || ""}, ${selectedOrder.deliveryAddress.state || ""}`
+                        : selectedOrder.deliveryAddress || "Delhi, India",
+                    )}&output=embed`}
+                    allowFullScreen
+                  />
+                </Box>
+              </Box>
+
+              {/* Delivery Instructions */}
+              <Box sx={{ mb: 3 }}>
+                <Typography variant="h6" sx={{ mb: 2, color: "#1976d2" }}>
+                  <Info sx={{ mr: 1, fontSize: 20 }} />
+                  Delivery Instructions
+                </Typography>
+                <Box
+                  sx={{
+                    p: 2,
+                    border: "1px solid #e0e0e0",
+                    borderRadius: 1,
+                    backgroundColor: "#fff3e0",
+                  }}
+                >
+                  <Typography variant="body2">
+                    {selectedOrder.deliveryInstructions ||
+                      "No special instructions provided."}
+                  </Typography>
+                </Box>
+              </Box>
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button
+            onClick={() => setMapDialogOpen(false)}
+            variant="contained"
+            sx={{ mr: 1 }}
+          >
+            Close
+          </Button>
+          {selectedOrder && selectedOrder.customerPhone && (
+            <Button
+              onClick={() => handleCallCustomer(selectedOrder.customerPhone)}
+              variant="outlined"
+              startIcon={<Phone />}
+              sx={{ mr: 1 }}
+            >
+              Call Customer
+            </Button>
+          )}
+          {selectedOrder && selectedOrder.customerEmail && (
+            <Button
+              onClick={() => handleEmailCustomer(selectedOrder.customerEmail)}
+              variant="outlined"
+              startIcon={<Email />}
+            >
+              Send Email
+            </Button>
+          )}
+        </DialogActions>
+      </Dialog>
+
+      {/* Contact Dialog */}
+      <Dialog
+        open={contactDialogOpen}
+        onClose={() => setContactDialogOpen(false)}
         maxWidth="md"
         fullWidth
       >
-        <DialogTitle>Delivery Location</DialogTitle>
+        <DialogTitle>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+            <ContactPhone sx={{ mr: 1, color: "#1976d2" }} />
+            Contact Customer
+          </Box>
+        </DialogTitle>
         <DialogContent>
-          <Typography variant="body1">
-            Map view would show delivery location and route. This would
-            integrate with Google Maps API for real-time tracking.
-          </Typography>
+          {selectedOrder && (
+            <Box>
+              {/* Customer Information */}
+              <Box sx={{ mb: 3 }}>
+                <Typography variant="h6" sx={{ mb: 2, color: "#1976d2" }}>
+                  Customer Information
+                </Typography>
+                <Box
+                  sx={{
+                    p: 2,
+                    border: "1px solid #e0e0e0",
+                    borderRadius: 1,
+                    backgroundColor: "#f8f9fa",
+                  }}
+                >
+                  <Typography
+                    variant="body1"
+                    sx={{ fontWeight: "medium", mb: 1 }}
+                  >
+                    {selectedOrder.customerName}
+                  </Typography>
+                  {selectedOrder.customerPhone && (
+                    <Typography variant="body2" color="primary" sx={{ mb: 1 }}>
+                      <Phone sx={{ mr: 1, fontSize: 16 }} />
+                      {selectedOrder.customerPhone}
+                    </Typography>
+                  )}
+                  {selectedOrder.customerEmail && (
+                    <Typography variant="body2" color="primary" sx={{ mb: 1 }}>
+                      <Email sx={{ mr: 1, fontSize: 16 }} />
+                      {selectedOrder.customerEmail}
+                    </Typography>
+                  )}
+                </Box>
+              </Box>
+
+              {/* Quick Actions */}
+              <Box sx={{ mb: 3 }}>
+                <Typography variant="h6" sx={{ mb: 2, color: "#1976d2" }}>
+                  Quick Actions
+                </Typography>
+                <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap" }}>
+                  {selectedOrder.customerPhone && (
+                    <Button
+                      onClick={() =>
+                        handleCallCustomer(selectedOrder.customerPhone)
+                      }
+                      variant="contained"
+                      startIcon={<Phone />}
+                      sx={{ mb: 1 }}
+                      fullWidth
+                    >
+                      Call Customer
+                    </Button>
+                  )}
+                  {selectedOrder.customerEmail && (
+                    <Button
+                      onClick={() =>
+                        handleEmailCustomer(selectedOrder.customerEmail)
+                      }
+                      variant="outlined"
+                      startIcon={<Email />}
+                      sx={{ mb: 1 }}
+                      fullWidth
+                    >
+                      Send Email
+                    </Button>
+                  )}
+                  <Button
+                    onClick={() => handleSendMessage(selectedOrder)}
+                    variant="outlined"
+                    startIcon={<Message />}
+                    sx={{ mb: 1 }}
+                    fullWidth
+                  >
+                    Send Message
+                  </Button>
+                </Box>
+              </Box>
+
+              {/* Order Information */}
+              <Box sx={{ mb: 3 }}>
+                <Typography variant="h6" sx={{ mb: 2, color: "#1976d2" }}>
+                  Order Information
+                </Typography>
+                <Box
+                  sx={{
+                    p: 2,
+                    border: "1px solid #e0e0e0",
+                    borderRadius: 1,
+                    backgroundColor: "#f0f0f0",
+                  }}
+                >
+                  <Typography variant="body2" sx={{ mb: 1 }}>
+                    <strong>Order ID:</strong>{" "}
+                    {selectedOrder.orderId || selectedOrder.id}
+                  </Typography>
+                  <Typography variant="body2" sx={{ mb: 1 }}>
+                    <strong>Amount:</strong> ₹
+                    {selectedOrder.totalAmount || selectedOrder.amount}
+                  </Typography>
+                  <Typography variant="body2" sx={{ mb: 1 }}>
+                    <strong>Status:</strong>
+                    <Chip
+                      label={selectedOrder.status}
+                      color={getStatusColor(selectedOrder.status)}
+                      size="small"
+                      sx={{ ml: 1 }}
+                    />
+                  </Typography>
+                  {selectedOrder.deliveryAddress && (
+                    <Typography variant="body2">
+                      <strong>Address:</strong>{" "}
+                      {typeof selectedOrder.deliveryAddress === "object"
+                        ? `${selectedOrder.deliveryAddress.street || ""}, ${selectedOrder.deliveryAddress.city || ""}, ${selectedOrder.deliveryAddress.state || ""}`
+                        : selectedOrder.deliveryAddress}
+                    </Typography>
+                  )}
+                </Box>
+              </Box>
+            </Box>
+          )}
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setMapDialogOpen(false)}>Close</Button>
+          <Button onClick={() => setContactDialogOpen(false)}>Close</Button>
         </DialogActions>
       </Dialog>
 

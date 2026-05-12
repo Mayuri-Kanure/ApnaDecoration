@@ -75,16 +75,24 @@ export const robustFetch = async (path, options = {}) => {
           console.log(`🔍 Trying endpoint: ${baseUrl}${path}`);
         }
 
+        // Get auth token and debug log
+        const token = localStorage.getItem("token");
+        console.log(
+          `🔍 Auth Debug - Requesting ${baseUrl}${path} with token:`,
+          token ? "Bearer [TOKEN_PRESENT]" : "NO_TOKEN",
+        );
+
         const response = await fetch(`${baseUrl}${path}`, {
           ...options,
           signal: controller.signal,
           headers: {
             "Content-Type": "application/json",
             "X-Requested-With": "XMLHttpRequest",
-            // Add auth token if available
-            ...(localStorage.getItem("token") && {
-              Authorization: `Bearer ${localStorage.getItem("token")}`,
-            }),
+            // Add auth token if available (avoid duplicate headers)
+            ...(token &&
+              !options.headers?.Authorization && {
+                Authorization: `Bearer ${token}`,
+              }),
             ...options.headers,
           },
         });
@@ -98,8 +106,8 @@ export const robustFetch = async (path, options = {}) => {
           return response;
         } else if (response.status === 401) {
           // For 401 errors, don't retry - it's an auth issue
+          // Don't mark endpoint as down - 401 is auth issue, not server issue
           console.warn(`🔐 Authentication failed (401): ${baseUrl}${path}`);
-          endpointStatus.set(baseUrl, false);
           throw new Error("Authentication failed - please login again");
         } else if (isTransientError(null, response.status)) {
           // Transient error - retry
@@ -152,8 +160,7 @@ export const robustFetch = async (path, options = {}) => {
   }
 
   throw (
-    lastError ||
-    new Error("All API endpoints failed - servers may be down")
+    lastError || new Error("All API endpoints failed - servers may be down")
   );
 };
 

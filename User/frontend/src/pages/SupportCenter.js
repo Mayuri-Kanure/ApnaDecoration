@@ -3,6 +3,7 @@ import { useNavigate, Link, useLocation } from "react-router-dom";
 import Navigation from "../components/Navigation";
 import Footer from "../components/Footer";
 import { supportTicketService } from "../services/supportTicketService";
+import { useToast } from "../contexts/ToastContext";
 import {
   MessageCircle,
   Phone,
@@ -16,18 +17,21 @@ import {
   User,
   MessageSquare,
   Headphones,
+  CheckCircle,
 } from "lucide-react";
 import { LoadingSpinner } from "../components/LoadingSpinner";
 
 const SupportCenter = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { success, error: showError } = useToast();
 
   const [activeTab, setActiveTab] = useState("tickets");
   const [tickets, setTickets] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedTicket, setSelectedTicket] = useState(null);
   const [isChatOpen, setIsChatOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [chatMessages, setChatMessages] = useState([
     {
       id: 1,
@@ -126,17 +130,64 @@ const SupportCenter = () => {
   const handleCreateTicket = async (e) => {
     e.preventDefault();
 
+    // Validate form
+    if (!newTicket.subject.trim()) {
+      showError("Please enter a subject for your ticket");
+      return;
+    }
+
+    if (!newTicket.description.trim()) {
+      showError("Please provide a detailed description of your issue");
+      return;
+    }
+
+    setIsSubmitting(true);
+
     try {
       const ticketData = { ...newTicket };
 
+      // Log the data being sent for debugging
+      console.log("Creating ticket with data:", ticketData);
+
       const res = await supportTicketService.createTicket(ticketData);
 
-      const created = normalizeTicket(res?.data);
-      setTickets((prev) => [created, ...prev]);
+      if (res?.data) {
+        const created = normalizeTicket(res.data);
+        setTickets((prev) => [created, ...prev]);
 
-      setActiveTab("tickets");
+        // Reset form
+        setNewTicket({
+          subject: "",
+          category: "order",
+          priority: "medium",
+          orderId: "",
+          description: "",
+        });
+
+        success(
+          "Support ticket created successfully! We'll get back to you soon.",
+        );
+        setActiveTab("tickets");
+      } else {
+        showError("Failed to create ticket. Please try again.");
+      }
     } catch (err) {
-      console.error(err);
+      console.error("Ticket creation error:", err);
+
+      // Provide specific error messages based on the error
+      if (err.response?.status === 401) {
+        showError("Please login to create a support ticket");
+      } else if (err.response?.status === 403) {
+        showError("You don't have permission to create tickets");
+      } else if (err.response?.status === 400) {
+        showError("Invalid ticket data. Please check your inputs.");
+      } else if (err.code === "NETWORK_ERROR") {
+        showError("Network error. Please check your connection and try again.");
+      } else {
+        showError("Failed to create ticket. Please try again later.");
+      }
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -463,14 +514,26 @@ const SupportCenter = () => {
               <div className="flex gap-4">
                 <button
                   type="submit"
-                  className="flex-1 bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors font-medium"
+                  disabled={isSubmitting}
+                  className="flex-1 bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors font-medium flex items-center justify-center gap-2"
                 >
-                  Submit Ticket
+                  {isSubmitting ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      Creating Ticket...
+                    </>
+                  ) : (
+                    <>
+                      <Send size={18} />
+                      Submit Ticket
+                    </>
+                  )}
                 </button>
                 <button
                   type="button"
                   onClick={() => setActiveTab("tickets")}
-                  className="px-6 py-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors font-medium bg-blue-600 text-white"
+                  disabled={isSubmitting}
+                  className="px-6 py-3 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:bg-gray-100 disabled:cursor-not-allowed transition-colors font-medium"
                 >
                   Cancel
                 </button>

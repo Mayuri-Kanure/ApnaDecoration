@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import {
   ChevronLeft,
   ChevronRight,
@@ -81,6 +81,7 @@ const CountdownTimer = ({ expiryDate }) => {
 };
 
 const Hero = () => {
+  const navigate = useNavigate();
   const { featuredProducts, loading, error } = useProducts();
   const { addToWishlist, removeFromWishlist, isInWishlist, addToCart } =
     useCart();
@@ -172,7 +173,11 @@ const Hero = () => {
 
     try {
       await addToCart(product);
-      success("Added to cart successfully!");
+      success("Added to cart! Redirecting to checkout...");
+      // Navigate to checkout after a short delay
+      setTimeout(() => {
+        navigate("/checkout");
+      }, 1000);
     } catch (error) {
       showError("Failed to add to cart");
     }

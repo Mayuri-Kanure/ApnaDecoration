@@ -102,14 +102,15 @@ const Navigation = () => {
     "Festive Decor",
   ];
 
-  // Search functionality
+  // Enhanced Search functionality - Real-time suggestions
   useEffect(() => {
-    if (debouncedSearchTerm.trim().length > 0) {
-      performSearch(debouncedSearchTerm);
-    } else {
+    if (searchTerm.trim().length >= 2) {
+      // Show suggestions after 2 letters
+      performSearch(searchTerm);
+    } else if (searchTerm.trim().length === 0) {
       setSearchResults({ products: [], categories: [] });
     }
-  }, [debouncedSearchTerm]);
+  }, [searchTerm]); // Changed from debouncedSearchTerm to searchTerm for instant feedback
 
   const performSearch = async (term) => {
     try {
@@ -140,13 +141,40 @@ const Navigation = () => {
               break;
             }
 
-            // If it's a general products endpoint, filter locally
+            // If it's a general products endpoint, filter locally with enhanced matching
             if (data.data && Array.isArray(data.data)) {
-              const filtered = data.data.filter(
-                (product) =>
-                  product.name &&
-                  product.name.toLowerCase().includes(term.toLowerCase()),
-              );
+              const searchLower = term.toLowerCase();
+              const filtered = data.data
+                .map((product) => {
+                  const name = product.name?.toLowerCase() || "";
+                  const description = product.description?.toLowerCase() || "";
+                  const category = product.category?.name?.toLowerCase() || "";
+
+                  // Calculate match score for better ranking
+                  let score = 0;
+
+                  // Exact name match gets highest score
+                  if (name === searchLower) score += 100;
+                  // Name starts with search term
+                  else if (name.startsWith(searchLower)) score += 80;
+                  // Name contains search term
+                  else if (name.includes(searchLower)) score += 60;
+
+                  // Category name matching
+                  if (category === searchLower) score += 40;
+                  else if (category.startsWith(searchLower)) score += 30;
+                  else if (category.includes(searchLower)) score += 20;
+
+                  // Description matching (lower priority)
+                  if (description.includes(searchLower)) score += 10;
+
+                  return { product, score };
+                })
+                .filter((item) => item.score > 0) // Only show products that match
+                .sort((a, b) => b.score - a.score) // Sort by score (highest first)
+                .slice(0, 5) // Show max 5 results
+                .map((item) => item.product);
+
               if (filtered.length > 0) {
                 productsData = { data: filtered };
                 break;
@@ -360,9 +388,18 @@ const Navigation = () => {
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
               <input
                 type="text"
-                placeholder="Search products..."
+                placeholder="Search products (e.g., Birthday, Wedding, Flowers)..."
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setSearchTerm(value);
+                  // Auto-open dropdown when typing
+                  if (value.trim().length >= 2) {
+                    setSearchDropdownOpen(true);
+                  } else if (value.trim().length === 0) {
+                    setSearchDropdownOpen(false);
+                  }
+                }}
                 onFocus={() => {
                   setSearchDropdownOpen(true);
                 }}
@@ -372,10 +409,7 @@ const Navigation = () => {
 
               {/* Search Results Dropdown */}
               {searchDropdownOpen && (
-                <div
-                  className="fixed right-30 mx-auto mt-2 w-full max-w-md bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden z-[99999]"
-                  style={{ top: "70px" }}
-                >
+                <div className="absolute left-0 right-0 mt-2 w-full bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden z-[99999]">
                   {searchLoading ? (
                     <div className="p-4 text-center">
                       <div className="inline-block animate-spin rounded-full h-6 w-6 border-2 border-solid border-blue-600 border-t-transparent"></div>
@@ -477,44 +511,74 @@ const Navigation = () => {
                               Products
                             </p>
                           </div>
-                          {searchResults.products.map((product) => (
-                            <Link
-                              key={product.id}
-                              to={`/product/${product.id}`}
-                              onClick={() => {
-                                setSearchDropdownOpen(false);
-                                setSearchTerm("");
-                              }}
-                              className="flex items-center gap-3 p-3 transition-colors duration-150"
-                            >
-                              <div className="w-12 h-12 bg-gray-100 rounded-lg flex-shrink-0">
-                                {product.thumbnail || product.image ? (
-                                  <img
-                                    src={product.thumbnail || product.image}
-                                    alt={product.name}
-                                    className="w-full h-full object-cover"
-                                  />
-                                ) : (
-                                  <div className="w-full h-full bg-gray-200 flex items-center justify-center">
-                                    <ShoppingBag
-                                      className="text-gray-400"
-                                      size={20}
+                          {searchResults.products.map((product) => {
+                            const highlightText = (text, term) => {
+                              if (!text || !term) return text;
+                              const regex = new RegExp(`(${term})`, "gi");
+                              return text.replace(
+                                regex,
+                                '<mark class="bg-yellow-200 text-yellow-900 px-1 rounded">$1</mark>',
+                              );
+                            };
+
+                            return (
+                              <Link
+                                key={product.id}
+                                to={`/product/${product.id}`}
+                                onClick={() => {
+                                  setSearchDropdownOpen(false);
+                                  setSearchTerm("");
+                                }}
+                                className="flex items-center gap-3 p-3 transition-colors duration-150 hover:bg-blue-50 border-b border-gray-50 last:border-b-0"
+                              >
+                                <div className="w-12 h-12 bg-gray-100 rounded-lg flex-shrink-0">
+                                  {product.thumbnail || product.image ? (
+                                    <img
+                                      src={product.thumbnail || product.image}
+                                      alt={product.name}
+                                      className="w-full h-full object-cover"
                                     />
+                                  ) : (
+                                    <div className="w-full h-full bg-gray-200 flex items-center justify-center">
+                                      <ShoppingBag
+                                        className="text-gray-400"
+                                        size={20}
+                                      />
+                                    </div>
+                                  )}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <h4
+                                    className="text-sm font-medium text-gray-900 truncate"
+                                    dangerouslySetInnerHTML={{
+                                      __html: highlightText(
+                                        product.name,
+                                        searchTerm,
+                                      ),
+                                    }}
+                                  />
+                                  <div className="flex items-center gap-2 mt-1">
+                                    <p className="text-sm text-gray-500">
+                                      {product.price
+                                        ? `₹ ${product.price}`
+                                        : "Price not available"}
+                                    </p>
+                                    {product.rating && (
+                                      <div className="flex items-center gap-1">
+                                        <Star
+                                          size={12}
+                                          className="text-yellow-400 fill-current"
+                                        />
+                                        <span className="text-xs text-gray-600">
+                                          {product.rating}
+                                        </span>
+                                      </div>
+                                    )}
                                   </div>
-                                )}
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <h4 className="text-sm font-medium text-gray-900 truncate">
-                                  {product.name}
-                                </h4>
-                                <p className="text-sm text-gray-500">
-                                  {product.price
-                                    ? `₹ ${product.price}`
-                                    : "Price not available"}
-                                </p>
-                              </div>
-                            </Link>
-                          ))}
+                                </div>
+                              </Link>
+                            );
+                          })}
                         </div>
                       )}
 
@@ -742,6 +806,205 @@ const Navigation = () => {
         {mobileMenuOpen && (
           <div className="lg:hidden border-t border-gray-200 bg-white shadow-lg">
             <div className="px-4 py-4 space-y-2">
+              {/* Mobile Search Bar */}
+              <div className="relative" ref={searchRef}>
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                <input
+                  type="text"
+                  placeholder="Search products (e.g., Birthday, Wedding, Flowers)..."
+                  value={searchTerm}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    setSearchTerm(value);
+                    // Auto-open dropdown when typing
+                    if (value.trim().length >= 2) {
+                      setSearchDropdownOpen(true);
+                    } else if (value.trim().length === 0) {
+                      setSearchDropdownOpen(false);
+                    }
+                  }}
+                  onFocus={() => {
+                    setSearchDropdownOpen(true);
+                  }}
+                  className="w-full pl-10 pr-4 py-3 border bg-white text-gray-900 placeholder-gray-500 border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                  style={{ color: "#111827" }}
+                />
+
+                {/* Mobile Search Results Dropdown */}
+                {searchDropdownOpen && (
+                  <div className="absolute left-0 right-0 mt-2 bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden z-[99999] max-h-80">
+                    {searchLoading ? (
+                      <div className="p-4 text-center">
+                        <div className="inline-block animate-spin rounded-full h-6 w-6 border-2 border-solid border-blue-600 border-t-transparent"></div>
+                        <p className="text-sm text-gray-500 mt-2">
+                          Searching...
+                        </p>
+                      </div>
+                    ) : searchTerm.trim().length === 0 ? (
+                      <div className="max-h-80 overflow-y-auto">
+                        <div className="px-3 py-2 bg-gray-50 border-b border-gray-100">
+                          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                            Popular Searches
+                          </p>
+                        </div>
+                        {popularSearches.map((suggestion, index) => (
+                          <button
+                            key={index}
+                            onClick={() => {
+                              setSearchTerm(suggestion);
+                              setTimeout(() => {
+                                setSearchDropdownOpen(false);
+                                setMobileMenuOpen(false);
+                              }, 100);
+                            }}
+                            className="flex items-center gap-3 w-full p-3 transition-colors duration-150 text-left"
+                          >
+                            <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
+                              <Search className="text-blue-600" size={16} />
+                            </div>
+                            <div className="flex-1">
+                              <p className="text-sm text-gray-900">
+                                {suggestion}
+                              </p>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    ) : searchResults.products?.length > 0 ||
+                      searchResults.categories?.length > 0 ? (
+                      <div className="max-h-80 overflow-y-auto">
+                        {/* Categories Section */}
+                        {searchResults.categories?.filter(
+                          (cat) =>
+                            cat.name &&
+                            cat.name !== "Category" &&
+                            !/^[a-f0-9]{24,}$/i.test(cat.name),
+                        ).length > 0 && (
+                          <div>
+                            <div className="px-3 py-2 bg-gray-50 border-b border-gray-100">
+                              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                                Categories
+                              </p>
+                            </div>
+                            {searchResults.categories
+                              .filter(
+                                (cat) =>
+                                  cat.name &&
+                                  cat.name !== "Category" &&
+                                  !/^[a-f0-9]{24,}$/i.test(cat.name),
+                              )
+                              .map((category) => (
+                                <Link
+                                  key={category.id}
+                                  to={`/products?category=${encodeURIComponent(category.name || category.id)}`}
+                                  onClick={() => {
+                                    setSearchDropdownOpen(false);
+                                    setSearchTerm("");
+                                    setMobileMenuOpen(false);
+                                  }}
+                                  className="flex items-center gap-3 p-3 transition-colors duration-150"
+                                >
+                                  <div className="w-10 h-10 bg-gradient-to-br from-blue-100 to-purple-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                                    <Grid3x3
+                                      className="text-blue-600"
+                                      size={20}
+                                    />
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <h4 className="text-sm font-medium text-gray-900 truncate">
+                                      {category.name}
+                                    </h4>
+                                    <p className="text-xs text-gray-500">
+                                      Browse category
+                                    </p>
+                                  </div>
+                                </Link>
+                              ))}
+                          </div>
+                        )}
+
+                        {/* Products Section */}
+                        {searchResults.products?.length > 0 && (
+                          <div
+                            className={
+                              searchResults.categories?.length > 0
+                                ? "border-t border-gray-100"
+                                : ""
+                            }
+                          >
+                            <div className="px-3 py-2 bg-gray-50 border-b border-gray-100">
+                              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                                Products
+                              </p>
+                            </div>
+                            {searchResults.products.map((product) => (
+                              <Link
+                                key={product.id}
+                                to={`/product/${product.id}`}
+                                onClick={() => {
+                                  setSearchDropdownOpen(false);
+                                  setSearchTerm("");
+                                  setMobileMenuOpen(false);
+                                }}
+                                className="flex items-center gap-3 p-3 transition-colors duration-150"
+                              >
+                                <div className="w-12 h-12 bg-gray-100 rounded-lg flex-shrink-0">
+                                  {product.thumbnail || product.image ? (
+                                    <img
+                                      src={product.thumbnail || product.image}
+                                      alt={product.name}
+                                      className="w-full h-full object-cover"
+                                    />
+                                  ) : (
+                                    <div className="w-full h-full bg-gray-200 flex items-center justify-center">
+                                      <ShoppingBag
+                                        className="text-gray-400"
+                                        size={20}
+                                      />
+                                    </div>
+                                  )}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <h4 className="text-sm font-medium text-gray-900 truncate">
+                                    {product.name}
+                                  </h4>
+                                  <p className="text-sm text-gray-500">
+                                    {product.price
+                                      ? `₹ ${product.price}`
+                                      : "Price not available"}
+                                  </p>
+                                </div>
+                              </Link>
+                            ))}
+                          </div>
+                        )}
+
+                        {/* View All Results */}
+                        <div className="p-3 border-t border-gray-100 bg-white">
+                          <Link
+                            to={`/products?q=${encodeURIComponent(searchTerm)}`}
+                            onClick={() => {
+                              setSearchDropdownOpen(false);
+                              setSearchTerm("");
+                              setMobileMenuOpen(false);
+                            }}
+                            className="block text-center text-sm text-blue-600 font-medium"
+                          >
+                            View all results for "{searchTerm}"
+                          </Link>
+                        </div>
+                      </div>
+                    ) : searchTerm.trim().length > 0 ? (
+                      <div className="p-4 text-center">
+                        <p className="text-sm text-gray-500">
+                          No products or categories found
+                        </p>
+                      </div>
+                    ) : null}
+                  </div>
+                )}
+              </div>
+
               {navLinks.map((link) => (
                 <Link
                   key={link.path}

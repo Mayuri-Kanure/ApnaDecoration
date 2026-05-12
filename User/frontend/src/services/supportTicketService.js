@@ -94,12 +94,18 @@ export const supportTicketService = {
   // Create new support ticket
   createTicket: async (ticketData) => {
     try {
+      // Check if ticketData is FormData or regular object
+      const isFormData = ticketData instanceof FormData;
+
       const response = await axios.post(
         `${API_BASE_URL_FINAL}/support-tickets`,
         ticketData,
         {
-          headers: getAuthHeaders(),
-          "Content-Type": "multipart/form-data",
+          headers: {
+            ...getAuthHeaders(),
+            // Only set Content-Type for FormData (axios will set it automatically)
+            ...(isFormData && { "Content-Type": "multipart/form-data" }),
+          },
         },
       );
       return response.data;

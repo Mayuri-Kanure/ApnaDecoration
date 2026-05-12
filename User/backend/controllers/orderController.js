@@ -96,7 +96,11 @@ const createServiceBooking = async (req, res) => {
         ? JSON.parse(req.body.customerInfo)
         : {},
 
-      referenceImage: req.file ? `/uploads/orders/${req.file.filename}` : null,
+      referenceImage: req.file
+        ? req.file.secure_url ||
+          req.file.path ||
+          `/uploads/orders/${req.file.filename}`
+        : null,
     };
 
     console.log("🔍 Parsed booking data:", bookingData);
@@ -243,9 +247,24 @@ const createOrder = async (req, res) => {
     // Handle reference image if uploaded
 
     if (req.file) {
-      orderData.referenceImage = `/uploads/orders/${req.file.filename}`;
-
-      console.log("📎 Reference image uploaded:", req.file.filename);
+      // Use Cloudinary URL if available, otherwise fallback to local path
+      if (req.file.path && req.file.path.includes("cloudinary")) {
+        orderData.referenceImage = req.file.path;
+        console.log(
+          "📎 Reference image uploaded to Cloudinary:",
+          req.file.path,
+        );
+      } else if (req.file.secure_url) {
+        orderData.referenceImage = req.file.secure_url;
+        console.log(
+          "📎 Reference image uploaded to Cloudinary:",
+          req.file.secure_url,
+        );
+      } else {
+        // Fallback to local storage
+        orderData.referenceImage = `/uploads/orders/${req.file.filename}`;
+        console.log("📎 Reference image uploaded locally:", req.file.filename);
+      }
     }
 
     console.log("🔍 About to call OrderService.createOrder...");

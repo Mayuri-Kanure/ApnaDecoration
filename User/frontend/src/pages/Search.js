@@ -306,6 +306,28 @@ const SearchPage = () => {
     }
   };
 
+  // Handle buy now
+  const handleBuyNow = async (product) => {
+    try {
+      await addToCart(product, 1);
+      setNotification({
+        open: true,
+        message: "Added to cart! Redirecting to checkout...",
+        severity: "success",
+      });
+      // Navigate to checkout after a short delay
+      setTimeout(() => {
+        navigate("/checkout");
+      }, 1000);
+    } catch (error) {
+      setNotification({
+        open: true,
+        message: "Failed to add to cart",
+        severity: "error",
+      });
+    }
+  };
+
   return (
     <>
       <Navigation />
@@ -660,6 +682,19 @@ const SearchPage = () => {
                             sx={{ flex: 1 }}
                           >
                             Add to Cart
+                          </Button>
+                          <Button
+                            variant="contained"
+                            size="small"
+                            sx={{
+                              flex: 1,
+                              backgroundColor: "#f97316",
+                              "&:hover": { backgroundColor: "#ea580c" },
+                            }}
+                            onClick={() => handleBuyNow(product)}
+                            disabled={product.stock <= 0}
+                          >
+                            Buy Now
                           </Button>
                           <IconButton
                             onClick={() => handleWishlistToggle(product)}

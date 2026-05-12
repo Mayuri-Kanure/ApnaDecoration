@@ -129,7 +129,6 @@ productSchema.index({ reservedStock: 1 });
 productSchema.index({ status: 1, stock: 1 }); // Composite index
 productSchema.index({ category: 1, status: 1, stock: 1 }); // For filtering
 productSchema.index({ featured: 1, status: 1, stock: 1 }); // For featured products
-productSchema.index({ sku: 1 }); // For SKU lookups
 
 // ====== PRE-SAVE HOOKS ======
 productSchema.pre("save", function (next) {

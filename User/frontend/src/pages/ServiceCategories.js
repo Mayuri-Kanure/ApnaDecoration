@@ -16,6 +16,9 @@ import {
   TrendingUp,
   ArrowRight,
   ChevronLeft,
+  Heart,
+  Award,
+  Zap,
 } from "lucide-react";
 
 const ServiceCategories = () => {
@@ -208,16 +211,29 @@ const ServiceCategories = () => {
                 <Link
                   key={category.id || category._id}
                   to={`/services?category=${category.id || category._id}`}
-                  className={`bg-white rounded-xl shadow-sm hover:shadow-xl transition-all duration-300 cursor-pointer hover:bg-gradient-to-br hover:from-indigo-50 hover:to-purple-50 h-full flex flex-col ${
+                  className={`group bg-white rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-500 cursor-pointer hover:bg-gradient-to-br hover:from-indigo-50 hover:to-purple-50 h-full flex flex-col transform hover:-translate-y-1 ${
                     viewMode === "list"
                       ? "flex items-center gap-6 p-6"
-                      : "p-3 sm:p-4 text-center"
+                      : "p-4 sm:p-6 text-center"
                   }`}
                 >
+                  {/* Popular Badge */}
+                  {stats.popular && (
+                    <div className="absolute top-2 right-2 z-10">
+                      <div className="bg-gradient-to-r from-orange-500 to-pink-500 text-white text-xs px-2 py-1 rounded-full flex items-center gap-1 shadow-lg">
+                        <TrendingUp size={10} />
+                        Popular
+                      </div>
+                    </div>
+                  )}
+
                   {/* Category Image */}
                   <div
-                    className={`${viewMode === "list" ? "h-20 w-20 flex-shrink-0" : "h-24 w-24 sm:w-28 md:w-32 mx-auto mb-4"} overflow-hidden rounded-xl shadow-sm`}
+                    className={`relative ${viewMode === "list" ? "h-20 w-20 flex-shrink-0" : "h-28 w-28 sm:w-32 md:w-36 mx-auto mb-4"} overflow-hidden rounded-2xl shadow-md group-hover:shadow-xl transition-all duration-300`}
                   >
+                    {/* Gradient Overlay */}
+                    <div className="absolute inset-0 bg-gradient-to-br from-purple-400/20 to-pink-400/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+
                     {category.image ? (
                       <Fragment>
                         <img
@@ -229,7 +245,7 @@ const ServiceCategories = () => {
                                 : category.image
                           }
                           alt={category.name}
-                          className="h-full w-full object-cover"
+                          className="h-full w-full object-cover group-hover:scale-110 transition-transform duration-500"
                           onLoad={() =>
                             console.log(
                               `✅ Image loaded: ${category.name} -> ${category.image}`,
@@ -246,41 +262,75 @@ const ServiceCategories = () => {
                       </Fragment>
                     ) : null}
                     <div
-                      className="w-full h-full flex items-center justify-center"
+                      className="w-full h-full flex items-center justify-center bg-gradient-to-br from-purple-100 to-pink-100"
                       style={{ display: category.image ? "none" : "flex" }}
                     >
-                      <Sparkles className="text-purple-400" size={32} />
+                      <div className="text-center">
+                        <Sparkles
+                          className="text-purple-500 mx-auto mb-2"
+                          size={32}
+                        />
+                        <div className="text-xs text-purple-600 font-medium">
+                          No Image
+                        </div>
+                      </div>
                     </div>
                   </div>
 
                   {/* Category Info */}
                   <div
-                    className={`space-y-2 ${viewMode === "list" ? "flex-1" : "flex-1 flex flex-col"}`}
+                    className={`space-y-3 ${viewMode === "list" ? "flex-1" : "flex-1 flex flex-col"}`}
                   >
-                    <h3 className="text-base sm:text-lg font-semibold text-gray-900 break-words min-h-[48px] line-clamp-2">
+                    <h3 className="text-lg sm:text-xl font-bold text-gray-900 break-words min-h-[56px] line-clamp-2 group-hover:text-purple-700 transition-colors duration-300">
                       {category.name}
                     </h3>
 
-                    {/* Stats */}
-                    <div className="flex items-center justify-center gap-3 text-sm text-gray-500 min-h-[32px]">
-                      <div className="flex items-center gap-1">
-                        <Users size={12} />
-                        <span>{stats.services}</span>
+                    {/* Enhanced Stats */}
+                    <div className="flex items-center justify-center gap-4 text-sm text-gray-600 min-h-[40px]">
+                      <div className="flex items-center gap-1 bg-purple-50 px-3 py-1 rounded-full">
+                        <Users size={14} className="text-purple-600" />
+                        <span className="font-medium text-purple-700">
+                          {stats.services} Services
+                        </span>
                       </div>
-                      <div className="flex items-center gap-1">
+                      <div className="flex items-center gap-1 bg-yellow-50 px-3 py-1 rounded-full">
                         <Star
-                          size={12}
+                          size={14}
                           className="text-yellow-500 fill-current"
                         />
-                        <span>{stats.rating}</span>
+                        <span className="font-medium text-yellow-700">
+                          {stats.rating}
+                        </span>
                       </div>
                     </div>
 
-                    {/* Call to Action */}
+                    {/* Enhanced Call to Action */}
                     <div className="mt-auto">
-                      <span className="text-indigo-600 text-sm font-medium group-hover:text-indigo-700 transition-colors">
-                        Explore Services →
-                      </span>
+                      <div className="flex items-center justify-center gap-2 text-indigo-600 font-medium group-hover:text-purple-700 transition-all duration-300">
+                        <span className="text-sm">Explore Services</span>
+                        <ArrowRight
+                          size={16}
+                          className="transform group-hover:translate-x-1 transition-transform duration-300"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Interactive Elements */}
+                    <div className="flex items-center justify-center gap-4 mt-3 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                      <div className="flex items-center gap-1 text-xs text-gray-500">
+                        <Heart
+                          size={12}
+                          className="hover:text-red-500 transition-colors cursor-pointer"
+                        />
+                        <span>Save</span>
+                      </div>
+                      <div className="flex items-center gap-1 text-xs text-gray-500">
+                        <Zap
+                          size={12}
+                          className="hover:text-yellow-500 transition-colors cursor-pointer"
+                        />
+                        <span>Quick View</span>
+                      </div>
                     </div>
                   </div>
                 </Link>

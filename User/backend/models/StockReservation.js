@@ -63,8 +63,8 @@ const stockReservationSchema = new mongoose.Schema(
 
 // ====== INDEXES ======
 stockReservationSchema.index({ user: 1, status: 1 });
-stockReservationSchema.index({ reservationToken: 1 });
-stockReservationSchema.index({ expiresAt: 1 }); // For cleanup jobs
+// reservationToken has unique: true, so no explicit index needed
+// expiresAt has TTL index below, so no explicit index needed
 stockReservationSchema.index({ status: 1, createdAt: 1 }); // For queries
 
 // ====== TTL INDEX ======

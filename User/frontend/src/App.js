@@ -88,6 +88,8 @@ import ClearanceSale from "./pages/ClearanceSale";
 
 import SupportCenter from "./pages/SupportCenter";
 
+import RazorpayDiagnostic from "./components/RazorpayDiagnostic";
+
 import { ToastManager } from "./components/ToastNotification";
 
 // Admin Pages
@@ -321,6 +323,12 @@ const App = () => {
                               <AdminDashboard />
                             </ProtectedRoute>
                           }
+                        />
+
+                        {/* Diagnostic Route */}
+                        <Route
+                          path="/razorpay-diagnostic"
+                          element={<RazorpayDiagnostic />}
                         />
 
                         <Route path="*" element={<Hero />} />

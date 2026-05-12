@@ -66,18 +66,24 @@ const VendorOrders = () => {
       setError(null);
       console.log("🔄 Fetching vendor orders...");
 
+      // Use real orders endpoint only
       const response = await vendorApi.getVendorOrders();
       console.log("📦 Vendor orders response:", response);
 
       // Handle different response formats
       let ordersData = [];
-      if (response && response.orders) {
+      if (response && response.success && response.orders) {
         ordersData = response.orders;
+      } else if (response && response.orders) {
+        ordersData = response.orders;
+      } else if (response && response.success && Array.isArray(response.data)) {
+        ordersData = response.data;
       } else if (Array.isArray(response)) {
         ordersData = response;
       }
 
       console.log("📦 Orders data to process:", ordersData.length, "items");
+      console.log("📊 Real orders data:", ordersData);
       setOrders(ordersData);
     } catch (error) {
       console.error("❌ Error fetching vendor orders:", error);

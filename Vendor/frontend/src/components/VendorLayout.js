@@ -27,8 +27,10 @@ import {
   Add as AddIcon,
   Person as PersonIcon,
   Receipt as OrdersIcon,
+  BarChart as AnalyticsIcon,
   Logout as LogoutIcon,
 } from "@mui/icons-material";
+import Notifications from "./Notifications";
 
 const drawerWidth = 280;
 
@@ -53,6 +55,11 @@ const VendorLayout = () => {
       text: "Dashboard",
       icon: <DashboardIcon />,
       path: "/",
+    },
+    {
+      text: "Analytics",
+      icon: <AnalyticsIcon />,
+      path: "/analytics",
     },
     {
       text: "My Products",
@@ -238,6 +245,11 @@ const VendorLayout = () => {
             >
               Vendor Portal
             </Typography>
+          </Box>
+
+          {/* Notifications */}
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+            <Notifications />
           </Box>
 
           {/* Profile Menu */}

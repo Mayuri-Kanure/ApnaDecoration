@@ -1,4 +1,5 @@
 // Network utility functions to handle API connectivity issues
+import { API_BASE_URL } from "../config/constants";
 
 let isApiDown = false;
 let lastFailureTime = 0;
@@ -13,19 +14,19 @@ export const checkApiAvailability = async (url) => {
   try {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 3000);
-    
+
     const response = await fetch(url, {
-      method: 'HEAD',
-      signal: controller.signal
+      method: "HEAD",
+      signal: controller.signal,
     });
-    
+
     clearTimeout(timeoutId);
-    
+
     // If we get here, API is responding
     isApiDown = false;
     return true;
   } catch (error) {
-    console.log('API availability check failed:', error.message);
+    console.log("API availability check failed:", error.message);
     isApiDown = true;
     lastFailureTime = Date.now();
     return false;
@@ -41,13 +42,20 @@ export const isApiCurrentlyDown = () => {
   return isApiDown && Date.now() - lastFailureTime < FAILURE_COOLDOWN;
 };
 
-export const withNetworkFallback = async (apiCall, fallbackData, operation = 'API operation') => {
+export const withNetworkFallback = async (
+  apiCall,
+  fallbackData,
+  operation = "API operation",
+) => {
   // Check if API is available before attempting
-  const apiUrl = process.env.REACT_APP_API_BASE_URL;
-  const isAvailable = await checkApiAvailability(`${apiUrl}/api/health`);
-  
+  // Use existing API_BASE_URL from constants instead of undefined env var
+  const healthUrl = `${API_BASE_URL?.replace(/\/api$/, "")}/api/health`;
+  const isAvailable = await checkApiAvailability(healthUrl);
+
   if (!isAvailable) {
-    console.log(`${operation} skipped - API appears to be down, using fallback data`);
+    console.log(
+      `${operation} skipped - API appears to be down, using fallback data`,
+    );
     return { success: true, data: fallbackData, fallback: true };
   }
 

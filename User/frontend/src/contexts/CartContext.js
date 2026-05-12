@@ -29,6 +29,10 @@ export const CartProvider = ({ children }) => {
     const cleaned = parsed.map((item) => ({
       ...item,
       category: normalizeCategory(item.category),
+      // ✅ MIGRATION: Ensure productId exists for existing cart items
+      productId: item.productId || item._id,
+      // ✅ MIGRATION: Ensure type exists for existing cart items
+      type: item.type || "product",
     }));
 
     console.log("Cleaned cart items:", cleaned);
@@ -122,7 +126,7 @@ export const CartProvider = ({ children }) => {
           }
           return {
             cartItemId: item._id,
-            productId: product._id,
+            productId: item.productId || product._id,
             id: product._id,
             _id: product._id,
             name: product.name || product.product_name_en || "Product",
@@ -146,6 +150,8 @@ export const CartProvider = ({ children }) => {
             specifications: product.specifications || null,
             discount: product.discount_amount || 0,
             originalPrice: product.original_price || null,
+            // ✅ PRESERVE TYPE FIELD FOR VENDOR PRODUCT IDENTIFICATION
+            type: product.type || "product",
           };
         })
         .filter((item) => item !== null);
@@ -157,12 +163,17 @@ export const CartProvider = ({ children }) => {
         error.message,
       );
 
-      // If it's an authentication error, clear the token and redirect to login
+      // If it's an authentication error, redirect to login but don't auto-clear
       if (error.message.includes("Authentication failed")) {
-        console.log("🛒 Authentication failed, clearing session");
-        localStorage.removeItem("token");
-        localStorage.removeItem("user");
-        setCartItems([]);
+        console.log("🛒 Authentication failed - redirecting to login");
+        console.log(
+          "🔍 DEBUG - Token before redirect:",
+          localStorage.getItem("token"),
+        );
+
+        // Don't auto-clear - let login page handle it
+        // This prevents logout loops on temporary auth issues
+        window.location.href = "/login";
         return;
       }
 
@@ -177,6 +188,10 @@ export const CartProvider = ({ children }) => {
           const cleaned = cartData.map((item) => ({
             ...item,
             category: normalizeCategory(item.category),
+            // ✅ MIGRATION: Ensure productId exists for existing cart items
+            productId: item.productId || item._id,
+            // ✅ MIGRATION: Ensure type exists for existing cart items
+            type: item.type || "product",
           }));
 
           console.log("Cleaned localStorage cart:", cleaned);
@@ -400,7 +415,7 @@ export const CartProvider = ({ children }) => {
           message: "Item not found in cart",
         };
       }
-      console.log("🛒 Removing cart item:", {
+      console.log(" Removing cart item:", {
         productId: itemId,
         cartItemId: cartItem.cartItemId,
       });
@@ -408,13 +423,20 @@ export const CartProvider = ({ children }) => {
       // Step 2: Try backend API first (if available)
       try {
         const token = localStorage.getItem("token");
-        const res = await robustFetch(`/cart/items/${cartItem.cartItemId}`, {
-          method: "DELETE",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-        console.log("🛒 Backend remove success:", await res.json());
+
+        // CRITICAL FIX: Send cartItemId (MongoDB _id) not productId
+        const deleteId = cartItem.cartItemId || cartItem._id;
+        if (!deleteId) {
+          console.warn("🛒 No cartItemId found, skipping backend delete");
+        } else {
+          const res = await robustFetch(`/cart/items/${deleteId}`, {
+            method: "DELETE",
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          });
+          console.log("🛒 Backend remove success:", await res.json());
+        }
       } catch (apiError) {
         console.log(
           "🛒 Backend remove failed, using localStorage only:",
@@ -424,9 +446,14 @@ export const CartProvider = ({ children }) => {
       }
 
       // Step 3: Update local state (always do this)
-      setCartItems((prev) =>
-        prev.filter((item) => item.id !== itemId && item._id !== itemId),
-      );
+      console.log("🛒 Before deletion - cart items:", cartItems.length);
+      setCartItems((prev) => {
+        const filtered = prev.filter(
+          (item) => item.id !== itemId && item._id !== itemId,
+        );
+        console.log("🛒 After deletion - cart items:", filtered.length);
+        return filtered;
+      });
       return { success: true };
     } catch (error) {
       console.error("🛒 Remove from cart failed:", error.message);
@@ -587,10 +614,15 @@ export const CartProvider = ({ children }) => {
       const normalizedProduct = {
         ...product,
         _id: product._id, // ensure exists
+        productId: product._id, // ✅ ADD productId FOR CHECKOUT VALIDATION
         cartItemId: `local-${Date.now()}`, // Temporary ID for localStorage
         quantity,
         // ✅ ENSURE STOCK IS ALWAYS INCLUDED FOR CHECKOUT VALIDATION
         stock: productStock,
+        // ✅ PRESERVE TYPE FIELD FOR VENDOR PRODUCT IDENTIFICATION
+        type: product.vendorId ? "vendor-product" : "product",
+        // ✅ CRITICAL: ADD vendorId FOR VENDOR ORDER ROUTING
+        vendorId: product.vendorId || null,
       };
 
       setCartItems((prev) => {
@@ -664,6 +696,8 @@ export const CartProvider = ({ children }) => {
               specifications: product.specifications || null,
               discount: product.discount_amount || 0,
               originalPrice: product.original_price || null,
+              // ✅ PRESERVE TYPE FIELD FOR VENDOR PRODUCT IDENTIFICATION
+              type: product.type || "product",
             };
           });
           setCartItems(apiCartItems);

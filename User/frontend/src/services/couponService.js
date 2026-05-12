@@ -1,21 +1,16 @@
 import axios from "axios";
 import { API_BASE_URL } from "../config/constants";
 
-const API_BASE_URL_FINAL = API_BASE_URL;
-
 class CouponService {
   // Get available coupons
   async getAvailableCoupons() {
     const token = localStorage.getItem("token");
-    const response = await axios.get(
-      `${API_BASE_URL}/api/coupons/available`,
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
+    const response = await axios.get(`${API_BASE_URL}/api/coupons/available`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
       },
-    );
+    });
     return response.data;
   }
 

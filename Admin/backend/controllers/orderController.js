@@ -32,10 +32,17 @@ exports.getOrders = async (req, res) => {
         { "customer.firstName": { $regex: search, $options: "i" } },
         { "customer.lastName": { $regex: search, $options: "i" } },
         { "customer.email": { $regex: search, $options: "i" } },
+        { "customerInfo.name": { $regex: search, $options: "i" } },
+        { "customerInfo.email": { $regex: search, $options: "i" } },
+        { "customerInfo.phone": { $regex: search, $options: "i" } },
       ];
     }
 
     const orders = await Order.find(query)
+      .populate([
+        { path: "customer", select: "firstName lastName email phone" },
+        { path: "items.product" },
+      ])
       .sort({ createdAt: -1 })
       .skip((page - 1) * limit)
       .limit(limit);
@@ -146,7 +153,10 @@ exports.getOrders = async (req, res) => {
 
 exports.getOrder = async (req, res) => {
   try {
-    const order = await Order.findById(req.params.id);
+    const order = await Order.findById(req.params.id).populate([
+      { path: "customer", select: "firstName lastName email phone address" },
+      { path: "items.product" },
+    ]);
     if (!order) {
       return res.status(404).json({ message: "Order not found" });
     }

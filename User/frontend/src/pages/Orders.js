@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import Navigation from "../components/Navigation";
 import Footer from "../components/Footer";
+import { API_BASE_URL } from "../config/constants";
 import {
   Package,
   Truck,
@@ -13,6 +14,7 @@ import {
   MapPin,
   Users,
   HelpCircle,
+  Trash2,
 } from "lucide-react";
 
 const Orders = () => {
@@ -20,6 +22,7 @@ const Orders = () => {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("all");
+  const [cancellingItems, setCancellingItems] = useState(new Set()); // Track items being cancelled
 
   // Support access function
   const handleNeedHelp = (orderId) => {
@@ -41,15 +44,12 @@ const Orders = () => {
       setLoading(true);
       const token = localStorage.getItem("token");
 
-      const response = await fetch(
-        `${process.env.REACT_APP_API_BASE_URL}/api/orders`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
+      const response = await fetch(`${API_BASE_URL}/orders`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
         },
-      );
+      });
 
       if (!response.ok) {
         throw new Error("Failed to fetch orders");
@@ -151,6 +151,100 @@ const Orders = () => {
     navigate("/cart");
   };
 
+  const handleCancelItem = async (orderId, itemId) => {
+    const itemKey = `${orderId}-${itemId}`;
+
+    if (cancellingItems.has(itemKey)) {
+      return; // Prevent double-click
+    }
+
+    // Check if order can be modified
+    const order = orders.find((o) => o._id === orderId);
+    if (!order) {
+      alert("Order not found");
+      return;
+    }
+
+    // Only allow item cancellation for pending and confirmed orders
+    const cancellableStatuses = ["pending", "confirmed"];
+    if (!cancellableStatuses.includes(order.status)) {
+      alert(`Cannot cancel items from ${order.status} orders`);
+      return;
+    }
+
+    if (!window.confirm("Are you sure you want to cancel this item?")) {
+      return;
+    }
+
+    try {
+      // Add to cancelling set to prevent double-click
+      setCancellingItems((prev) => new Set(prev).add(itemKey));
+
+      const token = localStorage.getItem("token");
+      const response = await fetch(
+        `${API_BASE_URL}/orders/${orderId}/items/${itemId}/cancel`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+        },
+      );
+
+      if (!response.ok) {
+        throw new Error(`Failed to cancel item: ${response.status}`);
+      }
+
+      const result = await response.json();
+      console.log("Item cancelled successfully:", result);
+
+      // Update the order in state to reflect the item cancellation
+      setOrders((prevOrders) =>
+        prevOrders.map((order) => {
+          if (order._id === orderId) {
+            // Remove the cancelled item from the order
+            const updatedItems = order.items.filter(
+              (item) => item._id !== itemId,
+            );
+
+            // Recalculate order total
+            const newTotal = updatedItems.reduce((sum, item) => {
+              return (
+                sum +
+                (item.totalPrice ||
+                  (item.quantity || 0) * (item.unitPrice || item.price || 0))
+              );
+            }, 0);
+
+            return {
+              ...order,
+              items: updatedItems,
+              total: newTotal,
+              pricing: {
+                ...order.pricing,
+                total: newTotal,
+              },
+            };
+          }
+          return order;
+        }),
+      );
+
+      alert("Item cancelled successfully!");
+    } catch (error) {
+      console.error("Error cancelling item:", error);
+      alert(`Failed to cancel item: ${error.message}`);
+    } finally {
+      // Remove from cancelling set
+      setCancellingItems((prev) => {
+        const newSet = new Set(prev);
+        newSet.delete(itemKey);
+        return newSet;
+      });
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -223,7 +317,7 @@ const Orders = () => {
             </button>
           </div>
         ) : (
-          <div className="space-y-6">
+          <div className="space-y-4 sm:space-y-6">
             {filteredOrders.map((order) => (
               <div
                 key={order._id}
@@ -289,13 +383,13 @@ const Orders = () => {
 
                 {/* Order Items */}
                 <div className="px-6 py-4">
-                  <div className="space-y-3">
+                  <div className="space-y-2 sm:space-y-3">
                     {order.items?.map((item, index) => (
                       <div
                         key={index}
-                        className="flex gap-4 p-4 border rounded-lg"
+                        className="flex flex-col sm:flex-row gap-3 sm:gap-4 p-3 sm:p-4 border rounded-lg"
                       >
-                        <div className="w-16 h-16 bg-gray-200 rounded-lg flex-shrink-0">
+                        <div className="w-12 h-12 sm:w-16 sm:h-16 bg-gray-200 rounded-lg flex-shrink-0">
                           {item.product?.images?.[0] ? (
                             <img
                               src={item.product.images[0]}
@@ -309,30 +403,36 @@ const Orders = () => {
                             />
                           ) : (
                             <div className="w-full h-full flex items-center justify-center">
-                              <Package size={20} className="text-gray-400" />
+                              <Package
+                                size={16}
+                                className="sm:w-5 sm:h-5 text-gray-400"
+                              />
                             </div>
                           )}
                           {/* Fallback for broken images */}
                           <div className="w-full h-full hidden items-center justify-center bg-gray-100">
-                            <Package size={20} className="text-gray-400" />
+                            <Package
+                              size={16}
+                              className="sm:w-5 sm:h-5 text-gray-400"
+                            />
                           </div>
                         </div>
-                        <div className="flex-1">
-                          <h4 className="font-medium text-gray-900">
+                        <div className="flex-1 min-w-0">
+                          <h4 className="font-medium text-gray-900 text-sm sm:text-base truncate">
                             {item.product?.name ||
                               item.productName ||
                               item.name ||
                               "Product"}
                           </h4>
-                          <p className="text-sm text-gray-600">
+                          <p className="text-xs sm:text-sm text-gray-600">
                             Quantity: {item.quantity || 0} × ₹
                             {(item.unitPrice || item.price || 0)
                               .toFixed(2)
                               .toLocaleString()}
                           </p>
                         </div>
-                        <div className="text-right">
-                          <p className="font-semibold text-gray-900">
+                        <div className="text-right flex flex-col gap-2">
+                          <p className="font-semibold text-gray-900 text-sm sm:text-base">
                             ₹
                             {(
                               item.totalPrice ||
@@ -342,6 +442,22 @@ const Orders = () => {
                               .toFixed(2)
                               .toLocaleString()}
                           </p>
+                          {["pending", "confirmed"].includes(order.status) && (
+                            <button
+                              onClick={() =>
+                                handleCancelItem(order._id, item._id)
+                              }
+                              disabled={cancellingItems.has(
+                                `${order._id}-${item._id}`,
+                              )}
+                              className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-red-600 hover:text-red-800 hover:bg-red-50 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              <Trash2 size={12} />
+                              {cancellingItems.has(`${order._id}-${item._id}`)
+                                ? "Cancelling..."
+                                : "Cancel"}
+                            </button>
+                          )}
                         </div>
                       </div>
                     ))}
@@ -350,7 +466,7 @@ const Orders = () => {
 
                 {/* Order Footer */}
                 <div className="px-6 py-4 bg-gray-50 border-t border-gray-200">
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                     <div className="space-y-2">
                       <div className="flex items-center gap-4">
                         <span className="text-sm text-gray-600">Total:</span>
@@ -362,13 +478,13 @@ const Orders = () => {
                         </span>
                       </div>
                       {order.tracking && (
-                        <div className="flex items-center gap-2">
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-2">
                           <span className="text-sm text-gray-600">
                             Tracking:
                           </span>
                           <button
                             onClick={() => handleTrackOrder(order.tracking)}
-                            className="text-sm font-medium text-indigo-600 hover:text-indigo-800 transition-colors"
+                            className="text-sm font-medium text-indigo-600 hover:text-indigo-800 transition-colors truncate"
                           >
                             {order.tracking}
                           </button>
@@ -389,22 +505,22 @@ const Orders = () => {
                         </div>
                       )}
                     </div>
-                    <div className="flex gap-2 mt-3 sm:mt-0">
+                    <div className="flex flex-wrap gap-2">
                       <Link
                         to={`/order-details/${order._id}`}
-                        className="px-4 py-2 text-sm font-medium text-indigo-600 hover:text-indigo-800 transition-colors"
+                        className="px-3 py-2 text-sm font-medium text-indigo-600 hover:text-indigo-800 transition-colors"
                       >
                         View Details
                       </Link>
                       <button
                         onClick={() => handleNeedHelp(order._id)}
-                        className="px-4 py-2 text-sm font-medium text-red-600 hover:text-red-800 transition-colors flex items-center gap-1"
+                        className="px-3 py-2 text-sm font-medium text-red-600 hover:text-red-800 transition-colors flex items-center gap-1"
                       >
-                        <HelpCircle size={16} />
+                        <HelpCircle size={14} />
                         Need Help
                       </button>
                       {order.status === "completed" && (
-                        <button className="px-4 py-2 text-sm font-medium text-green-600 hover:text-green-800 transition-colors">
+                        <button className="px-3 py-2 text-sm font-medium text-green-600 hover:text-green-800 transition-colors">
                           Leave Review
                         </button>
                       )}

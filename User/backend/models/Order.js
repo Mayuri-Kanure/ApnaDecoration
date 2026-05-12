@@ -4,7 +4,7 @@ const orderItemSchema = new mongoose.Schema({
   product: {
     type: mongoose.Schema.Types.ObjectId,
 
-    ref: "Product", // Add reference to Product model
+    refPath: "items.productModel", // Dynamic reference based on productModel field
 
     required: true,
   },
@@ -39,6 +39,12 @@ const orderItemSchema = new mongoose.Schema({
     required: true,
 
     min: 0,
+  },
+
+  vendor: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "User", // Assuming vendors are 'Users' with a specific role
+    required: false, // Set to false so it doesn't break existing orders
   },
 
   specifications: {

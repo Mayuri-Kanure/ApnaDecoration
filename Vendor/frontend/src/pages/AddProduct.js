@@ -119,6 +119,10 @@ const AddProduct = () => {
       newErrors.description = "Description is required";
     }
 
+    if (!formData.stock || formData.stock === "" || formData.stock === 0) {
+      newErrors.stock = "Stock must be at least 1 for customers to order";
+    }
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -299,6 +303,30 @@ const AddProduct = () => {
                 />
               </Grid>
 
+              {/* Stock Management Alert */}
+              <Grid item xs={12}>
+                <Alert
+                  severity="info"
+                  sx={{
+                    mb: 2,
+                    backgroundColor: "#e3f2fd",
+                    border: "1px solid #2196f3",
+                  }}
+                >
+                  <Typography
+                    variant="body2"
+                    sx={{ fontWeight: "bold", color: "#1976d2" }}
+                  >
+                    📦 Stock Management
+                  </Typography>
+                  <Typography variant="body2" sx={{ mt: 1 }}>
+                    Set stock quantity to enable customers to order your
+                    products. Products with 0 stock cannot be purchased and
+                    won't appear in vendor orders.
+                  </Typography>
+                </Alert>
+              </Grid>
+
               {/* Stock */}
               <Grid item xs={12} md={6}>
                 <TextField
@@ -306,15 +334,48 @@ const AddProduct = () => {
                   label="Stock Quantity"
                   name="stock"
                   type="number"
-                  value={formData.stock}
+                  value={formData.stock || ""}
                   onChange={handleChange}
                   error={!!errors.stock}
                   helperText={
-                    errors.stock || "Enter available stock quantity (required)"
+                    errors.stock ||
+                    formData.stock === "" ||
+                    formData.stock === 0
+                      ? "Stock must be at least 1 for customers to order"
+                      : "Enter available stock quantity (required)"
                   }
-                  required
-                  inputProps={{ min: 0 }}
                 />
+              </Grid>
+
+              {/* Quick Stock Presets */}
+              <Grid item xs={12} md={6}>
+                <Typography
+                  variant="subtitle2"
+                  sx={{ mb: 1, fontWeight: "bold" }}
+                >
+                  Quick Stock Presets:
+                </Typography>
+                <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
+                  {[5, 10, 25, 50, 100].map((preset) => (
+                    <Chip
+                      key={preset}
+                      label={`${preset} units`}
+                      onClick={() => {
+                        setFormData((prev) => ({
+                          ...prev,
+                          stock: preset.toString(),
+                        }));
+                        if (errors.stock) {
+                          setErrors((prev) => ({ ...prev, stock: "" }));
+                        }
+                      }}
+                      variant="outlined"
+                      color={formData.stock == preset ? "primary" : "default"}
+                      clickable
+                      sx={{ cursor: "pointer" }}
+                    />
+                  ))}
+                </Box>
               </Grid>
 
               {/* Category */}

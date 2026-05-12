@@ -135,15 +135,7 @@ export default function WithdrawalPage() {
         },
       );
       console.log("API Response - Withdrawal Stats:", response.data);
-      // Temporarily set total withdrawals to 0 to test "no data" UI
-      // setWithdrawalStats(response.data);
-      setWithdrawalStats({
-        totalWithdrawals: 0,
-        pendingWithdrawals: 0,
-        completedWithdrawals: 0,
-        rejectedWithdrawals: 0,
-        totalAmount: 0,
-      }); // Uncomment this line to test empty state
+      setWithdrawalStats(response.data);
     } catch (error) {
       console.error("Error loading withdrawal stats:", error);
       setWithdrawalStats({

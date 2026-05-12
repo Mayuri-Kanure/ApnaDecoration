@@ -145,31 +145,69 @@ const Services = () => {
     "Festive Decor",
   ];
 
-  // Search functionality
+  // Enhanced Search functionality - Real-time suggestions
   useEffect(() => {
-    if (debouncedSearchTerm.trim().length > 0) {
-      performSearch(debouncedSearchTerm);
-    } else {
+    if (searchTerm.trim().length >= 2) {
+      // Show suggestions after 2 letters
+      performSearch(searchTerm);
+    } else if (searchTerm.trim().length === 0) {
       setSearchResults({ services: [] });
     }
-  }, [debouncedSearchTerm]);
+  }, [searchTerm]); // Changed from debouncedSearchTerm to searchTerm for instant feedback
 
   const performSearch = async (term) => {
     try {
       setSearchLoading(true);
       console.log("Searching for:", term);
 
-      // Filter services locally (like Navigation does for products)
+      // Enhanced search with partial matching and priority
       const searchLower = term.toLowerCase();
+
+      // Filter services with enhanced matching
       const filteredServices = services
-        .filter(
-          (service) =>
-            service.name?.toLowerCase().includes(searchLower) ||
-            service.description?.toLowerCase().includes(searchLower) ||
-            service.category?.name?.toLowerCase().includes(searchLower) ||
-            service.category_name?.toLowerCase().includes(searchLower),
-        )
-        .slice(0, 5); // Show max 5 results
+        .map((service) => {
+          const name = service.name?.toLowerCase() || "";
+          const description = service.description?.toLowerCase() || "";
+          const categoryName =
+            service.category?.name?.toLowerCase() ||
+            service.category_name?.toLowerCase() ||
+            "";
+
+          // Calculate match score for better ranking
+          let score = 0;
+
+          // Exact name match gets highest score
+          if (name === searchLower) score += 100;
+          // Name starts with search term
+          else if (name.startsWith(searchLower)) score += 80;
+          // Name contains search term
+          else if (name.includes(searchLower)) score += 60;
+
+          // Category name matching
+          if (categoryName === searchLower) score += 40;
+          else if (categoryName.startsWith(searchLower)) score += 30;
+          else if (categoryName.includes(searchLower)) score += 20;
+
+          // Description matching (lower priority)
+          if (description.includes(searchLower)) score += 10;
+
+          return {
+            service,
+            score,
+            matchType:
+              name === searchLower
+                ? "exact"
+                : name.startsWith(searchLower)
+                  ? "startsWith"
+                  : name.includes(searchLower)
+                    ? "contains"
+                    : "other",
+          };
+        })
+        .filter((item) => item.score > 0) // Only show services that match
+        .sort((a, b) => b.score - a.score) // Sort by score (highest first)
+        .slice(0, 5) // Show max 5 results
+        .map((item) => item.service);
 
       console.log("Search results:", filteredServices);
       setSearchResults({ services: filteredServices });
@@ -313,29 +351,28 @@ const Services = () => {
                 />
                 <input
                   type="text"
-                  placeholder="Search services..."
+                  placeholder="Search services (e.g., Birthday, Wedding, Decoration)..."
                   value={searchTerm}
                   onChange={(e) => {
-                    setSearchTerm(e.target.value);
-                    setSearchDropdownOpen(true);
+                    const value = e.target.value;
+                    setSearchTerm(value);
+                    // Auto-open dropdown when typing
+                    if (value.trim().length >= 2) {
+                      setSearchDropdownOpen(true);
+                    } else if (value.trim().length === 0) {
+                      setSearchDropdownOpen(false);
+                    }
                   }}
                   onFocus={() => setSearchDropdownOpen(true)}
                   onBlur={() =>
                     setTimeout(() => setSearchDropdownOpen(false), 200)
                   }
-                  className="w-full lg:w-96 pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-700 bg-white shadow-sm"
+                  className="w-full lg:w-96 pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-700 bg-white shadow-sm transition-all duration-200"
                 />
 
                 {/* Search Dropdown */}
-                {searchDropdownOpen && searchRef.current && (
-                  <div
-                    className="fixed bg-white border border-gray-200 rounded-lg shadow-2xl z-[99999] max-h-96 overflow-y-auto"
-                    style={{
-                      top: searchRef.current.getBoundingClientRect().bottom + 8,
-                      left: searchRef.current.getBoundingClientRect().left,
-                      width: searchRef.current.offsetWidth,
-                    }}
-                  >
+                {searchDropdownOpen && (
+                  <div className="absolute left-0 right-0 mt-2 bg-white border border-gray-200 rounded-lg shadow-2xl z-[99999] max-h-96 overflow-y-auto">
                     {searchLoading ? (
                       <div className="px-4 py-3 text-sm text-gray-500">
                         Searching...
@@ -346,47 +383,99 @@ const Services = () => {
                         {searchResults.services.length > 0 && (
                           <div className="border-b border-gray-100">
                             <div className="px-4 py-2 text-xs font-medium text-gray-500 uppercase tracking-wider">
-                              Services
+                              Services ({searchResults.services.length})
                             </div>
-                            {searchResults.services.map((service) => (
-                              <Link
-                                key={service.id || service._id}
-                                to={`/service/${service._id || service.id}`}
-                                className="block px-4 py-3 hover:bg-gray-50 transition-colors"
-                                onClick={() => {
-                                  setSearchTerm(service.name);
-                                  setSearchDropdownOpen(false);
-                                }}
-                              >
-                                <div className="flex items-center justify-between">
-                                  <div className="flex-1">
-                                    <div className="font-medium text-gray-900 text-sm">
-                                      {service.name}
-                                    </div>
-                                    {service.description && (
-                                      <div className="text-xs text-gray-500 mt-1 truncate">
-                                        {service.description}
-                                      </div>
-                                    )}
-                                  </div>
-                                  <div className="ml-3">
-                                    <svg
-                                      className="w-4 h-4 text-gray-400"
-                                      fill="none"
-                                      stroke="currentColor"
-                                      viewBox="0 0 24 24"
-                                    >
-                                      <path
-                                        strokeLinecap="round"
-                                        strokeLinejoin="round"
-                                        strokeWidth={2}
-                                        d="M9 5l7 7-7 7"
+                            {searchResults.services.map((service, index) => {
+                              const highlightText = (text, term) => {
+                                if (!text || !term) return text;
+                                const regex = new RegExp(`(${term})`, "gi");
+                                return text.replace(
+                                  regex,
+                                  '<mark class="bg-yellow-200 text-yellow-900 px-1 rounded">$1</mark>',
+                                );
+                              };
+
+                              return (
+                                <Link
+                                  key={service.id || service._id}
+                                  to={`/service/${service._id || service.id}`}
+                                  className="block px-4 py-3 hover:bg-indigo-50 transition-colors border-b border-gray-50 last:border-b-0"
+                                  onClick={() => {
+                                    setSearchTerm(service.name);
+                                    setSearchDropdownOpen(false);
+                                  }}
+                                >
+                                  <div className="flex items-center justify-between">
+                                    <div className="flex-1 min-w-0">
+                                      <div
+                                        className="font-medium text-gray-900 text-sm"
+                                        dangerouslySetInnerHTML={{
+                                          __html: highlightText(
+                                            service.name,
+                                            searchTerm,
+                                          ),
+                                        }}
                                       />
-                                    </svg>
+                                      <div className="flex items-center gap-2 mt-1">
+                                        {service.category?.name && (
+                                          <span className="inline-block px-2 py-0.5 text-xs font-medium bg-indigo-100 text-indigo-700 rounded">
+                                            {service.category?.name ||
+                                              service.category_name}
+                                          </span>
+                                        )}
+                                        {service.price && (
+                                          <span className="text-xs font-semibold text-indigo-600">
+                                            ₹{service.price}
+                                          </span>
+                                        )}
+                                      </div>
+                                      {service.description && (
+                                        <div
+                                          className="text-xs text-gray-500 mt-1 truncate"
+                                          dangerouslySetInnerHTML={{
+                                            __html: highlightText(
+                                              service.description.length > 60
+                                                ? service.description.substring(
+                                                    0,
+                                                    60,
+                                                  ) + "..."
+                                                : service.description,
+                                              searchTerm,
+                                            ),
+                                          }}
+                                        />
+                                      )}
+                                    </div>
+                                    <div className="ml-3 flex items-center gap-2">
+                                      {service.rating && (
+                                        <div className="flex items-center gap-1">
+                                          <Star
+                                            size={12}
+                                            className="text-yellow-400 fill-current"
+                                          />
+                                          <span className="text-xs text-gray-600">
+                                            {service.rating}
+                                          </span>
+                                        </div>
+                                      )}
+                                      <svg
+                                        className="w-4 h-4 text-gray-400 flex-shrink-0"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        viewBox="0 0 24 24"
+                                      >
+                                        <path
+                                          strokeLinecap="round"
+                                          strokeLinejoin="round"
+                                          strokeWidth={2}
+                                          d="M9 5l7 7-7 7"
+                                        />
+                                      </svg>
+                                    </div>
                                   </div>
-                                </div>
-                              </Link>
-                            ))}
+                                </Link>
+                              );
+                            })}
                           </div>
                         )}
 
