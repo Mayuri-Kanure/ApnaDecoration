@@ -199,6 +199,12 @@ export default function DeliveryBoyProfile() {
         formattedPayload.emergencyContact = profile.emergencyContact;
       }
 
+      // Debug: Log the exact payload being sent
+      console.log(
+        "🔍 Sending payload to backend:",
+        JSON.stringify(formattedPayload, null, 2),
+      );
+
       // Send formattedPayload instead of the raw profile state
       await axios.put(`${DELIVERY_API_URL}/profile`, formattedPayload, {
         headers: { Authorization: `Bearer ${token}` },

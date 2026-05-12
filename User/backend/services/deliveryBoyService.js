@@ -929,7 +929,11 @@ class DeliveryBoyService {
         delete cleanData.emergencyContact;
       }
 
-      console.log("🧹 Cleaned update data:", cleanData);
+      console.log(
+        "🧹 Cleaned update data:",
+        JSON.stringify(cleanData, null, 2),
+      );
+      console.log("🔍 DeliveryBoy ID:", deliveryBoyId);
 
       const updatedDeliveryBoy = await DeliveryBoy.findByIdAndUpdate(
         deliveryBoyId,

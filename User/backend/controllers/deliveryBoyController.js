@@ -608,6 +608,9 @@ exports.updateProfile = async (req, res) => {
   } catch (error) {
     // 🔥 CRITICAL FIX: Better error handling with specific validation messages
     console.error("❌ EXACT MONGOOSE ERROR:", error);
+    console.error("❌ ERROR NAME:", error.name);
+    console.error("❌ ERROR MESSAGE:", error.message);
+    console.error("❌ ERROR STACK:", error.stack);
 
     // Handle specific validation errors
     let errorMessage = error.message || "Failed to update profile";
@@ -618,18 +621,23 @@ exports.updateProfile = async (req, res) => {
         (err) => err.message,
       );
       errorMessage = validationErrors.join(", ");
+      console.error("❌ VALIDATION ERRORS:", validationErrors);
     } else if (error.name === "CastError") {
       errorMessage = "Invalid data format provided";
+      console.error("❌ CAST ERROR DETAILS:", error);
     } else if (error.code === 11000) {
       // Duplicate key error
       const field = Object.keys(error.keyPattern)[0];
       errorMessage = `${field} already exists`;
+      console.error("❌ DUPLICATE KEY ERROR:", error.keyPattern);
     }
 
     res.status(400).json({
       success: false,
       message: errorMessage,
       details: error.name === "ValidationError" ? error.errors : undefined,
+      errorName: error.name,
+      originalError: error.message,
     });
   }
 };
