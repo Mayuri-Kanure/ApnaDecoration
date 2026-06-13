@@ -1,5 +1,8 @@
-const pushNotificationService = require('../services/pushNotificationService');
-const { validationResult } = require('express-validator');
+const pushNotificationService = require("../services/pushNotificationService");
+const DeviceToken = require("../models/DeviceToken");
+const { User } = require("../models");
+const { validationResult } = require("express-validator");
+const { sendPushToUser } = require("../utils/pushNotificationHelper");
 
 // Send push notification to single device
 exports.sendToDevice = async (req, res) => {
@@ -368,6 +371,119 @@ exports.sendToTopic = async (req, res) => {
     res.status(500).json({
       success: false,
       message: error.message || 'Failed to send topic notification'
+    });
+  }
+};
+
+// Register FCM device token for logged-in user (mobile APK)
+exports.registerDevice = async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        message: "Validation failed",
+        errors: errors.array(),
+      });
+    }
+
+    const userId = req.user.userId || req.user._id;
+    const {
+      deviceToken,
+      platform,
+      platformVersion,
+      deviceModel,
+      appVersion,
+    } = req.body;
+
+    const token = pushNotificationService.validateDeviceToken(deviceToken);
+
+    const record = await DeviceToken.findOneAndUpdate(
+      { userId, appRole: "user", token },
+      {
+        userId,
+        appRole: "user",
+        token,
+        platform: platform || "android",
+        platformVersion,
+        deviceModel,
+        appVersion,
+        isActive: true,
+        lastUsedAt: new Date(),
+      },
+      { upsert: true, new: true, setDefaultsOnInsert: true },
+    );
+
+    await User.findByIdAndUpdate(userId, {
+      "notificationPreferences.push": true,
+    });
+
+    res.status(200).json({
+      success: true,
+      message: "Device registered for push notifications",
+      data: { id: record._id, platform: record.platform },
+    });
+  } catch (error) {
+    console.error("registerDevice error:", error);
+    res.status(500).json({
+      success: false,
+      message: error.message || "Failed to register device",
+    });
+  }
+};
+
+// Unregister device token
+exports.unregisterDevice = async (req, res) => {
+  try {
+    const userId = req.user.userId || req.user._id;
+    const { deviceToken } = req.body;
+
+    if (deviceToken) {
+      await DeviceToken.updateMany(
+        { userId, token: deviceToken },
+        { isActive: false },
+      );
+    } else {
+      await DeviceToken.updateMany({ userId }, { isActive: false });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Device unregistered from push notifications",
+    });
+  } catch (error) {
+    console.error("unregisterDevice error:", error);
+    res.status(500).json({
+      success: false,
+      message: error.message || "Failed to unregister device",
+    });
+  }
+};
+
+// Send test push to current user's registered devices
+exports.sendTestToMe = async (req, res) => {
+  try {
+    const userId = req.user.userId || req.user._id;
+    const result = await sendPushToUser(
+      userId,
+      {
+        title: "Apna Decoration",
+        body: "Push notifications are working!",
+      },
+      { type: "test" },
+      "general",
+    );
+
+    res.status(200).json({
+      success: true,
+      message: "Test notification sent",
+      result,
+    });
+  } catch (error) {
+    console.error("sendTestToMe error:", error);
+    res.status(500).json({
+      success: false,
+      message: error.message || "Failed to send test notification",
     });
   }
 };

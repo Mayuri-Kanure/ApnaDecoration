@@ -38,6 +38,11 @@ const serviceSchema = new mongoose.Schema(
     customizationAvailable: {
       type: Boolean,
       default: true
+    },
+    stock: {
+      type: Number,
+      default: 0,
+      min: 0
     }
   },
   { timestamps: true }

@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import axios from "axios";
+import { API_BASE_URL } from "../config/constants";
 
 const AuthContext = createContext();
 
@@ -16,9 +17,6 @@ export const AuthProvider = ({ children }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
-
-  const API_BASE_URL =
-    process.env.REACT_APP_API_URL || "https://admin-api.apnadecoration.com/api";
 
   useEffect(() => {
     const initializeAuth = async () => {
@@ -95,37 +93,42 @@ export const AuthProvider = ({ children }) => {
         credentials,
       );
 
-      if (response.data && response.data.token && response.data.user) {
-        const { user, token } = response.data;
-        console.log("✅ Vendor login successful, user:", user);
-        localStorage.setItem("vendorToken", token);
-        localStorage.setItem("vendorUser", JSON.stringify(user));
-        setUser(user);
-        setIsAuthenticated(true);
-        return { success: true };
-      } else {
-        console.log("❌ Vendor login failed, response:", response.data);
-        console.log(
-          "❌ Vendor login failed, response status:",
-          response.status,
-        );
-        console.log(
-          "❌ Vendor login failed, response headers:",
-          response.headers,
-        );
-        setError(
-          response.data?.message || response.data?.error || "Login failed",
-        );
-        return {
-          success: false,
-          error:
-            response.data?.message || response.data?.error || "Login failed",
-        };
+      // Check for successful response
+      if (response.data?.success) {
+        // Token and user are in response.data.data (nested structure)
+        const token = response.data.data?.token;
+        const user = response.data.data?.user;
+        
+        if (token && user) {
+          console.log("✅ Vendor login successful, user:", user);
+          localStorage.setItem("vendorToken", token);
+          localStorage.setItem("vendorUser", JSON.stringify(user));
+          setUser(user);
+          setIsAuthenticated(true);
+          return { success: true };
+        }
       }
+      
+      // If we get here, login failed
+      console.log("❌ Vendor login failed, response:", response.data);
+      console.log("❌ Vendor login failed, response status:", response.status);
+      console.log("❌ Vendor login failed, response headers:", response.headers);
+      setError(
+        response.data?.message || response.data?.error || "Login failed",
+      );
+      return {
+        success: false,
+        error:
+          response.data?.message || response.data?.error || "Login failed",
+      };
     } catch (err) {
       console.error("🔑 Vendor login error:", err);
-      const errorMessage =
-        err.response?.data?.message || err.message || "Login failed";
+      const isNetworkError =
+        !err.response &&
+        (err.message === "Network Error" || err.code === "ERR_NETWORK");
+      const errorMessage = isNetworkError
+        ? "Cannot reach server. Check mobile internet and try again."
+        : err.response?.data?.message || err.message || "Login failed";
       setError(errorMessage);
       return { success: false, error: errorMessage };
     } finally {

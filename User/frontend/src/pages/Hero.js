@@ -14,6 +14,8 @@ import {
   Clock,
   Package,
   Timer,
+  ShoppingBag,
+  Eye,
 } from "lucide-react";
 import { IMAGE_BASE_URL, API_BASE_URL } from "../config/constants";
 import apiService from "../services/api";
@@ -82,7 +84,7 @@ const CountdownTimer = ({ expiryDate }) => {
 
 const Hero = () => {
   const navigate = useNavigate();
-  const { featuredProducts, loading, error } = useProducts();
+  const { featuredProducts, latestProducts, latestServices, loading, error, services } = useProducts();
   const { addToWishlist, removeFromWishlist, isInWishlist, addToCart } =
     useCart();
   const [activeSlide, setActiveSlide] = useState(0);
@@ -166,20 +168,33 @@ const Hero = () => {
     }
   };
 
-  // Handle buy/add to cart for featured products
-  const handleBuy = async (product, e) => {
-    e.preventDefault(); // Prevent navigation
-    e.stopPropagation(); // Prevent event bubbling
+  // Handle Add to Cart - adds to existing cart
+  const handleAddToCart = async (product, e) => {
+    e.preventDefault();
+    e.stopPropagation();
 
     try {
       await addToCart(product);
-      success("Added to cart! Redirecting to checkout...");
-      // Navigate to checkout after a short delay
-      setTimeout(() => {
-        navigate("/checkout");
-      }, 1000);
+      success("Added to cart!");
     } catch (error) {
       showError("Failed to add to cart");
+    }
+  };
+
+  // Handle Buy Now - single item checkout (passes item via state)
+  const handleBuyNow = async (product, e) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    try {
+      // Navigate to checkout with the selected product only
+      navigate("/checkout", {
+        state: {
+          buyNowItem: product,
+        },
+      });
+    } catch (error) {
+      showError("Failed to proceed to checkout");
     }
   };
 
@@ -888,7 +903,7 @@ const Hero = () => {
                       <Sparkles size={12} />
                       Featured
                     </span>
-                    <div className="h-48 overflow-hidden rounded-lg bg-gradient-to-br from-slate-100 to-indigo-50 rounded-lg mb-4 flex items-center justify-center relative">
+                    <div className="h-48 overflow-hidden rounded-lg bg-gradient-to-br from-slate-100 to-indigo-50 mb-4 flex items-center justify-center relative">
                       {product.thumbnail &&
                       product.thumbnail.startsWith("http") ? (
                         <img
@@ -952,12 +967,20 @@ const Hero = () => {
                       </div>
                       <div className="flex items-center gap-2">
                         <button
-                          onClick={(e) => handleBuy(product, e)}
-                          className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white px-4 py-2 rounded-lg font-semibold text-sm transition-all duration-200 transform hover:scale-105 shadow-md hover:shadow-lg flex items-center gap-2"
+                          onClick={(e) => handleAddToCart(product, e)}
+                          className="bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 text-white px-3 py-2 rounded-lg font-semibold text-sm transition-all duration-200 transform hover:scale-105 shadow-md hover:shadow-lg flex items-center gap-1"
                           aria-label="Add to cart"
                         >
+                          <ShoppingCart size={14} />
+                          Add
+                        </button>
+                        <button
+                          onClick={(e) => handleBuyNow(product, e)}
+                          className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white px-4 py-2 rounded-lg font-semibold text-sm transition-all duration-200 transform hover:scale-105 shadow-md hover:shadow-lg flex items-center gap-2"
+                          aria-label="Buy now"
+                        >
                           <ShoppingCart size={16} />
-                          Buy
+                          Buy Now
                         </button>
                         <button
                           onClick={(e) => handleWishlist(product, e)}
@@ -988,6 +1011,232 @@ const Hero = () => {
               </div>
             </div>
           )}
+        </section>
+
+        {/* Latest Products Section */}
+        <section className="w-full px-4 lg:px-6 py-12 bg-gradient-to-b from-white to-gray-50">
+          <div className="space-y-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-6 bg-green-600 rounded-sm"></div>
+                <h2 className="text-2xl font-bold text-slate-900">
+                  Latest Products
+                </h2>
+              </div>
+              <Link
+                to="/products"
+                className="flex items-center gap-2 text-green-600 hover:text-green-700 font-medium transition-colors group"
+              >
+                View All
+                <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />
+              </Link>
+            </div>
+
+            {loading ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                {[...Array(4)].map((_, i) => (
+                  <div key={i} className="bg-white p-6 rounded-xl shadow-sm animate-pulse">
+                    <div className="h-48 bg-gradient-to-br from-green-100 to-slate-100 rounded-lg mb-4"></div>
+                    <div className="h-4 bg-gray-200 rounded mb-2"></div>
+                    <div className="h-4 bg-gray-200 rounded mb-4"></div>
+                    <div className="h-8 bg-gray-200 rounded"></div>
+                  </div>
+                ))}
+              </div>
+            ) : !latestProducts || latestProducts.length === 0 ? (
+              <div className="text-center py-12">
+                <p className="text-gray-500 text-lg">No products available yet</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                {latestProducts.slice(0, 4).map((product, index) => (
+                  <Link
+                    key={`latest-product-${product.id || product._id || index}`}
+                    to={`/product/${product.id || product._id}`}
+                    className="bg-white p-6 rounded-xl shadow-sm hover:shadow-md transition-all duration-300 relative block group"
+                    aria-label={`View ${product.name} details`}
+                  >
+                    <span className="absolute top-4 right-4 bg-green-600 text-white text-xs px-2 py-1 rounded-full flex items-center gap-1 z-10 shadow-md">
+                      <Clock size={12} />
+                      New
+                    </span>
+                    <div className="h-48 overflow-hidden rounded-lg bg-gradient-to-br from-slate-100 to-green-50 mb-4 flex items-center justify-center relative group-hover:bg-gradient-to-br group-hover:from-slate-200 group-hover:to-green-100 transition-all">
+                      {product.thumbnail && product.thumbnail.startsWith("http") ? (
+                        <img
+                          src={product.thumbnail}
+                          alt={product.name}
+                          className="w-full h-full object-cover rounded-lg transition-transform duration-500 group-hover:scale-110"
+                          onError={(e) => {
+                            e.target.style.display = "none";
+                            e.target.nextElementSibling.style.display = "flex";
+                          }}
+                        />
+                      ) : null}
+                      <div
+                        className="w-full h-full flex items-center justify-center"
+                        style={{
+                          display:
+                            product.thumbnail && product.thumbnail.startsWith("http")
+                              ? "none"
+                              : "flex",
+                        }}
+                      >
+                        <ShoppingBag className="text-green-400" size={32} />
+                      </div>
+                    </div>
+                    <h3 className="font-semibold text-slate-900 text-lg mb-2 line-clamp-2">
+                      {product.name}
+                    </h3>
+                    <p className="text-slate-600 text-sm line-clamp-2 mb-4">
+                      {product.description}
+                    </p>
+                    <div className="flex items-center gap-2 mb-4">
+                      {product.stockQuantity > 0 && (
+                        <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded font-medium">
+                          In Stock
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-green-600 font-bold text-lg">
+                        ₹{product.price?.toFixed(2) || 0}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between mt-4 pt-4 border-t border-slate-100">
+                      <div className="flex items-center gap-1">
+                        <Star className="text-yellow-400 fill-current" size={16} />
+                        <span className="text-sm text-slate-600">
+                          {product.rating || 4.5}
+                        </span>
+                      </div>
+                      <button
+                        onClick={(e) => handleBuyNow(product, e)}
+                        className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white px-4 py-2 rounded-lg font-semibold text-sm transition-all duration-200 transform hover:scale-105 shadow-md hover:shadow-lg flex items-center gap-2"
+                        aria-label="Buy now"
+                      >
+                        <ShoppingCart size={16} />
+                        Buy Now
+                      </button>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            )}
+          </div>
+        </section>
+
+        {/* Latest Services Section */}
+        <section className="w-full px-4 lg:px-6 py-12 bg-gradient-to-b from-gray-50 to-white">
+          <div className="space-y-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-6 bg-purple-600 rounded-sm"></div>
+                <h2 className="text-2xl font-bold text-slate-900">
+                  Latest Services
+                </h2>
+              </div>
+              <Link
+                to="/services"
+                className="flex items-center gap-2 text-purple-600 hover:text-purple-700 font-medium transition-colors group"
+              >
+                View All
+                <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />
+              </Link>
+            </div>
+
+            {loading ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                {[...Array(4)].map((_, i) => (
+                  <div key={i} className="bg-white p-6 rounded-xl shadow-sm animate-pulse">
+                    <div className="h-48 bg-gradient-to-br from-purple-100 to-slate-100 rounded-lg mb-4"></div>
+                    <div className="h-4 bg-gray-200 rounded mb-2"></div>
+                    <div className="h-4 bg-gray-200 rounded mb-4"></div>
+                    <div className="h-8 bg-gray-200 rounded"></div>
+                  </div>
+                ))}
+              </div>
+            ) : !latestServices || latestServices.length === 0 ? (
+              <div className="text-center py-12">
+                <p className="text-gray-500 text-lg">No services available yet</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                {latestServices.slice(0, 4).map((service, index) => (
+                  <Link
+                    key={`latest-service-${service.id || service._id || index}`}
+                    to={`/service/${service.id || service._id}`}
+                    className="bg-white p-6 rounded-xl shadow-sm hover:shadow-md transition-all duration-300 relative block group"
+                    aria-label={`View ${service.name} details`}
+                  >
+                    <span className="absolute top-4 right-4 bg-purple-600 text-white text-xs px-2 py-1 rounded-full flex items-center gap-1 z-10 shadow-md">
+                      <Clock size={12} />
+                      New
+                    </span>
+                    <div className="h-48 overflow-hidden rounded-lg bg-gradient-to-br from-slate-100 to-purple-50 mb-4 flex items-center justify-center relative group-hover:bg-gradient-to-br group-hover:from-slate-200 group-hover:to-purple-100 transition-all">
+                      {service.thumbnail && service.thumbnail.startsWith("http") ? (
+                        <img
+                          src={service.thumbnail}
+                          alt={service.name}
+                          className="w-full h-full object-cover rounded-lg transition-transform duration-500 group-hover:scale-110"
+                          onError={(e) => {
+                            e.target.style.display = "none";
+                            e.target.nextElementSibling.style.display = "flex";
+                          }}
+                        />
+                      ) : null}
+                      <div
+                        className="w-full h-full flex items-center justify-center"
+                        style={{
+                          display:
+                            service.thumbnail && service.thumbnail.startsWith("http")
+                              ? "none"
+                              : "flex",
+                        }}
+                      >
+                        <Sparkles className="text-purple-400" size={32} />
+                      </div>
+                    </div>
+                    <h3 className="font-semibold text-slate-900 text-lg mb-2 line-clamp-2">
+                      {service.name}
+                    </h3>
+                    <p className="text-slate-600 text-sm line-clamp-2 mb-4">
+                      {service.description}
+                    </p>
+                    <div className="flex items-center gap-2 mb-4">
+                      <span className="text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded font-medium">
+                        {typeof service.category === 'object' && service.category?.name
+                          ? service.category.name
+                          : typeof service.category === 'string'
+                          ? service.category
+                          : "Service"}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-purple-600 font-bold text-lg">
+                        ₹{service.price?.toFixed(2) || 0}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between mt-4 pt-4 border-t border-slate-100">
+                      <div className="flex items-center gap-1">
+                        <Star className="text-yellow-400 fill-current" size={16} />
+                        <span className="text-sm text-slate-600">
+                          {service.rating || 4.5}
+                        </span>
+                      </div>
+                      <button
+                        onClick={(e) => handleBuyNow(service, e)}
+                        className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white px-4 py-2 rounded-lg font-semibold text-sm transition-all duration-200 transform hover:scale-105 shadow-md hover:shadow-lg flex items-center gap-2"
+                        aria-label="Add to cart"
+                      >
+                        <ShoppingCart size={16} />
+                        Buy
+                      </button>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            )}
+          </div>
         </section>
 
         {/* Categories Section */}
@@ -1131,7 +1380,7 @@ const Hero = () => {
                   className="p-6 transition-all duration-300 cursor-pointer text-center block hover:bg-gray-50 rounded-xl"
                   aria-label={`View ${serviceCategory.name} services`}
                 >
-                  <div className="w-24 h-24 sm:w-28 sm:h-28 md:w-32 md:h-32 overflow-hidden rounded-lg bg-gradient-to-br from-pink-100 to-indigo-100 rounded-xl mx-auto mb-3 flex items-center justify-center">
+                  <div className="w-24 h-24 sm:w-28 sm:h-28 md:w-32 md:h-32 overflow-hidden rounded-lg bg-gradient-to-br from-pink-100 to-indigo-100 mx-auto mb-3 flex items-center justify-center">
                     {serviceCategory.image ? (
                       <img
                         src={(() => {
@@ -1221,6 +1470,7 @@ const Hero = () => {
             </div>
           )}
         </section>
+
         {/* Why Choose Us Section - Trust Elements */}
         <section className="w-full px-4 lg:px-6 py-16">
           <div className="text-center mb-12">

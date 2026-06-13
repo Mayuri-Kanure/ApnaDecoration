@@ -16,9 +16,13 @@ import { NotificationProvider } from "./contexts/NotificationContext";
 
 import { ThemeProvider } from "./contexts/ThemeContext";
 
+import { OrderProvider } from "./contexts/OrderContext";
+
 import { SecurityProvider } from "./components/SecurityProvider";
 
 import ScrollToTop from "./components/ScrollToTop";
+import FloatingRefreshButton from "./components/FloatingRefreshButton";
+import PushNotificationManager from "./components/PushNotificationManager";
 
 import ErrorBoundary from "./components/ErrorBoundary";
 
@@ -107,15 +111,18 @@ const App = () => {
   return (
     <ErrorBoundary componentName="App">
       <ThemeProvider>
-        <ProductProvider>
-          {/* <SecurityProvider> */}
-          <AuthProvider>
-            <CartProvider>
-              <ReviewsProvider>
-                <ToastProvider>
-                  <NotificationProvider>
-                    <Router>
+        <ToastProvider>
+          <ProductProvider>
+            {/* <SecurityProvider> */}
+            <AuthProvider>
+              <CartProvider>
+                <OrderProvider>
+                  <ReviewsProvider>
+                    <NotificationProvider>
+                      <Router>
                       <ScrollToTop />
+                      <FloatingRefreshButton />
+                      <PushNotificationManager />
                       <ToastManager />
                       <Routes>
                         <Route path="/" element={<Hero />} />
@@ -335,12 +342,12 @@ const App = () => {
                       </Routes>
                     </Router>
                   </NotificationProvider>
-                </ToastProvider>
-              </ReviewsProvider>
-            </CartProvider>
-          </AuthProvider>
-          {/* </SecurityProvider> */}
-        </ProductProvider>
+                </ReviewsProvider>
+              </OrderProvider>
+              </CartProvider>
+            </AuthProvider>
+          </ProductProvider>
+        </ToastProvider>
       </ThemeProvider>
     </ErrorBoundary>
   );

@@ -20,37 +20,14 @@ const normalizeCategory = (category) => {
 
 export const CartProvider = ({ children }) => {
   const { isAuthenticated } = useAuth(); // Get authentication state
-  const [cartItems, setCartItems] = useState(() => {
-    const saved = localStorage.getItem("cart");
-    console.log("Initializing cart from localStorage:", saved);
-    const parsed = saved ? JSON.parse(saved) : [];
 
-    // Clean old dirty data
-    const cleaned = parsed.map((item) => ({
-      ...item,
-      category: normalizeCategory(item.category),
-      // ✅ MIGRATION: Ensure productId exists for existing cart items
-      productId: item.productId || item._id,
-      // ✅ MIGRATION: Ensure type exists for existing cart items
-      type: item.type || "product",
-    }));
+  // Start with empty runtime arrays to prevent rendering mismatched layouts
+  const [cartItems, setCartItems] = useState([]);
+  const [wishlist, setWishlist] = useState([]);
 
-    console.log("Cleaned cart items:", cleaned);
-    return cleaned;
-  });
-  const [wishlist, setWishlist] = useState(() => {
-    const saved = localStorage.getItem("wishlist");
-    console.log("Initializing wishlist from localStorage:", saved);
-    const parsed = saved ? JSON.parse(saved) : [];
-
-    // Clean old dirty data
-    const cleaned = parsed.map((item) => ({
-      ...item,
-      category: normalizeCategory(item.category),
-    }));
-
-    console.log("Cleaned wishlist items:", cleaned);
-    return cleaned;
+  // ✅ FIX: If a token exists, assume we are fetching data and block page rendering immediately
+  const [isCartLoading, setIsCartLoading] = useState(() => {
+    return !!localStorage.getItem("token");
   });
 
   // Handle authentication state changes
@@ -64,40 +41,30 @@ export const CartProvider = ({ children }) => {
     resetEndpointStatus();
 
     if (!isAuthenticated) {
-      console.log("🛒 CartContext - User logged out, clearing cart only");
-      setCartItems([]); // Clear cart when user logs out
-      // Don't clear wishlist - keep it in localStorage
+      console.log("🛒 Using localStorage cart for guest user");
+      const saved = localStorage.getItem("cart");
+      if (saved) {
+        try {
+          setCartItems(JSON.parse(saved));
+        } catch (err) {
+          console.error("Failed to parse local cart", err);
+          setCartItems([]);
+        }
+      } else {
+        setCartItems([]);
+      }
+      setIsCartLoading(false); // No API call needed for guests
     } else {
       console.log("🛒 CartContext - User logged in, loading cart and wishlist");
 
-      // Debug: Check what's in localStorage before loading
-      const existingWishlist = localStorage.getItem("wishlist");
-      if (existingWishlist) {
-        try {
-          const parsed = JSON.parse(existingWishlist);
-          console.log("🛒 Debug - Existing wishlist in localStorage:", parsed);
-          const coffeeMug = parsed.find(
-            (item) =>
-              item.name &&
-              (item.name.toLowerCase().includes("coffee") ||
-                item.name.toLowerCase().includes("mug")),
-          );
-          console.log("🛒 Debug - Looking for coffee mug:", coffeeMug);
-          if (coffeeMug) {
-            console.log("🛒 Debug - Coffee mug details:", {
-              name: coffeeMug.name,
-              _id: coffeeMug._id,
-              id: coffeeMug.id,
-              source: "localStorage",
-            });
-          }
-        } catch (e) {
-          console.error("🛒 Debug - Error parsing wishlist:", e);
-        }
-      }
+      // Concurrently load live data before removing the loader block
+      const syncLoading = async () => {
+        setIsCartLoading(true);
+        await Promise.all([loadCartFromAPI(), loadWishlistFromAPI()]);
+        setIsCartLoading(false);
+      };
 
-      loadCartFromAPI(); // Load cart when user logs in
-      loadWishlistFromAPI(); // Load wishlist from API
+      syncLoading();
     }
   }, [isAuthenticated]);
 
@@ -171,8 +138,8 @@ export const CartProvider = ({ children }) => {
           localStorage.getItem("token"),
         );
 
-        // Don't auto-clear - let login page handle it
-        // This prevents logout loops on temporary auth issues
+        // ✅ CRITICAL SAFETY: Ensure cart doesn't evaluate as loaded with empty items during redirect lag
+        setCartItems([]);
         window.location.href = "/login";
         return;
       }
@@ -566,90 +533,62 @@ export const CartProvider = ({ children }) => {
   const addToCart = async (product, quantity = 1) => {
     try {
       console.log("🛒 Adding to cart - Full product object:", product);
-      console.log("🛒 Adding to cart - product._id:", product._id);
-      console.log("🛒 Adding to cart - product.id:", product.id);
-      console.log("🛒 Adding to cart - productId to send:", product._id);
       if (!product._id) {
-        return {
-          success: false,
-          message: "Product ID is missing",
-        };
+        return { success: false, message: "Product ID is missing" };
       }
 
-      // 🔒 STOCK BLOCKING: Don't allow adding out-of-stock items
       const productStock = product.stock || 0;
-
       if (productStock <= 0) {
-        console.error(`🚫 BLOCKED: "${product.name}" is OUT OF STOCK`);
-        return {
-          success: false,
-          message: `"${product.name}" is currently out of stock and cannot be added to cart`,
-          blocked: true,
-        };
+        return { success: false, message: `"${product.name}" is OUT OF STOCK` };
       }
-
-      // 🔒 Don't exceed available stock
       if (quantity > productStock) {
-        console.error(
-          `🚫 BLOCKED: Only ${productStock} units of "${product.name}" available, requested ${quantity}`,
-        );
         return {
           success: false,
           message: `Only ${productStock} units of "${product.name}" are available`,
-          maxStock: productStock,
         };
       }
 
-      // ⚠️ LOW STOCK WARNING
-      if (productStock <= 3) {
-        console.warn(
-          `⚠️ LOW STOCK WARNING: "${product.name}" - Only ${productStock} units remaining`,
-        );
-      }
-
-      console.log("Final productId:", product._id);
-      console.log("Quantity:", quantity);
-
-      // Step 1: Update local state immediately for responsiveness
+      // Step 1: Structure a fully detailed product object matching your UI expectation
       const normalizedProduct = {
         ...product,
-        _id: product._id, // ensure exists
-        productId: product._id, // ✅ ADD productId FOR CHECKOUT VALIDATION
-        cartItemId: `local-${Date.now()}`, // Temporary ID for localStorage
+        _id: product._id,
+        productId: product._id,
+        id: product._id,
+        cartItemId: `local-${Date.now()}`, // Temporary fallback ID until server responds
         quantity,
-        // ✅ ENSURE STOCK IS ALWAYS INCLUDED FOR CHECKOUT VALIDATION
         stock: productStock,
-        // ✅ PRESERVE TYPE FIELD FOR VENDOR PRODUCT IDENTIFICATION
         type: product.vendorId ? "vendor-product" : "product",
-        // ✅ CRITICAL: ADD vendorId FOR VENDOR ORDER ROUTING
         vendorId: product.vendorId || null,
+        name: product.name || product.product_name_en || "Product",
+        price: product.price || product.unit_price || 0,
+        unit_price: product.price || product.unit_price || 0,
+        thumbnail:
+          product.thumbnail || product.image || product.images?.[0] || null,
       };
 
+      // Step 2: Optimistic Update — Show on screen instantly with all details intact
       setCartItems((prev) => {
         const existingItem = prev.find((item) => item._id === product._id);
-
+        let updatedCart;
         if (existingItem) {
-          // Update quantity if item exists
-          return prev.map((item) =>
+          updatedCart = prev.map((item) =>
             item._id === product._id
               ? { ...item, quantity: item.quantity + quantity }
               : item,
           );
         } else {
-          // Add new item if it doesn't exist
-          return [...prev, normalizedProduct];
+          updatedCart = [...prev, normalizedProduct];
         }
+        // Mirror to cache right away for survival across accidental reloads
+        localStorage.setItem("cart", JSON.stringify(updatedCart));
+        return updatedCart;
       });
 
-      // Step 2: Try to sync with backend API (if available)
+      // Step 3: Run server mutation silently in the background
       try {
-        const payload = {
-          productId: product._id,
-          quantity: quantity,
-        };
-        console.log("🛒 Add to Cart Payload:", payload);
-
+        const payload = { productId: product._id, quantity: quantity };
         const token = localStorage.getItem("token");
+
         const res = await robustFetch("/cart/add", {
           method: "POST",
           headers: {
@@ -658,74 +597,43 @@ export const CartProvider = ({ children }) => {
           },
           body: JSON.stringify(payload),
         });
+
         const data = await res.json();
         console.log("🛒 Add to cart response from API:", data);
 
-        // Don't reload cart immediately - let localStorage sync work
-        // The item is already in local state, localStorage will save it
-        // Only reload if the API returns updated cart data we should use
-        if (data.success && data.data && data.data.items) {
-          console.log("🛒 API returned cart data, syncing...");
-          // Transform API response to match local format
-          const apiCartItems = data.data.items.map((item) => {
-            const product = item.product;
-            return {
-              cartItemId: item._id,
-              productId: product._id,
-              id: product._id,
-              _id: product._id,
-              name: product.name || product.product_name_en || "Product",
-              description:
-                product.description ||
-                product.description_en ||
-                "No description available",
-              price: item.price || product.price || product.unit_price || 0,
-              unit_price:
-                item.price || product.price || product.unit_price || 0,
-              quantity: item.quantity || 1,
-              thumbnail:
-                product.thumbnail ||
-                (product.images && product.images[0]) ||
-                product.image ||
-                null,
-              image: product.image || product.thumbnail || null,
-              images: product.images || [],
-              sku: product.sku || "N/A",
-              stock: product.stock || product.stock || 0,
-              category: normalizeCategory(product.category),
-              specifications: product.specifications || null,
-              discount: product.discount_amount || 0,
-              originalPrice: product.original_price || null,
-              // ✅ PRESERVE TYPE FIELD FOR VENDOR PRODUCT IDENTIFICATION
-              type: product.type || "product",
-            };
-          });
-          setCartItems(apiCartItems);
-        } else {
-          console.log("🛒 API didn't return cart data, keeping local state");
+        // Instantly catch the real MongoDB item _id map without replacing your detailed product payload
+        if (data.success) {
+          const cartData = data?.data || data?.cart;
+          const items = cartData?.items || [];
+          const matchedServerItem = items.find(
+            (item) =>
+              item.productId === product._id ||
+              item.product?._id === product._id,
+          );
+
+          if (matchedServerItem && matchedServerItem._id) {
+            setCartItems((prev) =>
+              prev.map((localItem) =>
+                localItem._id === product._id
+                  ? { ...localItem, cartItemId: matchedServerItem._id }
+                  : localItem,
+              ),
+            );
+          }
         }
       } catch (apiError) {
         console.log(
-          "🛒 Backend add to cart failed, using localStorage only:",
+          "🛒 Backend background sync failed, local state preserved:",
           apiError.message,
         );
-        // Local state is already updated, so continue
       }
 
       return { success: true };
     } catch (error) {
       console.error("🛒 Add to cart error:", error);
-      console.error("🛒 Error message:", error.message);
-
-      // Handle error responses
-      let errorMessage = "Failed to add item to cart";
-      if (error.message) {
-        errorMessage = error.message;
-      }
-
       return {
         success: false,
-        message: errorMessage,
+        message: error.message || "Failed to add item to cart",
       };
     }
   };
@@ -857,6 +765,7 @@ export const CartProvider = ({ children }) => {
         removeFromWishlist,
         isInWishlist,
         cart: cartItems, // Alias for compatibility
+        isCartLoading,
       }}
     >
       {children}

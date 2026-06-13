@@ -14,6 +14,9 @@ const path = require("path");
 
 require("dotenv").config();
 
+// Socket.io service
+const socketService = require("./services/socketService");
+
 // Import database connection
 
 const { connectDatabase } = require("./config/database");
@@ -84,7 +87,14 @@ const deliveryMenRoutes = require("./routes/deliveryMen");
 
 const deliveryOrderRoutes = require("./routes/deliveryOrders");
 
+const chatRoutes = require("./routes/chat");
+
 const app = express();
+
+// CRITICAL FOR HOSTINGER/REVERSE PROXY: Trust X-Forwarded-For headers
+app.set('trust proxy', true);
+
+const deviceTokenCleanupScheduler = require('./services/deviceTokenCleanupScheduler');
 
 // VERY IMPORTANT - CORS must be FIRST middleware
 app.use((req, res, next) => {
@@ -199,6 +209,8 @@ const homePageServiceCategoriesRoutes = require("./routes/homePageServiceCategor
 
 // API Routes - Start with essential routes only
 
+app.use("/api/push-notifications", require("./routes/pushNotifications"));
+
 app.use("/api/auth", authRoutes);
 
 app.use("/api/products", productRoutes);
@@ -222,6 +234,8 @@ app.use("/api/service-categories", serviceCategoriesRoutes);
 app.use("/api/home-page-service-categories", homePageServiceCategoriesRoutes);
 
 app.use("/api/orders", orderRoutes);
+
+app.use("/api/chat", chatRoutes);
 
 app.use("/api/contact", require("./routes/contact"));
 
@@ -406,13 +420,28 @@ app.use((err, req, res, next) => {
 });
 
 // Start server
-
 const PORT = process.env.PORT || 5000;
 
-app.listen(PORT, "0.0.0.0", () => {
-  console.log(`Admin Server running on port ${PORT}`);
-
-  console.log("Environment:", process.env.NODE_ENV || "development");
-});
+(async () => {
+  try {
+    // Initialize device token cleanup scheduler
+    await deviceTokenCleanupScheduler.startupCleanup();
+    deviceTokenCleanupScheduler.start(); // Runs daily at midnight
+    
+    const server = require('http').createServer(app);
+    
+    // Initialize Socket.io
+    socketService.initialize(server);
+    
+    server.listen(PORT, "0.0.0.0", () => {
+      console.log(`✅ Admin Server running on port ${PORT}`);
+      console.log(`✅ Socket.io listening on ws://0.0.0.0:${PORT}/socket.io/`);
+      console.log("Environment:", process.env.NODE_ENV || "development");
+    });
+  } catch (error) {
+    console.error("Failed to start server:", error);
+    process.exit(1);
+  }
+})();
 
 module.exports = app;

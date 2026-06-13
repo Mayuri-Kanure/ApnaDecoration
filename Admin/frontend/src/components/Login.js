@@ -19,6 +19,7 @@ import {
   VisibilityOff
 } from '@mui/icons-material';
 import { API_BASE_URL } from '../config/api';
+import { validateAdminLogin } from '../utils/formValidation';
 
 function Login({ onLogin }) {
   console.log('Login Component: onLogin prop received', typeof onLogin, onLogin);
@@ -31,16 +32,28 @@ function Login({ onLogin }) {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [fieldErrors, setFieldErrors] = useState({});
 
   const handleChange = (e) => {
     setFormData({
       ...formData,
       [e.target.name]: e.target.value
     });
+    if (fieldErrors[e.target.name]) {
+      setFieldErrors((prev) => ({ ...prev, [e.target.name]: '' }));
+    }
+    if (error) setError('');
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    const validation = validateAdminLogin(formData);
+    if (!validation.valid) {
+      setFieldErrors(validation.errors);
+      setError(validation.message);
+      return;
+    }
+    setFieldErrors({});
     setLoading(true);
     setError('');
 
@@ -113,6 +126,8 @@ function Login({ onLogin }) {
                 margin="normal"
                 required
                 autoFocus
+                error={!!fieldErrors.email}
+                helperText={fieldErrors.email || ' '}
               />
               <TextField
                 fullWidth
@@ -123,6 +138,8 @@ function Login({ onLogin }) {
                 onChange={handleChange}
                 margin="normal"
                 required
+                error={!!fieldErrors.password}
+                helperText={fieldErrors.password || ' '}
                 InputProps={{
                   endAdornment: (
                     <InputAdornment position="end">

@@ -69,18 +69,32 @@ exports.updateVendorRegistration = async (req, res) => {
     if (req.body.headerSubtitle) vendorReg.headerSubtitle = req.body.headerSubtitle;
     if (req.body.headerImage) vendorReg.headerImage = req.body.headerImage;
     
-    // Update other sections
+    // Update Why Sell With Us section`
     if (req.body.whySellTitle) vendorReg.whySellTitle = req.body.whySellTitle;
+    if (req.body.whySellSubtitle) vendorReg.whySellSubtitle = req.body.whySellSubtitle;
     if (req.body.whySellPoints) vendorReg.whySellPoints = req.body.whySellPoints;
-    if (req.body.businessProcessTitle) vendorReg.businessProcessTitle = req.body.businessProcessTitle;
-    if (req.body.businessProcessSteps) vendorReg.businessProcessSteps = req.body.businessProcessSteps;
-    if (req.body.downloadAppTitle) vendorReg.downloadAppTitle = req.body.downloadAppTitle;
-    if (req.body.downloadAppDescription) vendorReg.downloadAppDescription = req.body.downloadAppDescription;
-    if (req.body.appStoreUrl) vendorReg.appStoreUrl = req.body.appStoreUrl;
-    if (req.body.playStoreUrl) vendorReg.playStoreUrl = req.body.playStoreUrl;
-    if (req.body.appImage) vendorReg.appImage = req.body.appImage;
-    if (req.body.faqTitle) vendorReg.faqTitle = req.body.faqTitle;
-    if (req.body.faqItems) vendorReg.faqItems = req.body.faqItems;
+    
+    // Update Business Process section (nested object)
+    if (req.body.businessProcess) {
+      if (req.body.businessProcess.mainTitle) vendorReg.businessProcess.mainTitle = req.body.businessProcess.mainTitle;
+      if (req.body.businessProcess.mainSubtitle) vendorReg.businessProcess.mainSubtitle = req.body.businessProcess.mainSubtitle;
+      if (req.body.businessProcess.steps) vendorReg.businessProcess.steps = req.body.businessProcess.steps;
+    }
+    
+    // Update Download App section (nested object)
+    if (req.body.downloadApp) {
+      if (req.body.downloadApp.title) vendorReg.downloadApp.title = req.body.downloadApp.title;
+      if (req.body.downloadApp.subtitle) vendorReg.downloadApp.subtitle = req.body.downloadApp.subtitle;
+      if (req.body.downloadApp.appImage) vendorReg.downloadApp.appImage = req.body.downloadApp.appImage;
+      if (req.body.downloadApp.playStore) vendorReg.downloadApp.playStore = req.body.downloadApp.playStore;
+      if (req.body.downloadApp.appStore) vendorReg.downloadApp.appStore = req.body.downloadApp.appStore;
+    }
+    
+    // Update FAQ section (nested object)
+    if (req.body.faq) {
+      if (req.body.faq.title) vendorReg.faq.title = req.body.faq.title;
+      if (req.body.faq.items) vendorReg.faq.items = req.body.faq.items;
+    }
     
     vendorReg.updatedBy = req.user?.id;
     await vendorReg.save();

@@ -15,6 +15,7 @@ const Wishlist = require("./Wishlist");
 const Contact = require("./Contact");
 const CustomerReview = require("./CustomerReview");
 const DeliveryOrder = require("./DeliveryOrder");
+const DeviceToken = require("./DeviceToken");
 
 module.exports = {
   Product,
@@ -34,4 +35,5 @@ module.exports = {
   Contact,
   CustomerReview,
   DeliveryOrder,
+  DeviceToken,
 };

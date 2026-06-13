@@ -318,4 +318,91 @@ router.get("/key", (req, res) => {
   });
 });
 
+// ============ SERVICE PAYMENT ENDPOINTS ============
+
+// Create Razorpay order for service booking
+router.post("/service/create-razorpay-order", auth, async (req, res) => {
+  try {
+    console.log("💳 Creating Razorpay order for service:", req.body);
+
+    const OrderService = require("../services/orderService");
+    const { bookingId, amount, serviceName, customerInfo } = req.body;
+
+    // Validate required fields
+    if (!bookingId || !amount) {
+      return res.status(400).json({
+        success: false,
+        message: "Booking ID and amount are required",
+      });
+    }
+
+    // Create Razorpay order
+    const result =
+      await OrderService.createRazorpayOrderForService({
+        bookingId,
+        amount,
+        serviceName,
+        customerInfo,
+      });
+
+    res.json({
+      success: true,
+      data: result,
+    });
+  } catch (error) {
+    console.error("❌ Error creating Razorpay order for service:", error);
+    res.status(500).json({
+      success: false,
+      message: error.message || "Failed to create payment order",
+    });
+  }
+});
+
+// Verify service payment
+router.post("/service/verify-payment", auth, async (req, res) => {
+  try {
+    console.log("🔐 Verifying service payment:", req.body);
+
+    const OrderService = require("../services/orderService");
+    const {
+      bookingId,
+      razorpayOrderId,
+      razorpayPaymentId,
+      razorpaySignature,
+    } = req.body;
+
+    // Validate required fields
+    if (
+      !bookingId ||
+      !razorpayOrderId ||
+      !razorpayPaymentId ||
+      !razorpaySignature
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Missing required payment verification fields",
+      });
+    }
+
+    // Verify payment
+    const result = await OrderService.verifyServicePayment({
+      bookingId,
+      razorpayOrderId,
+      razorpayPaymentId,
+      razorpaySignature,
+    });
+
+    res.json({
+      success: true,
+      data: result,
+    });
+  } catch (error) {
+    console.error("❌ Error verifying service payment:", error);
+    res.status(500).json({
+      success: false,
+      message: error.message || "Payment verification failed",
+    });
+  }
+});
+
 module.exports = router;

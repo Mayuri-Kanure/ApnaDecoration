@@ -1,0 +1,5 @@
+node_modules/
+.env
+config/firebase-service-account.json
+User/backend/config/firebase-service-account.json
+Admin/backend/config/firebase-service-account.json

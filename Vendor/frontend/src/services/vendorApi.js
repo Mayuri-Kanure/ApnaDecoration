@@ -1,7 +1,5 @@
 // VendorApiService.js
-
-const API_BASE_URL =
-  process.env.REACT_APP_API_URL || "http://localhost:5002/api";
+import { API_BASE_URL } from "../config/constants";
 
 class VendorApiService {
   constructor() {
@@ -307,46 +305,27 @@ class VendorApiService {
     });
   }
 
-  // ====== Analytics Endpoints - NOT IMPLEMENTED YET ======
+  // ====== Analytics Endpoints ======
 
-  // Get vendor dashboard analytics
+  // Get vendor dashboard analytics (today's metrics)
   async getVendorAnalytics() {
-    // Get vendor ID from localStorage or user data
-    const vendorUser = JSON.parse(localStorage.getItem("vendorUser") || "{}");
-    const vendorId = vendorUser.id || vendorUser._id;
-
-    if (!vendorId) {
-      console.error("❌ No vendor ID found for analytics");
-      throw new Error("Vendor ID not found");
-    }
-
     return this.request(`/vendor-analytics/dashboard`);
   }
 
-  // Get vendor earnings data - NOT IMPLEMENTED
-  // async getVendorEarnings(period = "30d") {
-  //   return this.request(`/vendor-analytics/earnings?period=${period}`);
-  // }
+  // Get revenue analytics with period
+  async getRevenueAnalytics(period = 30) {
+    return this.request(`/vendor-analytics/revenue?period=${period}`);
+  }
 
-  // Get sales analytics with custom period - NOT IMPLEMENTED
-  // async getSalesAnalytics(period = "30d") {
-  //   return this.request(`/vendor-analytics/earnings?period=${period}`);
-  // }
+  // Get product sales analytics with period
+  async getProductSalesAnalytics(period = 30) {
+    return this.request(`/vendor-analytics/products?period=${period}`);
+  }
 
-  // Get monthly sales data - NOT IMPLEMENTED
-  // async getMonthlySales() {
-  //   return this.request("/vendor-analytics/dashboard");
-  // }
-
-  // Get top performing products - NOT IMPLEMENTED
-  // async getTopProducts() {
-  //   return this.request("/vendor-analytics/dashboard");
-  // }
-
-  // Get low stock alerts - NOT IMPLEMENTED
-  // async getLowStockAlerts() {
-  //   return this.request("/vendor-analytics/dashboard");
-  // }
+  // Get earnings summary (month-over-month)
+  async getEarningsSummary() {
+    return this.request(`/vendor-analytics/earnings`);
+  }
 
   // Get vendor notifications
   async getVendorNotifications() {

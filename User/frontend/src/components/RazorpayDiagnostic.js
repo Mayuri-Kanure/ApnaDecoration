@@ -16,7 +16,7 @@ const RazorpayDiagnostic = () => {
     addResult('Key Endpoint', 'info', 'Testing Razorpay key endpoint...');
     
     try {
-      const response = await fetch('https://user-api.apnadecoration.com/api/payments/key');
+      const response = await fetch(`${process.env.REACT_APP_API_URL}/payments/key`);
       const data = await response.json();
       
       if (response.ok && data.success) {

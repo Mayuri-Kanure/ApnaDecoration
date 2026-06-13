@@ -12,12 +12,21 @@ const auth = async (req, res, next) => {
     // Verify JWT token
     const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback_secret_key', { clockTolerance: 60 });
     
-    console.log('Token verified successfully:', decoded);
-    
+    const userId = decoded.userId || decoded.id;
+    if (!userId) {
+      return res.status(401).json({
+        message: 'Invalid token payload. Please login again.',
+        code: 'INVALID_TOKEN',
+      });
+    }
+
     // Fetch actual user from database
-    const user = await User.findById(decoded.userId);
+    const user = await User.findById(userId);
     if (!user) {
-      return res.status(401).json({ message: 'User not found' });
+      return res.status(401).json({
+        message: 'User not found. Please login again.',
+        code: 'USER_NOT_FOUND',
+      });
     }
     
     if (!user.isActive) {

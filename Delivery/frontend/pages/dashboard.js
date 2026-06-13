@@ -1,6 +1,11 @@
-import { useState, useEffect } from "react";
+  import { useState, useEffect } from "react";
+import dynamic from "next/dynamic";
+import { useRouter } from "next/router";
 import axios from "axios";
 import { DELIVERY_API_URL } from "../config/constants";
+import useAutoRefreshNext from "../hooks/useAutoRefreshNext";
+import RefreshSettingsNext from "../components/RefreshSettingsNext";
+import OrderCountBadgeNext from "../components/OrderCountBadgeNext";
 import {
   Box,
   Card,
@@ -32,7 +37,6 @@ import {
   ListItemIcon,
   Divider,
   Badge,
-  Fab,
   CircularProgress,
   useTheme,
   useMediaQuery,
@@ -72,11 +76,14 @@ function TabPanel({ children = null, value = 0, index = 0, ...other }) {
   );
 }
 
-export default function DeliveryBoyDashboard() {
+function DeliveryBoyDashboard() {
+  const router = useRouter();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const [tabValue, setTabValue] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [autoRefreshEnabled, setAutoRefreshEnabled] = useState(true);
+  const [refreshInterval, setRefreshInterval] = useState(5 * 60 * 1000); // 5 minutes
   const [snackbar, setSnackbar] = useState({
     open: false,
     message: "",
@@ -93,20 +100,45 @@ export default function DeliveryBoyDashboard() {
     failedDeliveries: 0,
   });
 
-  useEffect(() => {
-    loadDashboardData();
-  }, []);
-
   const loadDashboardData = async () => {
     try {
-      const token = localStorage.getItem("deliveryBoyToken");
-      const response = await axios.get(`${DELIVERY_API_URL}/dashboard`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      setDashboardData(response.data);
+      const token = typeof window !== 'undefined' ? localStorage.getItem('deliveryBoyToken') : null;
+      
+      if (!token) {
+        router.push('/auth/login');
+        return;
+      }
+
+      const response = await axios.get(
+        'https://admin-api.apnadecoration.com/api/delivery-boy/dashboard',
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          timeout: 30000,
+        }
+      );
+
+      const data = response.data?.data || response.data;
+      setDashboardData(data);
+      console.log('Dashboard data loaded:', data);
     } catch (error) {
       console.error("Error loading dashboard data:", error);
-      // Set empty data for now to see what API returns
+      
+      if (error.response?.status === 401) {
+        // Unauthorized - clear token and redirect to login
+        localStorage.removeItem('deliveryBoyToken');
+        router.push('/auth/login');
+        return;
+      }
+
+      setSnackbar({
+        open: true,
+        message: error.message || "Failed to load dashboard data",
+        severity: "error",
+      });
+      
       setDashboardData({
         todayEarnings: 0,
         totalDeliveries: 0,
@@ -121,6 +153,17 @@ export default function DeliveryBoyDashboard() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    loadDashboardData();
+  }, []);
+
+  // Setup auto-refresh
+  const { isRefreshing, manualRefresh, setAutoRefreshEnabled: setAutoRefresh, setRefreshInterval: setInterval } = useAutoRefreshNext(
+    loadDashboardData,
+    refreshInterval,
+    autoRefreshEnabled
+  );
 
   const handleTabChange = (event, newValue) => {
     setTabValue(newValue);
@@ -182,26 +225,26 @@ export default function DeliveryBoyDashboard() {
             earnings
           </Typography>
         </Box>
-        <Button
-          variant="outlined"
-          startIcon={<Refresh />}
-          onClick={loadDashboardData}
-          disabled={loading}
-          sx={{
-            borderColor: "#2F66FF",
-            color: "#2F66FF",
-            "&:hover": {
-              borderColor: "#1e40af",
-              backgroundColor: "#f8fafc",
-            },
-            fontSize: { xs: "11px", sm: "14px" },
-            whiteSpace: "nowrap",
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-          }}
-        >
-          {loading ? "Refreshing..." : "Refresh"}
-        </Button>
+        <Box sx={{ display: "flex", gap: 1, alignItems: "center" }}>
+          {/* Order Count Badge */}
+          <OrderCountBadgeNext />
+
+          {/* Auto-Refresh Settings */}
+          <RefreshSettingsNext
+            autoRefreshEnabled={autoRefreshEnabled}
+            onAutoRefreshChange={(enabled) => {
+              setAutoRefreshEnabled(enabled);
+              setAutoRefresh(enabled);
+            }}
+            refreshInterval={refreshInterval}
+            onRefreshIntervalChange={(interval) => {
+              setRefreshInterval(interval);
+              setInterval(interval);
+            }}
+            onManualRefresh={manualRefresh}
+            isRefreshing={isRefreshing}
+          />
+        </Box>
       </Box>
 
       {/* Top Row - Main Statistics Card */}
@@ -802,22 +845,6 @@ export default function DeliveryBoyDashboard() {
         </Grid>
       </Grid>
 
-      {/* Floating Action Button */}
-      <Fab
-        color="primary"
-        aria-label="refresh"
-        sx={{
-          position: "fixed",
-          bottom: 16,
-          right: 16,
-          backgroundColor: "#2F66FF",
-          "&:hover": { backgroundColor: "#1e40af" },
-        }}
-        onClick={() => window.location.reload()}
-      >
-        <Refresh />
-      </Fab>
-
       {/* Snackbar */}
       <Snackbar
         open={snackbar.open}
@@ -836,3 +863,6 @@ export default function DeliveryBoyDashboard() {
     </Box>
   );
 }
+export default dynamic(() => Promise.resolve(DeliveryBoyDashboard), {
+  ssr: false,
+});

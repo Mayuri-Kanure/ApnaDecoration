@@ -17,19 +17,39 @@ const authMiddleware = async (req, res, next) => {
 
     console.log("🔍 Token found, verifying...");
 
-    const decoded = jwt.verify(
-      token,
-      process.env.JWT_SECRET || "apna_decoration_secure_key",
-    );
+    let decoded;
+    try {
+      decoded = jwt.verify(token, process.env.JWT_SECRET);
+    } catch (jwtError) {
+      if (jwtError.name === "TokenExpiredError") {
+        return res.status(401).json({
+          success: false,
+          code: "TOKEN_EXPIRED",
+          message: "Your session has expired. Please login again.",
+        });
+      }
+      throw jwtError;
+    }
 
-    console.log("🔍 Token decoded:", decoded);
+    console.log("🔍 Token decoded:", JSON.stringify(decoded, null, 2));
+    console.log("🔍 Token keys:", Object.keys(decoded));
+    console.log("🔍 decoded.deliveryBoyId:", decoded.deliveryBoyId);
+    console.log("🔍 decoded.userId:", decoded.userId);
+    console.log("🔍 decoded.id:", decoded.id);
+    console.log("🔍 decoded.role:", decoded.role);
+    console.log("🔍 Boolean check - decoded.deliveryBoyId is truthy?:", !!decoded.deliveryBoyId);
+    console.log("🔍 Type of decoded.deliveryBoyId:", typeof decoded.deliveryBoyId);
+    console.log("🔍 decoded.deliveryBoyId value:", decoded.deliveryBoyId);
 
-    // Support both user tokens and delivery-boy tokens.
-    if (decoded.deliveryBoyId || decoded.id) {
-      const deliveryBoy = await DeliveryBoy.findById(
-        decoded.deliveryBoyId || decoded.id,
-      );
+    // If it's explicitly a delivery boy token, look for delivery boy
+    if (decoded.deliveryBoyId) {
+      console.log("🔍 Detected delivery boy token, searching with ID:", decoded.deliveryBoyId);
+
+      const deliveryBoy = await DeliveryBoy.findById(decoded.deliveryBoyId);
+      console.log("🔍 Found delivery boy:", deliveryBoy ? "YES" : "NO");
+
       if (!deliveryBoy) {
+        console.log("❌ Delivery boy not found in database");
         return res.status(401).json({
           success: false,
           error: "Delivery partner not found",
@@ -47,7 +67,8 @@ const authMiddleware = async (req, res, next) => {
       return next();
     }
 
-    console.log("🔍 Looking up user with ID:", decoded.id || decoded.userId);
+    // Otherwise, try to find as regular User (including vendors)
+    console.log("🔍 Detected user/vendor token, looking up user with ID:", decoded.id || decoded.userId);
     const user = await User.findById(decoded.id || decoded.userId);
 
     if (!user) {
@@ -58,11 +79,11 @@ const authMiddleware = async (req, res, next) => {
       });
     }
 
-    console.log("🔍 User found:", user._id, user.email);
+    console.log("🔍 User found:", user._id, user.email, "Role:", user.role);
 
     req.user = user;
     req.user.userId = user._id ? user._id.toString() : user.id;
-    req.user.id = user._id ? user._id.toString() : user.id; // Add this line
+    req.user.id = user._id ? user._id.toString() : user.id;
     req.user.tokenType = "user";
 
     console.log("🔍 Auth middleware completed successfully");

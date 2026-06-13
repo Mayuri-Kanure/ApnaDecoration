@@ -1,4 +1,5 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from "react";
+import dynamic from "next/dynamic";
 import {
   Box,
   Card,
@@ -27,7 +28,7 @@ import {
   Fab,
   Tooltip,
   Badge,
-} from '@mui/material';
+} from "@mui/material";
 import {
   GpsFixed,
   LocationOn,
@@ -48,27 +49,43 @@ import {
   Map,
   PlayArrow,
   Stop,
-} from '@mui/icons-material';
-import deliveryApi from '../src/services/deliveryApi';
-import EnhancedDeliveryLayout from '../components/EnhancedDeliveryLayout';
+} from "@mui/icons-material";
+import deliveryApi from "../src/services/deliveryApi";
+import EnhancedDeliveryLayout from "../components/EnhancedDeliveryLayout";
 
 function LiveTracking() {
   const [activeTracking, setActiveTracking] = useState(null);
   const [location, setLocation] = useState({ latitude: null, longitude: null });
   const [loading, setLoading] = useState(true);
   const [trackingLoading, setTrackingLoading] = useState(false);
-  const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
-  const [completeDialog, setCompleteDialog] = useState({ open: false, proofImage: '', notes: '' });
-  const [failedDialog, setFailedDialog] = useState({ open: false, reason: '', notes: '' });
+  const [snackbar, setSnackbar] = useState({
+    open: false,
+    message: "",
+    severity: "success",
+  });
+  const [completeDialog, setCompleteDialog] = useState({
+    open: false,
+    proofImage: "",
+    notes: "",
+  });
+  const [failedDialog, setFailedDialog] = useState({
+    open: false,
+    reason: "",
+    notes: "",
+  });
   const [locationHistory, setLocationHistory] = useState([]);
-  const [eta, setEta] = useState({ estimatedArrival: null, distanceRemaining: 0, durationRemaining: 0 });
+  const [eta, setEta] = useState({
+    estimatedArrival: null,
+    distanceRemaining: 0,
+    durationRemaining: 0,
+  });
   const locationInterval = useRef(null);
   const fileInputRef = useRef(null);
 
   useEffect(() => {
     fetchActiveTracking();
     getCurrentLocation();
-    
+
     return () => {
       if (locationInterval.current) {
         clearInterval(locationInterval.current);
@@ -108,7 +125,7 @@ function LiveTracking() {
         });
       }
     } catch (error) {
-      console.error('Error fetching active tracking:', error);
+      console.error("Error fetching active tracking:", error);
     } finally {
       setLoading(false);
     }
@@ -124,29 +141,29 @@ function LiveTracking() {
             accuracy: position.coords.accuracy,
           };
           setLocation(newLocation);
-          
+
           // Update location to server
           updateLocationToServer(newLocation);
         },
         (error) => {
-          console.error('Error getting location:', error);
+          console.error("Error getting location:", error);
           setSnackbar({
             open: true,
-            message: 'Unable to get your location. Please enable GPS.',
-            severity: 'error'
+            message: "Unable to get your location. Please enable GPS.",
+            severity: "error",
           });
         },
         {
           enableHighAccuracy: true,
           timeout: 10000,
           maximumAge: 60000,
-        }
+        },
       );
     } else {
       setSnackbar({
         open: true,
-        message: 'Geolocation is not supported by your browser',
-        severity: 'error'
+        message: "Geolocation is not supported by your browser",
+        severity: "error",
       });
     }
   };
@@ -158,9 +175,12 @@ function LiveTracking() {
   const updateLocationToServer = async (locationData) => {
     try {
       await deliveryApi.updateLocation(locationData);
-      setLocationHistory(prev => [...prev.slice(-9), { ...locationData, timestamp: new Date() }]);
+      setLocationHistory((prev) => [
+        ...prev.slice(-9),
+        { ...locationData, timestamp: new Date() },
+      ]);
     } catch (error) {
-      console.error('Error updating location:', error);
+      console.error("Error updating location:", error);
     }
   };
 
@@ -171,17 +191,17 @@ function LiveTracking() {
       if (response.success) {
         setSnackbar({
           open: true,
-          message: 'Tracking started successfully',
-          severity: 'success'
+          message: "Tracking started successfully",
+          severity: "success",
         });
         fetchActiveTracking();
       }
     } catch (error) {
-      console.error('Error starting tracking:', error);
+      console.error("Error starting tracking:", error);
       setSnackbar({
         open: true,
-        message: error.response?.data?.message || 'Error starting tracking',
-        severity: 'error'
+        message: error.response?.data?.message || "Error starting tracking",
+        severity: "error",
       });
     } finally {
       setTrackingLoading(false);
@@ -190,25 +210,28 @@ function LiveTracking() {
 
   const handleCompleteDelivery = async () => {
     try {
-      const response = await deliveryApi.completeDelivery(activeTracking.deliveryOrderId._id, {
-        proofImage: completeDialog.proofImage,
-        notes: completeDialog.notes,
-      });
+      const response = await deliveryApi.completeDelivery(
+        activeTracking.deliveryOrderId._id,
+        {
+          proofImage: completeDialog.proofImage,
+          notes: completeDialog.notes,
+        },
+      );
       if (response.success) {
         setSnackbar({
           open: true,
-          message: 'Delivery completed successfully',
-          severity: 'success'
+          message: "Delivery completed successfully",
+          severity: "success",
         });
-        setCompleteDialog({ open: false, proofImage: '', notes: '' });
+        setCompleteDialog({ open: false, proofImage: "", notes: "" });
         setActiveTracking(null);
       }
     } catch (error) {
-      console.error('Error completing delivery:', error);
+      console.error("Error completing delivery:", error);
       setSnackbar({
         open: true,
-        message: error.response?.data?.message || 'Error completing delivery',
-        severity: 'error'
+        message: error.response?.data?.message || "Error completing delivery",
+        severity: "error",
       });
     }
   };
@@ -218,23 +241,24 @@ function LiveTracking() {
       const response = await deliveryApi.markDeliveryFailed(
         activeTracking.deliveryOrderId._id,
         failedDialog.reason,
-        failedDialog.notes
+        failedDialog.notes,
       );
       if (response.success) {
         setSnackbar({
           open: true,
-          message: 'Delivery marked as failed',
-          severity: 'warning'
+          message: "Delivery marked as failed",
+          severity: "warning",
         });
-        setFailedDialog({ open: false, reason: '', notes: '' });
+        setFailedDialog({ open: false, reason: "", notes: "" });
         setActiveTracking(null);
       }
     } catch (error) {
-      console.error('Error marking delivery as failed:', error);
+      console.error("Error marking delivery as failed:", error);
       setSnackbar({
         open: true,
-        message: error.response?.data?.message || 'Error marking delivery as failed',
-        severity: 'error'
+        message:
+          error.response?.data?.message || "Error marking delivery as failed",
+        severity: "error",
       });
     }
   };
@@ -265,7 +289,14 @@ function LiveTracking() {
   if (loading) {
     return (
       <EnhancedDeliveryLayout>
-        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 400 }}>
+        <Box
+          sx={{
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+            minHeight: 400,
+          }}
+        >
           <CircularProgress />
         </Box>
       </EnhancedDeliveryLayout>
@@ -284,8 +315,8 @@ function LiveTracking() {
       </Box>
 
       {!activeTracking ? (
-        <Paper sx={{ p: 4, textAlign: 'center' }}>
-          <GpsFixed sx={{ fontSize: 64, color: 'text.secondary', mb: 2 }} />
+        <Paper sx={{ p: 4, textAlign: "center" }}>
+          <GpsFixed sx={{ fontSize: 64, color: "text.secondary", mb: 2 }} />
           <Typography variant="h6" gutterBottom>
             No Active Delivery
           </Typography>
@@ -306,12 +337,19 @@ function LiveTracking() {
           <Grid item xs={12} md={8}>
             <Card>
               <CardContent>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+                <Box
+                  sx={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    mb: 3,
+                  }}
+                >
                   <Typography variant="h6">
                     Order {activeTracking.deliveryOrderId?.orderId}
                   </Typography>
                   <Chip
-                    label={activeTracking.status.replace('_', ' ')}
+                    label={activeTracking.status.replace("_", " ")}
                     color="primary"
                     variant="outlined"
                   />
@@ -319,15 +357,23 @@ function LiveTracking() {
 
                 {/* Progress Bar */}
                 <Box sx={{ mb: 3 }}>
-                  <Typography variant="body2" color="text.secondary" gutterBottom>
+                  <Typography
+                    variant="body2"
+                    color="text.secondary"
+                    gutterBottom
+                  >
                     Delivery Progress
                   </Typography>
                   <LinearProgress
                     variant="determinate"
                     value={
-                      activeTracking.status === 'picked_up' ? 25 :
-                      activeTracking.status === 'in_transit' ? 75 :
-                      activeTracking.status === 'delivered' ? 100 : 0
+                      activeTracking.status === "picked_up"
+                        ? 25
+                        : activeTracking.status === "in_transit"
+                          ? 75
+                          : activeTracking.status === "delivered"
+                            ? 100
+                            : 0
                     }
                     sx={{ height: 8, borderRadius: 4 }}
                   />
@@ -336,8 +382,8 @@ function LiveTracking() {
                 {/* Delivery Details */}
                 <Grid container spacing={2} sx={{ mb: 3 }}>
                   <Grid item xs={12} sm={6}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                      <Person sx={{ mr: 1, color: 'text.secondary' }} />
+                    <Box sx={{ display: "flex", alignItems: "center", mb: 2 }}>
+                      <Person sx={{ mr: 1, color: "text.secondary" }} />
                       <Box>
                         <Typography variant="body2" color="text.secondary">
                           Customer
@@ -349,8 +395,8 @@ function LiveTracking() {
                     </Box>
                   </Grid>
                   <Grid item xs={12} sm={6}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                      <LocationOn sx={{ mr: 1, color: 'text.secondary' }} />
+                    <Box sx={{ display: "flex", alignItems: "center", mb: 2 }}>
+                      <LocationOn sx={{ mr: 1, color: "text.secondary" }} />
                       <Box>
                         <Typography variant="body2" color="text.secondary">
                           Distance Remaining
@@ -362,21 +408,25 @@ function LiveTracking() {
                     </Box>
                   </Grid>
                   <Grid item xs={12} sm={6}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                      <AccessTime sx={{ mr: 1, color: 'text.secondary' }} />
+                    <Box sx={{ display: "flex", alignItems: "center", mb: 2 }}>
+                      <AccessTime sx={{ mr: 1, color: "text.secondary" }} />
                       <Box>
                         <Typography variant="body2" color="text.secondary">
                           ETA
                         </Typography>
                         <Typography variant="body1">
-                          {eta.estimatedArrival ? new Date(eta.estimatedArrival).toLocaleTimeString() : 'Calculating...'}
+                          {eta.estimatedArrival
+                            ? new Date(
+                                eta.estimatedArrival,
+                              ).toLocaleTimeString()
+                            : "Calculating..."}
                         </Typography>
                       </Box>
                     </Box>
                   </Grid>
                   <Grid item xs={12} sm={6}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                      <Timeline sx={{ mr: 1, color: 'text.secondary' }} />
+                    <Box sx={{ display: "flex", alignItems: "center", mb: 2 }}>
+                      <Timeline sx={{ mr: 1, color: "text.secondary" }} />
                       <Box>
                         <Typography variant="body2" color="text.secondary">
                           Duration Remaining
@@ -390,12 +440,18 @@ function LiveTracking() {
                 </Grid>
 
                 {/* Action Buttons */}
-                <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+                <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap" }}>
                   <Button
                     variant="contained"
                     color="success"
                     startIcon={<CheckCircle />}
-                    onClick={() => setCompleteDialog({ open: true, proofImage: '', notes: '' })}
+                    onClick={() =>
+                      setCompleteDialog({
+                        open: true,
+                        proofImage: "",
+                        notes: "",
+                      })
+                    }
                   >
                     Complete Delivery
                   </Button>
@@ -403,7 +459,9 @@ function LiveTracking() {
                     variant="outlined"
                     color="error"
                     startIcon={<Cancel />}
-                    onClick={() => setFailedDialog({ open: true, reason: '', notes: '' })}
+                    onClick={() =>
+                      setFailedDialog({ open: true, reason: "", notes: "" })
+                    }
                   >
                     Mark as Failed
                   </Button>
@@ -434,30 +492,42 @@ function LiveTracking() {
                 <Typography variant="h6" gutterBottom>
                   Current Location
                 </Typography>
-                
+
                 {location.latitude && location.longitude ? (
                   <Box>
-                    <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                      <GpsFixed sx={{ mr: 1, color: 'success.main' }} />
-                      <Typography variant="body2">
-                        GPS Active
-                      </Typography>
+                    <Box sx={{ display: "flex", alignItems: "center", mb: 2 }}>
+                      <GpsFixed sx={{ mr: 1, color: "success.main" }} />
+                      <Typography variant="body2">GPS Active</Typography>
                     </Box>
-                    <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                    <Typography
+                      variant="body2"
+                      color="text.secondary"
+                      sx={{ mb: 1 }}
+                    >
                       Latitude: {location.latitude.toFixed(6)}
                     </Typography>
-                    <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                    <Typography
+                      variant="body2"
+                      color="text.secondary"
+                      sx={{ mb: 2 }}
+                    >
                       Longitude: {location.longitude.toFixed(6)}
                     </Typography>
                     {location.accuracy && (
-                      <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                      <Typography
+                        variant="body2"
+                        color="text.secondary"
+                        sx={{ mb: 2 }}
+                      >
                         Accuracy: ±{location.accuracy.toFixed(0)}m
                       </Typography>
                     )}
                   </Box>
                 ) : (
-                  <Box sx={{ textAlign: 'center', py: 2 }}>
-                    <GpsFixed sx={{ fontSize: 48, color: 'text.secondary', mb: 1 }} />
+                  <Box sx={{ textAlign: "center", py: 2 }}>
+                    <GpsFixed
+                      sx={{ fontSize: 48, color: "text.secondary", mb: 1 }}
+                    />
                     <Typography variant="body2" color="text.secondary">
                       Location not available
                     </Typography>
@@ -469,7 +539,7 @@ function LiveTracking() {
                 <Typography variant="subtitle2" gutterBottom>
                   Location History
                 </Typography>
-                <Box sx={{ maxHeight: 200, overflow: 'auto' }}>
+                <Box sx={{ maxHeight: 200, overflow: "auto" }}>
                   {locationHistory.length > 0 ? (
                     locationHistory.map((loc, index) => (
                       <Box key={index} sx={{ mb: 1 }}>
@@ -515,21 +585,28 @@ function LiveTracking() {
       )}
 
       {/* Complete Delivery Dialog */}
-      <Dialog open={completeDialog.open} onClose={() => setCompleteDialog({ open: false, proofImage: '', notes: '' })} maxWidth="sm" fullWidth>
+      <Dialog
+        open={completeDialog.open}
+        onClose={() =>
+          setCompleteDialog({ open: false, proofImage: "", notes: "" })
+        }
+        maxWidth="sm"
+        fullWidth
+      >
         <DialogTitle>Complete Delivery</DialogTitle>
         <DialogContent>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
             Please provide proof of delivery to complete this order.
           </Typography>
-          
+
           <input
             ref={fileInputRef}
             type="file"
             accept="image/*"
             onChange={handleImageUpload}
-            style={{ display: 'none' }}
+            style={{ display: "none" }}
           />
-          
+
           <Button
             fullWidth
             variant="outlined"
@@ -539,28 +616,34 @@ function LiveTracking() {
           >
             Upload Delivery Photo
           </Button>
-          
+
           {completeDialog.proofImage && (
-            <Box sx={{ mb: 2, textAlign: 'center' }}>
+            <Box sx={{ mb: 2, textAlign: "center" }}>
               <img
                 src={completeDialog.proofImage}
                 alt="Delivery proof"
-                style={{ maxWidth: '100%', maxHeight: 200 }}
+                style={{ maxWidth: "100%", maxHeight: 200 }}
               />
             </Box>
           )}
-          
+
           <TextField
             fullWidth
             label="Additional Notes (Optional)"
             multiline
             rows={3}
             value={completeDialog.notes}
-            onChange={(e) => setCompleteDialog({ ...completeDialog, notes: e.target.value })}
+            onChange={(e) =>
+              setCompleteDialog({ ...completeDialog, notes: e.target.value })
+            }
           />
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setCompleteDialog({ open: false, proofImage: '', notes: '' })}>
+          <Button
+            onClick={() =>
+              setCompleteDialog({ open: false, proofImage: "", notes: "" })
+            }
+          >
             Cancel
           </Button>
           <Button
@@ -575,7 +658,12 @@ function LiveTracking() {
       </Dialog>
 
       {/* Failed Delivery Dialog */}
-      <Dialog open={failedDialog.open} onClose={() => setFailedDialog({ open: false, reason: '', notes: '' })} maxWidth="sm" fullWidth>
+      <Dialog
+        open={failedDialog.open}
+        onClose={() => setFailedDialog({ open: false, reason: "", notes: "" })}
+        maxWidth="sm"
+        fullWidth
+      >
         <DialogTitle>Mark Delivery as Failed</DialogTitle>
         <DialogContent>
           <TextField
@@ -584,7 +672,9 @@ function LiveTracking() {
             multiline
             rows={3}
             value={failedDialog.reason}
-            onChange={(e) => setFailedDialog({ ...failedDialog, reason: e.target.value })}
+            onChange={(e) =>
+              setFailedDialog({ ...failedDialog, reason: e.target.value })
+            }
             sx={{ mb: 2 }}
             required
           />
@@ -594,11 +684,17 @@ function LiveTracking() {
             multiline
             rows={3}
             value={failedDialog.notes}
-            onChange={(e) => setFailedDialog({ ...failedDialog, notes: e.target.value })}
+            onChange={(e) =>
+              setFailedDialog({ ...failedDialog, notes: e.target.value })
+            }
           />
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setFailedDialog({ open: false, reason: '', notes: '' })}>
+          <Button
+            onClick={() =>
+              setFailedDialog({ open: false, reason: "", notes: "" })
+            }
+          >
             Cancel
           </Button>
           <Button
@@ -617,9 +713,9 @@ function LiveTracking() {
         <Fab
           color="primary"
           sx={{
-            position: 'fixed',
+            position: "fixed",
             bottom: 16,
-            right: 16,
+            left: 16,
           }}
           onClick={updateLocation}
           disabled={trackingLoading}
@@ -634,7 +730,10 @@ function LiveTracking() {
         autoHideDuration={6000}
         onClose={() => setSnackbar({ ...snackbar, open: false })}
       >
-        <Alert severity={snackbar.severity} onClose={() => setSnackbar({ ...snackbar, open: false })}>
+        <Alert
+          severity={snackbar.severity}
+          onClose={() => setSnackbar({ ...snackbar, open: false })}
+        >
           {snackbar.message}
         </Alert>
       </Snackbar>
@@ -642,4 +741,6 @@ function LiveTracking() {
   );
 }
 
-export default LiveTracking;
+export default dynamic(() => Promise.resolve(LiveTracking), {
+  ssr: false,
+});

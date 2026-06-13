@@ -1,4 +1,5 @@
 const { Notification } = require('../models');
+const pushNotificationController = require('./pushNotificationController');
 
 const notificationController = {
   // Get all notifications
@@ -192,6 +193,31 @@ const notificationController = {
         success: false,
         error: 'Failed to update notification settings'
       });
+    }
+  },
+
+  subscribeToPush: async (req, res) => {
+    try {
+      req.body = {
+        deviceToken: req.body.deviceToken || req.body.token,
+        platform: req.body.platform,
+        platformVersion: req.body.platformVersion,
+        deviceModel: req.body.deviceModel,
+        appVersion: req.body.appVersion,
+      };
+      return pushNotificationController.registerDevice(req, res);
+    } catch (error) {
+      console.error('subscribeToPush error:', error);
+      res.status(500).json({ success: false, error: 'Failed to subscribe to push' });
+    }
+  },
+
+  unsubscribeFromPush: async (req, res) => {
+    try {
+      return pushNotificationController.unregisterDevice(req, res);
+    } catch (error) {
+      console.error('unsubscribeFromPush error:', error);
+      res.status(500).json({ success: false, error: 'Failed to unsubscribe from push' });
     }
   }
 };

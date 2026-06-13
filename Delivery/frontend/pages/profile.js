@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/router";
-import axios from "axios";
+import { createAxiosInstance } from "../utils/axiosInstance";
+import dynamic from "next/dynamic";
 import { DELIVERY_API_URL } from "../config/constants";
 import {
   Box,
@@ -32,9 +33,9 @@ import {
   LocationOn,
   Cancel as CancelIcon,
 } from "@mui/icons-material";
-
-export default function DeliveryBoyProfile() {
+function DeliveryBoyProfile() {
   const router = useRouter();
+  const [apiClient] = useState(() => createAxiosInstance(router));
   const [loading, setLoading] = useState(true);
   const [snackbar, setSnackbar] = useState({
     open: false,
@@ -83,13 +84,9 @@ export default function DeliveryBoyProfile() {
 
   const loadProfileData = async () => {
     try {
-      const token = localStorage.getItem("deliveryBoyToken");
-      const response = await axios.get(`${DELIVERY_API_URL}/profile`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      console.log("API Response:", response.data); // Debug log
-
+      const response = await apiClient.get(`/delivery-boy/profile`);
+      const apiData = response.data?.data || response.data;
+      
       // Map vehicle type from backend to frontend
       const vehicleTypeMap = {
         motorcycle: "bike",
@@ -99,10 +96,7 @@ export default function DeliveryBoyProfile() {
         van: "van",
         truck: "truck",
       };
-
-      // Map API response to frontend state structure
-      // Backend returns { success: true, data: deliveryBoy }
-      const apiData = response.data.data || response.data; // Handle both structures
+      
       const mappedProfile = {
         name: `${apiData.firstName || ""} ${apiData.lastName || ""}`.trim(),
         email: apiData.email || "",
@@ -206,9 +200,7 @@ export default function DeliveryBoyProfile() {
       );
 
       // Send formattedPayload instead of the raw profile state
-      await axios.put(`${DELIVERY_API_URL}/profile`, formattedPayload, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      await apiClient.put(`/delivery-boy/profile`, formattedPayload);
 
       setSnackbar({
         open: true,
@@ -220,12 +212,15 @@ export default function DeliveryBoyProfile() {
 
       // Better error logging to see exactly what Mongoose is rejecting
       const errorMessage =
-        error.response?.data?.message || "Error updating profile";
-      setSnackbar({
-        open: true,
-        message: errorMessage,
-        severity: "error",
-      });
+        error.message || error.response?.data?.message || "Error updating profile";
+      
+      if (error.status !== 401) {
+        setSnackbar({
+          open: true,
+          message: errorMessage,
+          severity: "error",
+        });
+      }
     } finally {
       setLoading(false);
     }
@@ -243,13 +238,9 @@ export default function DeliveryBoyProfile() {
 
   const handleToggleAvailability = async () => {
     try {
-      const token = localStorage.getItem("deliveryBoyToken");
-      await axios.put(
-        `${DELIVERY_API_URL}/delivery-boys/availability`,
-        { isAvailable: !profile.isAvailable },
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        },
+      await apiClient.put(
+        `/delivery-boy/availability`,
+        { isAvailable: !profile.isAvailable }
       );
 
       setProfile({ ...profile, isAvailable: !profile.isAvailable });
@@ -791,3 +782,6 @@ export default function DeliveryBoyProfile() {
     </Box>
   );
 }
+export default dynamic(() => Promise.resolve(DeliveryBoyProfile), {
+  ssr: false,
+});

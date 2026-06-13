@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { toast } from "react-toastify";
 import { useCart } from "../contexts/CartContext";
+import { useOrders } from "../contexts/OrderContext";
 import { clearCache } from "../utils/apiCache";
 import axios from "axios";
 import { API_BASE_URL } from "../config/constants";
@@ -45,6 +46,7 @@ const Profile = () => {
   const { user, logout, updateProfile, getCurrentUser } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const { allOrders, setAllOrders, addOrder, refreshOrders, refreshTrigger } = useOrders();
   const [activeTab, setActiveTab] = useState("personal");
   const [isEditing, setIsEditing] = useState(false);
 
@@ -81,7 +83,6 @@ const Profile = () => {
 
   const [addressData, setAddressData] = useState([]);
   const [orders, setOrders] = useState([]);
-  const [allOrders, setAllOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [orderTab, setOrderTab] = useState("active"); // 'active' or 'cancelled'
   const [selectedOrder, setSelectedOrder] = useState(null);
@@ -721,157 +722,20 @@ const Profile = () => {
     );
   };
 
-  // Load orders from backend
+  // Load orders from context
   useEffect(() => {
-    const loadOrders = async () => {
-      try {
-        console.log("Profile - Fetching orders...");
+    // Refresh orders from backend on mount
+    refreshOrders();
+    setLoading(false);
+  }, []);
 
-        // Fetch ALL orders - no status filtering
-        const response = await orderService.getOrders();
-        console.log("Profile - Orders response:", response);
-        console.log("Profile - Orders data:", response.data);
-        console.log("Profile - Orders array:", response.orders);
-        console.log(
-          "Profile - Raw orders length:",
-          response.orders?.length || response.data?.length || 0,
-        );
-
-        // Handle different response formats
-        let ordersArray = [];
-        if (response.orders && Array.isArray(response.orders)) {
-          ordersArray = response.orders;
-        } else if (response.data && response.data.orders) {
-          ordersArray = response.data.orders;
-        } else if (Array.isArray(response.data)) {
-          ordersArray = response.data;
-        } else if (Array.isArray(response)) {
-          ordersArray = response;
-        }
-
-        // ALWAYS ensure status exists
-        ordersArray = ordersArray.map((order) => ({
-          ...order,
-          status: order.status || "pending",
-        }));
-
-        console.log("Profile - Total orders fetched:", ordersArray.length);
-        console.log("Profile - All orders array:", ordersArray);
-
-        // DEBUG: Count cancelled orders
-        const cancelledCount = ordersArray.filter(
-          (o) => normalizeStatus(o.status) === "cancelled",
-        ).length;
-        console.log("Profile - Cancelled orders found:", cancelledCount);
-
-        if (cancelledCount > 0) {
-          console.log("Profile - Cancelled order details:");
-          ordersArray
-            .filter((o) => normalizeStatus(o.status) === "cancelled")
-            .forEach((order, index) => {
-              console.log(
-                `  ${index + 1}. ${order.orderNumber} - Status: ${order.status}`,
-              );
-            });
-        }
-
-        // Store ALL orders
-        setAllOrders(ordersArray);
-      } catch (error) {
-        console.error(
-          "Profile - Orders endpoint not available yet, using mock data:",
-          error,
-        );
-        console.log("Profile - Full error:", error);
-
-        // Mock data for testing UI
-        const mockOrders = [
-          {
-            _id: "mock-order-1",
-            status: "delivered",
-            totalAmount: 1299,
-            createdAt: new Date(
-              Date.now() - 7 * 24 * 60 * 60 * 1000,
-            ).toISOString(),
-            items: [
-              {
-                productSnapshot: {
-                  name: "Premium Birthday Decoration Package",
-                  thumbnail: "https://picsum.photos/seed/birthday/64/64.jpg",
-                  price: 1299,
-                },
-                quantity: 1,
-                unitPrice: 1299,
-              },
-            ],
-          },
-          {
-            _id: "mock-order-2",
-            status: "pending",
-            totalAmount: 899,
-            createdAt: new Date(
-              Date.now() - 2 * 24 * 60 * 60 * 1000,
-            ).toISOString(),
-            items: [
-              {
-                productSnapshot: {
-                  name: "Wedding Anniversary Setup",
-                  thumbnail: "https://picsum.photos/seed/wedding/64/64.jpg",
-                  price: 899,
-                },
-                quantity: 1,
-                unitPrice: 899,
-              },
-            ],
-          },
-          {
-            _id: "mock-order-3",
-            status: "cancelled",
-            totalAmount: 599,
-            createdAt: new Date(
-              Date.now() - 5 * 24 * 60 * 60 * 1000,
-            ).toISOString(),
-            items: [
-              {
-                productSnapshot: {
-                  name: "Corporate Event Decoration",
-                  thumbnail: "https://picsum.photos/seed/corporate/64/64.jpg",
-                  price: 599,
-                },
-                quantity: 1,
-                unitPrice: 599,
-              },
-            ],
-          },
-          {
-            _id: "mock-order-4",
-            status: "cancelled",
-            totalAmount: 799,
-            createdAt: new Date(
-              Date.now() - 2 * 24 * 60 * 60 * 1000,
-            ).toISOString(),
-            items: [
-              {
-                productSnapshot: {
-                  name: "Birthday Party Package",
-                  thumbnail: "https://picsum.photos/seed/birthday/64/64.jpg",
-                  price: 799,
-                },
-                quantity: 1,
-                unitPrice: 799,
-              },
-            ],
-          },
-        ];
-
-        console.log("Profile - Using mock orders for testing:", mockOrders);
-        console.log("Profile - Setting allOrders with mock data");
-        setAllOrders(mockOrders); // Use mock data for testing
-      }
-    };
-
-    loadOrders();
-  }, []); // Load orders only once
+  // Re-filter when allOrders or tab changes (from context)
+  useEffect(() => {
+    if (allOrders && allOrders.length > 0) {
+      setLoading(false);
+      console.log("Profile - Orders updated from context:", allOrders.length);
+    }
+  }, [refreshTrigger, allOrders]);
 
   // Calculate tab counts once for efficiency
   const activeCount = allOrders.filter(
@@ -1111,23 +975,31 @@ const Profile = () => {
   // Notification settings handlers
   const handleNotificationSettingChange = async (setting, value) => {
     try {
-      console.log(` Updating notification setting: ${setting} = ${value}`);
-      console.log(`🔔 Updating notification setting: ${setting} = ${value}`);
-
-      // Update local state immediately for responsive UI
       setNotificationPreferences((prev) => ({ ...prev, [setting]: value }));
 
-      // Save to backend
-      const updatedSettings = { ...notificationPreferences, [setting]: value };
-      const result =
-        await notificationService.updateNotificationSettings(updatedSettings);
-      console.log("🔔 Notification settings saved:", result);
+      if (setting === "push") {
+        const pushService = (await import("../services/pushNotificationService"))
+          .default;
+        if (value) {
+          await pushService.enablePush();
+        } else {
+          await pushService.disablePush();
+        }
+      }
 
-      // Show success message
+      const updatedSettings = { ...notificationPreferences, [setting]: value };
+      await notificationService.updateNotificationSettings(updatedSettings);
       alert("Notification preferences updated successfully!");
     } catch (error) {
       console.error("🔔 Error updating notification settings:", error);
-      alert("Failed to update notification preferences");
+      setNotificationPreferences((prev) => ({
+        ...prev,
+        [setting]: !value,
+      }));
+      alert(
+        error.message ||
+          "Failed to update notification preferences. On mobile, allow notifications when prompted.",
+      );
     }
   };
 
@@ -1148,8 +1020,8 @@ const Profile = () => {
       }
 
       // Call backend API to change password
-      const response = await fetch(`${API_BASE_URL}/api/auth/change-password`, {
-        method: "POST",
+      const response = await fetch(`${API_BASE_URL}/auth/change-password`, {
+        method: "PUT",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${localStorage.getItem("token")}`,
@@ -1169,7 +1041,11 @@ const Profile = () => {
         });
       } else {
         const error = await response.json();
-        alert(error.message || "Failed to change password");
+        const errorMessage = error.errors 
+          ? `Password validation failed:\n${error.errors.join("\n")}`
+          : error.message || "Failed to change password";
+        alert(errorMessage);
+        console.error("Password change error details:", error);
       }
     } catch (error) {
       console.error("Password change error:", error);
@@ -1193,7 +1069,7 @@ const Profile = () => {
       setSecuritySettings((prev) => ({ ...prev, twoFactorEnabled: newStatus }));
 
       // Call backend API to toggle 2FA
-      const response = await fetch(`${API_BASE_URL}/api/auth/toggle-2fa`, {
+      const response = await fetch(`${API_BASE_URL}/auth/toggle-2fa`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -3714,7 +3590,7 @@ const Profile = () => {
                 Push Notifications
               </p>
               <p className="text-sm text-gray-500">
-                Browser notifications for offers
+                Order updates & offers on your phone (APK)
               </p>
             </div>
             <button
@@ -3956,9 +3832,17 @@ const Profile = () => {
                 />
               </div>
               <div className="mt-3 p-3 bg-blue-50 rounded-lg">
-                <p className="text-xs text-blue-700 font-medium">
-                  🔒 Password must be at least 8 characters long
+                <p className="text-xs text-blue-700 font-medium mb-2">
+                  🔒 Password Requirements:
                 </p>
+                <ul className="text-xs text-blue-600 space-y-1">
+                  <li>✓ At least 8 characters</li>
+                  <li>✓ 1 UPPERCASE letter (A-Z)</li>
+                  <li>✓ 1 lowercase letter (a-z)</li>
+                  <li>✓ 1 number (0-9)</li>
+                  <li>✓ 1 special character (@$!%*?&)</li>
+                </ul>
+                <p className="text-xs text-blue-600 mt-2 font-semibold">Example: MyPassword123!</p>
               </div>
             </div>
 

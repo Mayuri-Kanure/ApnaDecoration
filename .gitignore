@@ -169,3 +169,5 @@ jspm_packages/
 
 # Yarn Integrity file
 .yarn-integrity
+config/firebase-service-account.json
+firebase data/

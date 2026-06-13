@@ -50,7 +50,9 @@ const AddService = () => {
     description: '',
     serviceType: 'Party',
     price: '',
-    images: [],
+    stock: '',
+    images: [],  // Array of objects with { url, name }
+    imageFiles: [],  // Actual File objects for upload
     bannerImage: '',
     bannerImageFile: null,
     featured: false,
@@ -91,16 +93,25 @@ const AddService = () => {
         headers: { Authorization: `Bearer ${token}` }
       });
       const service = response.data.data;
+      
+      // Convert existing image URLs to the object format { url, name }
+      const existingImages = (service.images || []).map(url => ({
+        url,
+        name: url.split('/').pop() || 'image'
+      }));
+      
       setServiceData({
         name: service.name || '',
         description: service.description || '',
         serviceType: service.serviceType || 'Party',
         price: service.price || '',
-        images: service.images || [],
+        stock: service.stock || '',
+        images: existingImages,  // URLs from database
+        imageFiles: [],  // No new files yet in edit mode
         bannerImage: service.bannerImage || '',
-        featured: service.featured || false,
-        availability: service.availability !== undefined ? service.availability : true,
-        customizationAvailable: service.customizationAvailable !== undefined ? service.customizationAvailable : true
+        featured: !!service.featured,  // Ensure it's a boolean
+        availability: service.availability !== false,  // Default to true if not explicitly false
+        customizationAvailable: service.customizationAvailable !== false  // Default to true if not explicitly false
       });
     } catch (error) {
       console.error('Error fetching service:', error);
@@ -127,26 +138,39 @@ const AddService = () => {
   const handleImageUpload = (event) => {
     const files = event.target.files;
     if (files.length > 0) {
-      Array.from(files).forEach(file => {
-        const reader = new FileReader();
-        reader.onload = (e) => {
-          setServiceData(prev => ({
-            ...prev,
-            images: [...prev.images, e.target.result]
-          }));
+      setServiceData(prev => {
+        const newFiles = Array.from(files);
+        const newImageFiles = [...(prev.imageFiles || []), ...newFiles];
+        
+        // Create preview URLs for display (not base64)
+        const newImages = [...prev.images];
+        newFiles.forEach(file => {
+          const url = URL.createObjectURL(file);
+          newImages.push({ url, name: file.name });
+        });
+        
+        return {
+          ...prev,
+          images: newImages,
+          imageFiles: newImageFiles
         };
-        reader.readAsDataURL(file);
       });
     }
-    // Reset the input
     event.target.value = '';
   };
 
   const handleImageRemove = (index) => {
-    setServiceData(prev => ({
-      ...prev,
-      images: prev.images.filter((_, i) => i !== index)
-    }));
+    setServiceData(prev => {
+      const removed = prev.images[index];
+      if (removed && removed.url && removed.url.startsWith('blob:')) {
+        URL.revokeObjectURL(removed.url);
+      }
+      return {
+        ...prev,
+        images: prev.images.filter((_, i) => i !== index),
+        imageFiles: (prev.imageFiles || []).filter((_, i) => i !== index)
+      };
+    });
   };
 
   const handleBannerImageUpload = (event) => {
@@ -177,6 +201,10 @@ const AddService = () => {
       setError('Valid price is required');
       return false;
     }
+    if (serviceData.stock === '' || serviceData.stock === null || serviceData.stock === undefined || serviceData.stock < 0) {
+      setError('Stock quantity is required and must be 0 or greater');
+      return false;
+    }
     return true;
   };
 
@@ -199,16 +227,21 @@ const AddService = () => {
       formData.append('description', serviceData.description);
       formData.append('serviceType', serviceData.serviceType);
       formData.append('price', parseFloat(serviceData.price));
-      formData.append('featured', serviceData.featured);
-      formData.append('availability', serviceData.availability);
-      formData.append('customizationAvailable', serviceData.customizationAvailable);
+      formData.append('stock', parseInt(serviceData.stock) || 0);
+      // Send booleans as explicit strings for backend parsing
+      formData.append('featured', String(serviceData.featured));
+      formData.append('availability', String(serviceData.availability));
+      formData.append('customizationAvailable', String(serviceData.customizationAvailable));
       
       if (serviceData.bannerImageFile) {
         formData.append('bannerImage', serviceData.bannerImageFile);
       }
       
-      if (serviceData.images.length > 0) {
-        formData.append('images', JSON.stringify(serviceData.images));
+      // Append actual File objects for Cloudinary upload
+      if (serviceData.imageFiles && serviceData.imageFiles.length > 0) {
+        serviceData.imageFiles.forEach(file => {
+          formData.append('images', file);
+        });
       }
 
       const pathParts = window.location.pathname.split('/');
@@ -327,6 +360,20 @@ const AddService = () => {
                       value={serviceData.price}
                       onChange={(e) => handleInputChange('price', e.target.value)}
                       required
+                      InputProps={{
+                        startAdornment: <CurrencyRupee sx={{ mr: 1, color: 'text.secondary' }} />
+                      }}
+                    />
+                  </Grid>
+                  <Grid item xs={12} md={6}>
+                    <TextField
+                      fullWidth
+                      label="Stock Quantity"
+                      type="number"
+                      value={serviceData.stock}
+                      onChange={(e) => handleInputChange('stock', e.target.value)}
+                      inputProps={{ min: 0 }}
+                      helperText="Number of available slots or items"
                       InputProps={{
                         startAdornment: <CurrencyRupee sx={{ mr: 1, color: 'text.secondary' }} />
                       }}
@@ -461,7 +508,7 @@ const AddService = () => {
                       <Grid item xs={12} sm={6} md={4} key={index}>
                         <Paper sx={{ position: 'relative' }}>
                           <img
-                            src={image}
+                            src={image.url || image}
                             alt={`Service image ${index + 1}`}
                             style={{
                               width: '100%',
@@ -483,7 +530,7 @@ const AddService = () => {
                               size="small"
                               onClick={() => setServiceData(prev => ({
                                 ...prev,
-                                bannerImage: image
+                                bannerImage: image.url || image
                               }))}
                               sx={{
                                 backgroundColor: 'rgba(255,255,255,0.9)',
@@ -505,7 +552,7 @@ const AddService = () => {
                               <Delete fontSize="small" />
                             </IconButton>
                           </Box>
-                          {serviceData.bannerImage === image && (
+                          {serviceData.bannerImage === (image.url || image) && (
                             <Chip
                               label="Banner"
                               size="small"

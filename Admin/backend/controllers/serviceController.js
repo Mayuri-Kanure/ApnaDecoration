@@ -155,9 +155,10 @@ exports.createService = async (req, res) => {
       description: req.body.description,
       serviceType: req.body.serviceType,
       price: parseFloat(req.body.price),
-      featured: req.body.featured === 'true',
-      availability: req.body.availability === 'true',
-      customizationAvailable: req.body.customizationAvailable === 'true',
+      stock: parseInt(req.body.stock) || 0,
+      featured: req.body.featured === true || req.body.featured === 'true',
+      availability: req.body.availability === true || req.body.availability === 'true',
+      customizationAvailable: req.body.customizationAvailable === true || req.body.customizationAvailable === 'true',
       bannerImage: bannerImagePath,
       images: additionalImages.length > 0 ? additionalImages : []
     };
@@ -257,18 +258,23 @@ exports.updateService = async (req, res) => {
     
     // Handle featured, availability, customizationAvailable boolean fields
     if (req.body.featured !== undefined) {
-      updateData.featured = req.body.featured === 'true';
+      updateData.featured = req.body.featured === true || req.body.featured === 'true';
     }
     if (req.body.availability !== undefined) {
-      updateData.availability = req.body.availability === 'true';
+      updateData.availability = req.body.availability === true || req.body.availability === 'true';
     }
     if (req.body.customizationAvailable !== undefined) {
-      updateData.customizationAvailable = req.body.customizationAvailable === 'true';
+      updateData.customizationAvailable = req.body.customizationAvailable === true || req.body.customizationAvailable === 'true';
     }
     
     // Handle price
     if (req.body.price !== undefined) {
       updateData.price = parseFloat(req.body.price);
+    }
+    
+    // Handle stock
+    if (req.body.stock !== undefined) {
+      updateData.stock = parseInt(req.body.stock) || 0;
     }
     
     console.log('🔍 Update data:', updateData);

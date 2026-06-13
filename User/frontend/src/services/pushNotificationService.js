@@ -1,82 +1,130 @@
 import { Capacitor } from "@capacitor/core";
-import { Device } from "@capacitor/device";
-import { PushNotifications } from "@capacitor/push-notifications";
 import { API_BASE_URL } from "../config/constants";
 
 class PushNotificationService {
   constructor() {
     this.isInitialized = false;
-    this.deviceToken = null;
+    this.listenersAttached = false;
+    this.deviceToken =
+      typeof localStorage !== "undefined"
+        ? localStorage.getItem("fcmDeviceToken")
+        : null;
     this.notificationListeners = new Map();
     this.isNative = Capacitor.isNativePlatform();
   }
 
-  // Initialize push notifications
-  async initialize() {
-    try {
-      console.log("🔧 Initializing push notifications...");
+  async attachNativeListeners(PushNotifications) {
+    if (this.listenersAttached) return;
+    this.listenersAttached = true;
 
+    await PushNotifications.addListener("registration", (token) => {
+      const value = token?.value || token?.token;
+      if (!value) return;
+      console.log("✅ FCM token received");
+      this.deviceToken = value;
+      localStorage.setItem("fcmDeviceToken", value);
+      this.sendTokenToServer(value);
+    });
+
+    await PushNotifications.addListener("registrationError", (error) => {
+      console.error("❌ Push registration error:", error);
+    });
+
+    await PushNotifications.addListener(
+      "pushNotificationReceived",
+      (notification) => {
+        this.handleReceivedNotification({
+          title: notification.title,
+          body: notification.body,
+          data: notification.data,
+        });
+      },
+    );
+
+    await PushNotifications.addListener(
+      "pushNotificationActionPerformed",
+      (action) => {
+        this.handleNotificationAction(action);
+      },
+    );
+  }
+
+  /** @param {boolean} requestPermission - ask user (Profile toggle / enable) */
+  async initialize(requestPermission = false) {
+    try {
       if (!this.isNative) {
-        console.log("⚠️ Not on native platform, using web push notifications");
-        return this.initializeWebPush();
+        return false;
       }
 
-      // Dynamically import Capacitor plugins only on native platform
       const { PushNotifications } =
         await import("@capacitor/push-notifications");
-      const { Device } = await import("@capacitor/device");
 
-      // Request permission
-      const permission = await PushNotifications.requestPermissions();
+      await this.attachNativeListeners(PushNotifications);
 
-      if (permission.receive !== "granted") {
-        console.log("❌ Push notification permission denied");
-        throw new Error("Push notification permission denied");
+      let permission = await PushNotifications.checkPermissions();
+      if (requestPermission && permission.receive === "prompt") {
+        permission = await PushNotifications.requestPermissions();
       }
 
-      // Register for push notifications
+      if (permission.receive !== "granted") {
+        return false;
+      }
+
       await PushNotifications.register();
-
-      // Get device token
-      const result = await PushNotifications.addListener(
-        "registration",
-        (token) => {
-          console.log("✅ Push notification token received:", token);
-          this.deviceToken = token.token;
-          this.sendTokenToServer(token.token);
-        },
-      );
-
-      // Handle notification errors
-      await PushNotifications.addListener("registrationError", (error) => {
-        console.error("❌ Push notification registration error:", error);
-      });
-
-      // Handle received notifications
-      await PushNotifications.addListener(
-        "pushNotificationReceived",
-        (notification) => {
-          console.log("📱 Push notification received:", notification);
-          this.handleReceivedNotification(notification);
-        },
-      );
-
-      // Handle notification action
-      await PushNotifications.addListener(
-        "pushNotificationActionPerformed",
-        (notification) => {
-          console.log("📱 Push notification action performed:", notification);
-          this.handleNotificationAction(notification);
-        },
-      );
-
       this.isInitialized = true;
-      console.log("✅ Push notifications initialized successfully");
+
+      const cached = localStorage.getItem("fcmDeviceToken");
+      if (cached && localStorage.getItem("token")) {
+        this.deviceToken = cached;
+        await this.sendTokenToServer(cached);
+      }
 
       return true;
     } catch (error) {
       console.error("❌ Error initializing push notifications:", error);
-      throw error;
+      return false;
+    }
+  }
+
+  async enablePush() {
+    const ok = await this.initialize(true);
+    if (!ok) {
+      throw new Error(
+        "Notification permission denied. Enable notifications in phone Settings.",
+      );
+    }
+    return true;
+  }
+
+  async disablePush() {
+    const token =
+      this.deviceToken || localStorage.getItem("fcmDeviceToken");
+    const userToken = localStorage.getItem("token");
+
+    if (token && userToken) {
+      try {
+        await fetch(`${API_BASE_URL}/push-notifications/unregister-device`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${userToken}`,
+          },
+          body: JSON.stringify({ deviceToken: token }),
+        });
+      } catch (e) {
+        console.warn("unregister device failed", e);
+      }
+    }
+
+    localStorage.removeItem("fcmDeviceToken");
+    this.deviceToken = null;
+  }
+
+  async resumeAfterLogin() {
+    if (!this.isNative || !localStorage.getItem("token")) return;
+    const permission = await this.getPermissionStatus();
+    if (permission.receive === "granted") {
+      await this.initialize(false);
     }
   }
 
@@ -134,7 +182,7 @@ class PushNotificationService {
       }
 
       const response = await fetch(
-        `${API_BASE_URL}/api/push-notifications/register-device`,
+        `${API_BASE_URL}/push-notifications/register-device`,
         {
           method: "POST",
           headers: {
@@ -295,7 +343,7 @@ class PushNotificationService {
       }
 
       const response = await fetch(
-        `${API_BASE_URL}/api/push-notifications/subscribe-to-topic`,
+        `${API_BASE_URL}/push-notifications/subscribe-to-topic`,
         {
           method: "POST",
           headers: {
@@ -338,7 +386,7 @@ class PushNotificationService {
       }
 
       const response = await fetch(
-        `${API_BASE_URL}/api/push-notifications/unsubscribe-from-topic`,
+        `${API_BASE_URL}/push-notifications/unsubscribe-from-topic`,
         {
           method: "POST",
           headers: {
@@ -402,29 +450,24 @@ class PushNotificationService {
 
   // Send test notification
   async sendTestNotification() {
-    try {
-      console.log("🔧 Sending test notification...");
-
-      if (!this.isInitialized) {
-        throw new Error("Push notifications not initialized");
-      }
-
-      const notification = {
-        title: "Test Notification",
-        body: "This is a test notification from APNA Decoration",
-        data: {
-          type: "test",
-          timestamp: new Date().toISOString(),
-        },
-      };
-
-      this.handleReceivedNotification(notification);
-
-      return { success: true, message: "Test notification sent" };
-    } catch (error) {
-      console.error("❌ Error sending test notification:", error);
-      throw error;
+    const userToken = localStorage.getItem("token");
+    if (!userToken) {
+      throw new Error("Please log in first");
     }
+
+    const response = await fetch(`${API_BASE_URL}/push-notifications/test`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${userToken}`,
+      },
+    });
+
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data.message || "Failed to send test push");
+    }
+    return data;
   }
 
   // Clear all notifications

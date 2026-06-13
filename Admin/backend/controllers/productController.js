@@ -84,14 +84,12 @@ function getClearanceSort(sort) {
 // Get all products (public endpoint) - includes regular products and approved vendor products
 exports.getAllProducts = async (req, res) => {
   try {
-    // Fetch regular products
-    const products = await Product.find({ status: "active" });
+    // Fetch ALL regular products (admin can see all statuses)
+    const products = await Product.find({});
 
-    // Fetch approved vendor products
-    const vendorProducts = await VendorProduct.find({
-      status: "approved",
-    }).select(
-      "name description price category sku images thumbnail createdAt stock",
+    // Fetch approved vendor products only
+    const vendorProducts = await VendorProduct.find({ status: "approved" }).select(
+      "name description price category sku images thumbnail createdAt stock status",
     );
 
     // Combine both arrays
@@ -120,7 +118,15 @@ exports.getAllProducts = async (req, res) => {
 // Get single product by ID (public endpoint)
 exports.getProductById = async (req, res) => {
   try {
-    const product = await Product.findById(req.params.id);
+    // Try regular product first
+    let product = await Product.findById(req.params.id);
+    let source = "regular";
+
+    // If not found, try vendor product
+    if (!product) {
+      product = await VendorProduct.findById(req.params.id);
+      source = "vendor";
+    }
 
     if (!product) {
       return res.status(404).json({ message: "Product not found" });
@@ -133,6 +139,7 @@ exports.getProductById = async (req, res) => {
       data: {
         ...productObj,
         id: product._id.toString(),
+        source: source,
         // Add compatibility fields for frontend
         name: productObj.product_name_en || productObj.name,
         description: productObj.description_en || productObj.description,
@@ -148,15 +155,33 @@ exports.getProductById = async (req, res) => {
 // Get featured products (public endpoint)
 exports.getFeaturedProducts = async (req, res) => {
   try {
+    // Get featured regular products
     const products = await Product.find({
       status: "active",
       $or: [{ featured: true }, { is_featured: true }],
     });
-    res.json({
-      products: products.map((product) => ({
+
+    // Get featured vendor products (if approved)
+    const vendorProducts = await VendorProduct.find({
+      status: "approved",
+      $or: [{ featured: true }, { is_featured: true }],
+    });
+
+    const allFeatured = [
+      ...products.map((product) => ({
         ...product.toObject(),
         id: product._id.toString(),
+        source: "regular",
       })),
+      ...vendorProducts.map((product) => ({
+        ...product.toObject(),
+        id: product._id.toString(),
+        source: "vendor",
+      })),
+    ];
+
+    res.json({
+      products: allFeatured,
     });
   } catch (error) {
     res.status(500).json({ message: "Server error", error: error.message });
@@ -166,7 +191,15 @@ exports.getFeaturedProducts = async (req, res) => {
 // Toggle featured status
 exports.toggleFeatured = async (req, res) => {
   try {
-    const product = await Product.findById(req.params.id);
+    // Try regular product first
+    let product = await Product.findById(req.params.id);
+    let source = "regular";
+
+    // If not found, try vendor product
+    if (!product) {
+      product = await VendorProduct.findById(req.params.id);
+      source = "vendor";
+    }
 
     if (!product) {
       return res.status(404).json({ message: "Product not found" });
@@ -183,6 +216,7 @@ exports.toggleFeatured = async (req, res) => {
         id: product._id.toString(),
         featured: product.featured,
         is_featured: product.is_featured,
+        source: source,
       },
     });
   } catch (error) {
@@ -200,6 +234,7 @@ exports.searchProducts = async (req, res) => {
       return res.status(400).json({ message: "Search query is required" });
     }
 
+    // Search in regular products
     const products = await Product.find({
       status: "active",
       $or: [
@@ -208,11 +243,30 @@ exports.searchProducts = async (req, res) => {
       ],
     });
 
-    res.json({
-      products: products.map((product) => ({
+    // Search in vendor products (approved only)
+    const vendorProducts = await VendorProduct.find({
+      status: "approved",
+      $or: [
+        { name: { $regex: q, $options: "i" } },
+        { description: { $regex: q, $options: "i" } },
+      ],
+    });
+
+    const allResults = [
+      ...products.map((product) => ({
         ...product.toObject(),
         id: product._id.toString(),
+        source: "regular",
       })),
+      ...vendorProducts.map((product) => ({
+        ...product.toObject(),
+        id: product._id.toString(),
+        source: "vendor",
+      })),
+    ];
+
+    res.json({
+      products: allResults,
     });
   } catch (error) {
     res.status(500).json({ message: "Server error", error: error.message });
@@ -555,24 +609,46 @@ exports.updateProduct = async (req, id, data, imagePaths) => {
 exports.deleteProduct = async (req, res) => {
   try {
     const { id } = req.params;
-    const product = await Product.findById(id);
 
-    if (!product) {
-      return res.status(404).json({
+    // Validate MongoDB ObjectId format
+    if (!id.match(/^[0-9a-fA-F]{24}$/)) {
+      return res.status(400).json({
         success: false,
-        message: "Product not found",
+        message: "Invalid product ID format",
       });
     }
 
-    // Actually delete from database (not soft delete)
-    await Product.findByIdAndDelete(id);
+    // Try to delete from regular Product collection first
+    let deletedProduct = await Product.findByIdAndDelete(id);
 
-    // Also delete associated images from filesystem (optional)
-    // This ensures complete cleanup
+    if (deletedProduct) {
+      console.log(`✅ Regular product deleted successfully: ${id}`);
+      return res.json({
+        success: true,
+        message: "Product deleted successfully from database",
+        deletedId: id,
+        source: "regular",
+      });
+    }
 
-    res.json({
-      success: true,
-      message: "Product deleted successfully from database",
+    // If not found in Product, try VendorProduct collection
+    deletedProduct = await VendorProduct.findByIdAndDelete(id);
+
+    if (deletedProduct) {
+      console.log(`✅ Vendor product deleted successfully: ${id}`);
+      return res.json({
+        success: true,
+        message: "Vendor product deleted successfully from database",
+        deletedId: id,
+        source: "vendor",
+      });
+    }
+
+    // Product not found in either collection
+    console.log(`Product not found in either collection: ${id}`);
+    return res.status(404).json({
+      success: false,
+      message: "Product not found in either regular or vendor products",
     });
   } catch (error) {
     console.error("Delete product error:", error);

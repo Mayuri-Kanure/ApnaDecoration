@@ -3,8 +3,10 @@ import { Link, useSearchParams, useNavigate } from "react-router-dom";
 import { IMAGE_BASE_URL } from "../config/constants";
 import { useProducts } from "../contexts/ProductContext";
 import categoryService from "../services/categoryService";
+import { isProductService, getProductRoute } from "../utils/serviceDetector";
 import { useCart } from "../contexts/CartContext";
 import { useToast } from "../contexts/ToastContext";
+import AdvancedFilters from "../components/AdvancedFilters";
 import {
   ShoppingBag,
   Heart,
@@ -66,6 +68,17 @@ const Products = () => {
   const [searchLoading, setSearchLoading] = useState(false);
   const [searchDropdownOpen, setSearchDropdownOpen] = useState(false);
   const searchRef = useRef(null);
+
+  // Advanced Filters State
+  const [advancedFilters, setAdvancedFilters] = useState({
+    minRating: 0,
+    inStock: false,
+    onSale: false,
+    newArrivals: false,
+    hasDiscount: false,
+    condition: 'all',
+    selectedCategories: [],
+  });
 
   // Fetch categories
   useEffect(() => {
@@ -205,6 +218,7 @@ const Products = () => {
       selectedCategory,
       searchTerm,
       showFeaturedOnly,
+      advancedFilters,
     });
 
     return products.filter((p) => {
@@ -240,23 +254,51 @@ const Products = () => {
       // Featured filtering
       const matchFeatured = !showFeaturedOnly || p.featured || p.is_featured;
 
+      // Advanced Filters
+      // Rating filter
+      const matchRating = advancedFilters.minRating === 0 || 
+        (p.rating || 0) >= advancedFilters.minRating;
+
+      // Stock filter
+      const matchStock = !advancedFilters.inStock || p.inStock !== false;
+
+      // Sale filter
+      const matchSale = !advancedFilters.onSale || p.onSale || p.salePrice;
+
+      // Discount filter
+      const hasDiscount = p.originalPrice && p.price && p.price < p.originalPrice;
+      const matchDiscount = !advancedFilters.hasDiscount || hasDiscount;
+
+      // New Arrivals filter
+      const isNew = p.isNew || (p.createdAt && new Date(p.createdAt) > new Date(Date.now() - 7 * 24 * 60 * 60 * 1000));
+      const matchNewArrivals = !advancedFilters.newArrivals || isNew;
+
+      // Category multi-select filter
+      const matchSelectedCategories = advancedFilters.selectedCategories.length === 0 ||
+        advancedFilters.selectedCategories.includes(categoryId) ||
+        advancedFilters.selectedCategories.includes(p.category_id?._id);
+
       // Final decision
       const shouldShow =
-        matchSearch && matchCategory && matchPrice && matchFeatured;
+        matchSearch && matchCategory && matchPrice && matchFeatured &&
+        matchRating && matchStock && matchSale && matchDiscount && matchNewArrivals && matchSelectedCategories;
 
       console.log(`Product ${p.name}:`, {
         matchSearch,
         matchCategory,
         matchPrice,
         matchFeatured,
+        matchRating,
+        matchStock,
+        matchSale,
+        matchDiscount,
+        matchNewArrivals,
         shouldShow,
-        categoryId: p.category_id,
-        category: p.category,
       });
 
       return shouldShow;
     });
-  }, [products, searchTerm, selectedCategory, priceRange, showFeaturedOnly]);
+  }, [products, searchTerm, selectedCategory, priceRange, showFeaturedOnly, advancedFilters]);
 
   /* ---------------- SORTING ---------------- */
   const sortedProducts = useMemo(() => {
@@ -293,10 +335,9 @@ const Products = () => {
 
     // Use fallback ID for navigation
     const productId = product._id || product.id;
-    const isService = product.type === "service";
-    console.log("🔍 ProductCard - Product:", product);
-    console.log("🔍 ProductCard - ProductId:", productId);
-    console.log("🔍 ProductCard - IsService:", isService);
+    // Use robust service detection utility (checks multiple indicators)
+    const isService = isProductService(product);
+    console.log(`🔍 ProductCard - ${product.name} - IsService:`, isService);
 
     if (!productId) {
       return (
@@ -499,22 +540,25 @@ const Products = () => {
     e.stopPropagation();
 
     try {
-      // Normalize product category before adding to cart
+      // Normalize product category before passing to checkout
       const normalizedProduct = {
         ...product,
         category:
           typeof product.category === "object"
             ? product.category?.name || ""
             : product.category || "",
+        quantity: 1,
       };
-      await addToCart(normalizedProduct, 1);
-      success(`${product.name} added to cart! Redirecting to checkout...`);
-      // Navigate to checkout after a short delay
-      setTimeout(() => {
-        navigate("/checkout");
-      }, 1000);
+      
+      success(`Redirecting to checkout...`);
+      // Navigate to checkout with buyNowItem in state
+      navigate("/checkout", {
+        state: {
+          buyNowItem: normalizedProduct,
+        },
+      });
     } catch (error) {
-      showError("Failed to add to cart");
+      showError("Failed to proceed to checkout");
     }
   };
 
@@ -724,6 +768,15 @@ const Products = () => {
               <option value="rating">Highest Rated</option>
             </select>
           </div>
+
+          {/* Advanced Filters - Desktop */}
+          <div className="mb-6">
+            <AdvancedFilters
+              filters={advancedFilters}
+              onFiltersChange={setAdvancedFilters}
+              categories={categories}
+            />
+          </div>
         </aside>
 
         <div className="flex-1">
@@ -813,6 +866,15 @@ const Products = () => {
                       <option value="price-high">Price: High to Low</option>
                       <option value="rating">Highest Rated</option>
                     </select>
+                  </div>
+
+                  {/* Advanced Filters - Mobile */}
+                  <div>
+                    <AdvancedFilters
+                      filters={advancedFilters}
+                      onFiltersChange={setAdvancedFilters}
+                      categories={categories}
+                    />
                   </div>
 
                   {/* Featured Only */}

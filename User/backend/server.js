@@ -29,7 +29,7 @@ const {
   StockReservation,
 } = require("./models");
 const CustomerReview = require("./models/CustomerReview");
-
+const deviceTokenCleanupScheduler = require('./services/deviceTokenCleanupScheduler');
 // Import routes
 const authRoutes = require("./routes/auth");
 const vendorAuthRoutes = require("./routes/vendorAuth");
@@ -60,7 +60,8 @@ const monitoringRoutes = require("./routes/monitoring");
 const performanceRoutes = require("./routes/performance");
 
 const app = express();
-app.set("trust proxy", 1);
+// CRITICAL FOR HOSTINGER/REVERSE PROXY: Trust X-Forwarded-For headers
+app.set("trust proxy", true);
 // Connect to MongoDB
 connectDB();
 
@@ -97,19 +98,27 @@ app.use(
         "https://user-api.apnadecoration.com",
       ];
 
-      if (allowedOrigins.indexOf(origin) !== -1 || !origin) {
+      const isAllowed = allowedOrigins.indexOf(origin) !== -1 || !origin;
+      console.log(`✅ CORS Request - Origin: ${origin} - Allowed: ${isAllowed}`);
+      
+      if (isAllowed) {
         callback(null, true);
       } else {
-        console.log("CORS blocked origin:", origin);
+        console.log("❌ CORS blocked origin:", origin);
         callback(new Error("Not allowed by CORS"));
       }
     },
     credentials: true,
-    methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
+    methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "HEAD"],
+    allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With", "Accept"],
+    exposedHeaders: ["Content-Type", "Authorization"],
     optionsSuccessStatus: 200,
+    maxAge: 3600,
   }),
 );
+
+// Explicit preflight handler
+app.options("*", cors());
 
 // Security middleware
 app.use(
@@ -204,6 +213,15 @@ app.get("/health", (req, res) => {
   });
 });
 
+// Health check endpoint at API path (for frontend compatibility)
+app.get("/api/health", (req, res) => {
+  res.json({
+    status: "OK",
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+  });
+});
+
 // Root endpoint
 app.get("/", (req, res) => {
   res.json({
@@ -227,6 +245,7 @@ app.use("/api/products", productRoutes);
 app.use("/api/vendor-products", vendorProductRoutes);
 app.use("/api/vendor-orders", require("./routes/vendorOrders"));
 app.use("/api/vendor-analytics", require("./routes/vendorAnalytics"));
+app.use("/api/vendor-notifications", require("./routes/vendorNotifications"));
 app.use("/api/cart", cartRoutes);
 app.use("/api/service-categories", serviceCategoryRoutes);
 app.use("/api/home-page-service-categories", homePageServiceCategoriesRoutes);
@@ -317,6 +336,10 @@ const PORT = process.env.PORT || 5002;
 
 const startServer = async () => {
   try {
+    // Initialize device token cleanup scheduler
+    await deviceTokenCleanupScheduler.startupCleanup();
+    deviceTokenCleanupScheduler.start(); // Runs daily at midnight
+    
     // Start server
     app.listen(PORT, "0.0.0.0", () => {
       console.log(`Server running on port ${PORT}`);
@@ -362,7 +385,22 @@ process.on("SIGINT", async () => {
   }
 });
 
-// Start the server
-startServer();
+// Start the server - ONLY if this file is run directly, not when required by Hostinger
+if (require.main === module) {
+  startServer();
+} else {
+  // If Hostinger or another environment is requiring this file, just initialize schedulers
+  // and export the app for the environment to start
+  (async () => {
+    try {
+      await deviceTokenCleanupScheduler.startupCleanup();
+      deviceTokenCleanupScheduler.start();
+      console.log('✅ Background schedulers initialized (hosted environment mode)');
+    } catch (error) {
+      console.error('❌ Error initializing schedulers:', error);
+    }
+  })();
+}
 
+// Export app for environments like Hostinger that need it
 module.exports = app;

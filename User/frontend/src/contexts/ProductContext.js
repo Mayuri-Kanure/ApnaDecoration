@@ -1,5 +1,6 @@
 import { createContext, useState, useEffect, useRef, useContext } from "react";
 import productService from "../services/productService";
+import serviceService from "../services/serviceService";
 import { robustFetch } from "../utils/fetchUtils";
 import { API_BASE_URL } from "../config/constants";
 
@@ -14,6 +15,7 @@ export const ProductProvider = ({ children }) => {
   const [categories, setCategories] = useState([]);
   const mounted = useRef(false);
   const productsLoadedRef = useRef(false);
+  const featuredRefreshIntervalRef = useRef(null);
 
   // Fetch all data once when component mounts
   useEffect(() => {
@@ -34,12 +36,10 @@ export const ProductProvider = ({ children }) => {
                 console.error("❌ Products API failed:", err);
                 return { data: [] };
               }),
-              fetch(`${API_BASE_URL}/services`)
-                .then((r) => r.json())
-                .catch((err) => {
-                  console.error("❌ Services API failed:", err);
-                  return { data: [] };
-                }),
+              serviceService.getServices().catch((err) => {
+                console.error("❌ Services API failed:", err);
+                return [];
+              }),
               robustFetch("/vendor-products")
                 .then((r) => {
                   if (r.status === 401 || r.status === 403) {
@@ -155,8 +155,9 @@ export const ProductProvider = ({ children }) => {
             return isFeatured;
           });
 
-          // Transform services to match product structure
+          // Transform services to match product structure (keep all original fields)
           const transformedServices = servicesArray.map((service) => ({
+            ...service, // Keep all original fields
             _id: service._id || service.id,
             id: service._id || service.id,
             name: service.name || "Service",
@@ -167,9 +168,12 @@ export const ProductProvider = ({ children }) => {
               service.bannerImage ||
               service.images?.[0] ||
               null,
+            bannerImage: service.bannerImage || null,
+            images: service.images || [],
             category: service.category || "service",
             featured: service.featured === true || service.is_featured === true,
             stockQuantity: service.stock || 0,
+            stock: service.stock || 0,
             tags: service.tags || [],
             sku: service.sku || null,
             type: "service",
@@ -232,6 +236,94 @@ export const ProductProvider = ({ children }) => {
     return () => clearTimeout(timer);
   }, []); // Empty dependency array - only run once on mount
 
+  // Listen for cache clear signals from admin panel
+  useEffect(() => {
+    const handleStorageChange = (e) => {
+      if (e.key === "CLEAR_FEATURED_CACHE") {
+        console.log("📩 Received cache clear signal from admin panel");
+        // Trigger immediate refresh of featured products
+        const refreshFeatured = async () => {
+          try {
+            const response = await fetch(`${API_BASE_URL}/products/featured`);
+            if (response.ok) {
+              const data = await response.json();
+              let featuredArray = Array.isArray(data) ? data : data?.data || [];
+              
+              const transformedFeatured = featuredArray.map((p) => ({
+                _id: p._id || p.id,
+                id: p._id || p.id,
+                name: p.product_name_en || p.name || "Decoration Item",
+                description: p.description_en || p.description || "",
+                price: p.unit_price || p.price || 0,
+                thumbnail: p.thumbnail || p.images?.[0] || null,
+                category: p.category || "other",
+                featured: true,
+                stockQuantity: Number(p.stock) || 0,
+                stock: Number(p.stock) || 0,
+                tags: p.tags || [],
+                sku: p.sku || null,
+              }));
+              
+              setFeaturedProducts(transformedFeatured);
+              console.log("✅ Featured products synced from admin update:", transformedFeatured.length);
+            }
+          } catch (err) {
+            console.error("❌ Error syncing featured products:", err);
+          }
+        };
+        refreshFeatured();
+      }
+    };
+
+    window.addEventListener("storage", handleStorageChange);
+    return () => window.removeEventListener("storage", handleStorageChange);
+  }, []);
+  useEffect(() => {
+    if (productsLoadedRef.current) {
+      console.log("⏰ Starting featured products auto-refresh (30s interval)");
+      
+      // Initial refresh
+      const refreshFeatured = async () => {
+        try {
+          const response = await fetch(`${API_BASE_URL}/products/featured`);
+          if (response.ok) {
+            const data = await response.json();
+            let featuredArray = Array.isArray(data) ? data : data?.data || [];
+            
+            const transformedFeatured = featuredArray.map((p) => ({
+              _id: p._id || p.id,
+              id: p._id || p.id,
+              name: p.product_name_en || p.name || "Decoration Item",
+              description: p.description_en || p.description || "",
+              price: p.unit_price || p.price || 0,
+              thumbnail: p.thumbnail || p.images?.[0] || null,
+              category: p.category || "other",
+              featured: true,
+              stockQuantity: Number(p.stock) || 0,
+              stock: Number(p.stock) || 0,
+              tags: p.tags || [],
+              sku: p.sku || null,
+            }));
+            
+            setFeaturedProducts(transformedFeatured);
+            console.log("✅ Featured products auto-refreshed:", transformedFeatured.length);
+          }
+        } catch (err) {
+          console.error("❌ Error auto-refreshing featured products:", err);
+        }
+      };
+      
+      // Set up interval
+      featuredRefreshIntervalRef.current = setInterval(refreshFeatured, 30000); // 30 seconds
+      
+      return () => {
+        if (featuredRefreshIntervalRef.current) {
+          clearInterval(featuredRefreshIntervalRef.current);
+        }
+      };
+    }
+  }, [productsLoadedRef.current]);
+
   const value = {
     products,
     services,
@@ -239,6 +331,18 @@ export const ProductProvider = ({ children }) => {
     categories,
     loading,
     error,
+    // Get latest products (sorted by creation date, newest first)
+    latestProducts: [...products].sort((a, b) => {
+      const dateA = new Date(a.createdAt || 0).getTime();
+      const dateB = new Date(b.createdAt || 0).getTime();
+      return dateB - dateA; // Newest first
+    }),
+    // Get latest services (sorted by creation date, newest first)
+    latestServices: [...services].sort((a, b) => {
+      const dateA = new Date(a.createdAt || 0).getTime();
+      const dateB = new Date(b.createdAt || 0).getTime();
+      return dateB - dateA; // Newest first
+    }),
     refetch: async () => {
       try {
         setLoading(true);
@@ -313,6 +417,42 @@ export const ProductProvider = ({ children }) => {
         setError("Failed to reload products");
       } finally {
         setLoading(false);
+      }
+    },
+    
+    // Refresh featured products in real-time (bypass cache)
+    refreshFeaturedProducts: async () => {
+      try {
+        console.log("🔄 Refreshing featured products from /featured endpoint...");
+        
+        // Try dedicated /featured endpoint for fresh data
+        const response = await fetch(`${API_BASE_URL}/products/featured`);
+        if (response.ok) {
+          const data = await response.json();
+          let featuredArray = Array.isArray(data) ? data : data?.data || [];
+          
+          const transformedFeatured = featuredArray.map((p) => ({
+            _id: p._id || p.id,
+            id: p._id || p.id,
+            name: p.product_name_en || p.name || "Decoration Item",
+            description: p.description_en || p.description || "",
+            price: p.unit_price || p.price || 0,
+            thumbnail: p.thumbnail || p.images?.[0] || null,
+            category: p.category || "other",
+            featured: true,
+            stockQuantity: Number(p.stock) || 0,
+            stock: Number(p.stock) || 0,
+            tags: p.tags || [],
+            sku: p.sku || null,
+          }));
+          
+          setFeaturedProducts(transformedFeatured);
+          console.log("✅ Featured products refreshed:", transformedFeatured.length);
+          return transformedFeatured;
+        }
+      } catch (err) {
+        console.error("❌ Error refreshing featured products:", err);
+        // Silently fail and keep existing data
       }
     },
   };

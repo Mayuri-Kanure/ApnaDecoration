@@ -42,6 +42,7 @@ const WalletTransaction = require("./WalletTransaction");
 const Wishlist = require("./Wishlist");
 const Withdraw = require("./Withdraw");
 const WithdrawMethod = require("./WithdrawMethod");
+const DeviceToken = require("./DeviceToken");
 
 module.exports = {
   // Shared models
@@ -86,4 +87,5 @@ module.exports = {
   Wishlist,
   Withdraw,
   WithdrawMethod,
+  DeviceToken,
 };

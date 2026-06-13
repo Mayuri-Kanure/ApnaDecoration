@@ -1,6 +1,7 @@
 const express = require('express');
 const { authMiddleware } = require('../middleware/auth');
 const notificationController = require('../controllers/notificationController');
+const notificationDeliveryController = require('../controllers/notificationDeliveryController');
 const emailService = require('../services/emailService');
 
 const router = express.Router();
@@ -15,11 +16,24 @@ router.get('/debug', (req, res) => {
 });
 
 // Specific routes (should come before param routes)
+// Handle preflight requests for all notification routes
+router.options('*', (req, res) => {
+  res.header('Access-Control-Allow-Origin', req.headers.origin || '*');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.header('Access-Control-Max-Age', '3600');
+  res.sendStatus(200);
+});
+
 // Get notification settings (protected)
 router.get('/settings', authMiddleware, notificationController.getNotificationSettings);
 
 // Update notification settings (protected)
 router.put('/settings', authMiddleware, notificationController.updateNotificationSettings);
+
+// Push device registration (mobile)
+router.post('/subscribe-push', authMiddleware, notificationController.subscribeToPush);
+router.post('/unsubscribe-push', authMiddleware, notificationController.unsubscribeFromPush);
 
 // Mark all notifications as read (protected) - MUST be before /:id routes
 router.put('/read-all', authMiddleware, notificationController.markAllNotificationsAsRead);
@@ -41,6 +55,26 @@ router.delete('/clear-all', authMiddleware, async (req, res) => {
     });
   }
 });
+
+// Delivery Verification Routes
+// Verify notification delivery from device
+router.post('/verify-delivery', authMiddleware, notificationDeliveryController.verifyDelivery);
+
+// Mark notification as read with delivery receipt
+router.put('/delivery/:id/mark-read', authMiddleware, notificationDeliveryController.markAsReadWithReceipt);
+
+// Report delivery failure
+router.post('/report-failure', authMiddleware, notificationDeliveryController.reportDeliveryFailure);
+
+// Get notifications with delivery status
+router.get('/with-status', authMiddleware, notificationDeliveryController.getNotificationsWithStatus);
+
+// Get delivery statistics (admin only)
+router.get('/stats/delivery', authMiddleware, notificationDeliveryController.getDeliveryStats);
+
+// Cleanup expired notifications
+router.post('/cleanup-expired', authMiddleware, notificationDeliveryController.cleanupExpiredNotifications);
+
 
 // Parametric routes (should come after specific routes)
 // Get all notifications (protected)

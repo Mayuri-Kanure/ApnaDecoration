@@ -4,28 +4,28 @@ const path = require("path");
 
 console.log("?? Building APK and AAB for Apna Decoration Delivery App...");
 
-// Step 1: Build the Next.js app for production
+const buildEnv = {
+  ...process.env,
+  NODE_ENV: "production",
+  NEXT_PUBLIC_API_BASE_URL: "https://admin-api.apnadecoration.com",
+  NEXT_PUBLIC_DELIVERY_API_URL:
+    "https://admin-api.apnadecoration.com/api/delivery-boy",
+  NEXT_PUBLIC_DELIVERY_ORDERS_API_URL:
+    "https://admin-api.apnadecoration.com/api/delivery-orders",
+};
+
+// Step 1: Build + export Next.js (output: "export" in next.config.js)
 console.log("? Step 1: Building Next.js app...");
 try {
-  execSync("npm run build", { stdio: "inherit" });
+  execSync("npm run build", { stdio: "inherit", env: buildEnv });
   console.log("?? Next.js build completed");
 } catch (error) {
   console.error("?? Next.js build failed:", error);
   process.exit(1);
 }
 
-// Step 2: Export the Next.js app for static generation
-console.log("? Step 2: Exporting Next.js app...");
-try {
-  execSync("npm run export", { stdio: "inherit" });
-  console.log("?? Next.js export completed");
-} catch (error) {
-  console.error("?? Next.js export failed:", error);
-  process.exit(1);
-}
-
-// Step 3: Sync with Capacitor
-console.log("? Step 3: Syncing with Capacitor...");
+// Step 2: Sync with Capacitor
+console.log("? Step 2: Syncing with Capacitor...");
 try {
   execSync("npx cap sync android", { stdio: "inherit" });
   console.log("?? Capacitor sync completed");
@@ -34,8 +34,8 @@ try {
   process.exit(1);
 }
 
-// Step 4: Build APK (Debug) using Gradle
-console.log("? Step 4: Building APK (Debug)...");
+// Step 3: Build APK (Debug) using Gradle
+console.log("? Step 3: Building APK (Debug)...");
 try {
   if (process.platform === 'win32') {
     execSync(
@@ -54,8 +54,8 @@ try {
   process.exit(1);
 }
 
-// Step 5: Build APK (Release) using Gradle
-console.log("? Step 5: Building APK (Release)...");
+// Step 4: Build APK (Release) using Gradle
+console.log("? Step 4: Building APK (Release)...");
 try {
   if (process.platform === 'win32') {
     execSync(
@@ -74,8 +74,8 @@ try {
   process.exit(1);
 }
 
-// Step 6: Build AAB (Release) using Gradle
-console.log("? Step 6: Building AAB (Release)...");
+// Step 5: Build AAB (Release) using Gradle
+console.log("? Step 5: Building AAB (Release)...");
 try {
   if (process.platform === 'win32') {
     execSync(

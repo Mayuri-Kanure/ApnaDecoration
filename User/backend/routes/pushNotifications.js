@@ -4,6 +4,33 @@ const pushNotificationController = require('../controllers/pushNotificationContr
 const { auth } = require('../middleware/auth');
 const { body } = require('express-validator');
 
+const deviceTokenValidation = body('deviceToken')
+  .notEmpty()
+  .withMessage('Device token is required')
+  .isString()
+  .withMessage('Device token must be a string')
+  .isLength({ min: 20 })
+  .withMessage('Device token is invalid');
+
+// Register device for push (mobile APK)
+router.post('/register-device', [
+  auth,
+  deviceTokenValidation,
+  body('platform').optional().isString(),
+  body('platformVersion').optional().isString(),
+  body('deviceModel').optional().isString(),
+  body('appVersion').optional().isString(),
+], pushNotificationController.registerDevice);
+
+// Unregister device
+router.post('/unregister-device', [
+  auth,
+  body('deviceToken').optional().isString(),
+], pushNotificationController.unregisterDevice);
+
+// Test push to logged-in user
+router.post('/test', auth, pushNotificationController.sendTestToMe);
+
 // Send push notification to single device
 router.post('/send-to-device', [
   auth,
@@ -12,8 +39,8 @@ router.post('/send-to-device', [
     .withMessage('Device token is required')
     .isString()
     .withMessage('Device token must be a string')
-    .isLength({ min: 100 })
-    .withMessage('Device token must be at least 100 characters'),
+    .isLength({ min: 20 })
+    .withMessage('Device token is invalid'),
   body('notification.title')
     .notEmpty()
     .withMessage('Notification title is required')
@@ -77,8 +104,8 @@ router.post('/order-update', [
     .withMessage('Device token is required')
     .isString()
     .withMessage('Device token must be a string')
-    .isLength({ min: 100 })
-    .withMessage('Device token must be at least 100 characters'),
+    .isLength({ min: 20 })
+    .withMessage('Device token is invalid'),
   body('orderData')
     .notEmpty()
     .withMessage('Order data is required')
@@ -105,8 +132,8 @@ router.post('/payment-confirmation', [
     .withMessage('Device token is required')
     .isString()
     .withMessage('Device token must be a string')
-    .isLength({ min: 100 })
-    .withMessage('Device token must be at least 100 characters'),
+    .isLength({ min: 20 })
+    .withMessage('Device token is invalid'),
   body('paymentData')
     .notEmpty()
     .withMessage('Payment data is required')
@@ -128,8 +155,8 @@ router.post('/delivery-update', [
     .withMessage('Device token is required')
     .isString()
     .withMessage('Device token must be a string')
-    .isLength({ min: 100 })
-    .withMessage('Device token must be at least 100 characters'),
+    .isLength({ min: 20 })
+    .withMessage('Device token is invalid'),
   body('orderData')
     .notEmpty()
     .withMessage('Order data is required')
@@ -191,8 +218,8 @@ router.post('/subscribe-to-topic', [
     .withMessage('Device token is required')
     .isString()
     .withMessage('Device token must be a string')
-    .isLength({ min: 100 })
-    .withMessage('Device token must be at least 100 characters'),
+    .isLength({ min: 20 })
+    .withMessage('Device token is invalid'),
   body('topic')
     .notEmpty()
     .withMessage('Topic is required')

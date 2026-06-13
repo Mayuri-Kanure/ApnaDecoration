@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/router";
-import axios from "axios";
+import { createAxiosInstance } from "../utils/axiosInstance";
+import dynamic from "next/dynamic";
 import { DELIVERY_API_URL } from "../config/constants";
 import {
   Box,
@@ -67,10 +68,11 @@ function TabPanel({ children, value, index, ...other }) {
   );
 }
 
-export default function EarningsPage() {
+function EarningsPage() {
   const router = useRouter();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
+  const [apiClient] = useState(() => createAxiosInstance(router));
   const [tabValue, setTabValue] = useState(0);
   const [loading, setLoading] = useState(true);
   const [snackbar, setSnackbar] = useState({
@@ -85,6 +87,7 @@ export default function EarningsPage() {
   const [earnings, setEarnings] = useState([]);
   const [withdrawalDialogOpen, setWithdrawalDialogOpen] = useState(false);
   const [withdrawalAmount, setWithdrawalAmount] = useState("");
+  const [withdrawalMethod, setWithdrawalMethod] = useState("bank_transfer");
   const [selectedEarning, setSelectedEarning] = useState(null);
   const [earningsStats, setEarningsStats] = useState({
     totalEarnings: 0,
@@ -109,34 +112,26 @@ export default function EarningsPage() {
   const loadEarningsData = async () => {
     try {
       setLoading(true);
-      const token = localStorage.getItem("deliveryBoyToken");
-      const response = await axios.get(`${DELIVERY_API_URL}/earnings`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      console.log("API Response:", response.data);
-      setEarnings(response.data.data || response.data || []);
+      const response = await apiClient.get(`/delivery-boy/earnings`);
+      setEarnings(response.data?.data || response.data || []);
     } catch (error) {
       console.error("Error loading earnings:", error);
       // Set empty array instead of mock data
       setEarnings([]);
-      setSnackbar({
-        open: true,
-        message: "Failed to load earnings data",
-        severity: "error",
-      });
+      if (error.status !== 401) {
+        setSnackbar({
+          open: true,
+          message: error.message || "Failed to load earnings data",
+          severity: "error",
+        });
+      }
     }
     setLoading(false);
   };
 
   const loadEarningsStats = async () => {
     try {
-      const token = localStorage.getItem("deliveryBoyToken");
-      const response = await axios.get(`${DELIVERY_API_URL}/earnings/stats`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      console.log("Stats API Response:", response.data);
+      const response = await apiClient.get(`/delivery-boy/earnings/stats`);
       setEarningsStats(
         response.data.data ||
           response.data || {
@@ -155,11 +150,13 @@ export default function EarningsPage() {
         pendingWithdrawals: 0,
         monthlyEarnings: 0,
       });
-      setSnackbar({
-        open: true,
-        message: "Failed to load earnings statistics",
-        severity: "error",
-      });
+      if (error.status !== 401) {
+        setSnackbar({
+          open: true,
+          message: error.message || "Failed to load earnings statistics",
+          severity: "error",
+        });
+      }
     }
   };
 
@@ -177,15 +174,12 @@ export default function EarningsPage() {
 
   const handleWithdrawal = async () => {
     try {
-      const token = localStorage.getItem("deliveryBoyToken");
-      const response = await axios.post(
-        `${DELIVERY_API_URL}/withdrawals`,
+      const response = await apiClient.post(
+        `/delivery-boy/withdrawals`,
         {
           amount: parseFloat(withdrawalAmount),
-        },
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        },
+          method: withdrawalMethod,
+        }
       );
 
       console.log("Withdrawal Response:", response.data);
@@ -196,16 +190,19 @@ export default function EarningsPage() {
       });
       setWithdrawalDialogOpen(false);
       setWithdrawalAmount("");
+      setWithdrawalMethod("bank_transfer");
       loadEarningsData();
       loadEarningsStats();
     } catch (error) {
       console.error("Error creating withdrawal:", error);
-      setSnackbar({
-        open: true,
-        message:
-          error.response?.data?.message || "Error creating withdrawal request",
-        severity: "error",
-      });
+      if (error.status !== 401) {
+        setSnackbar({
+          open: true,
+          message:
+            error.message || "Error creating withdrawal request",
+          severity: "error",
+        });
+      }
     }
   };
 
@@ -570,7 +567,20 @@ export default function EarningsPage() {
             variant="outlined"
             value={withdrawalAmount}
             onChange={(e) => setWithdrawalAmount(e.target.value)}
+            sx={{ mb: 2 }}
           />
+          <TextField
+            select
+            margin="dense"
+            label="Withdrawal Method"
+            fullWidth
+            variant="outlined"
+            value={withdrawalMethod}
+            onChange={(e) => setWithdrawalMethod(e.target.value)}
+          >
+            <MenuItem value="bank_transfer">Bank Transfer</MenuItem>
+            <MenuItem value="upi">UPI</MenuItem>
+          </TextField>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setWithdrawalDialogOpen(false)}>Cancel</Button>
@@ -613,3 +623,6 @@ export default function EarningsPage() {
     </Box>
   );
 }
+export default dynamic(() => Promise.resolve(EarningsPage), {
+  ssr: false,
+});

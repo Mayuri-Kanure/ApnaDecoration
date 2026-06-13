@@ -286,7 +286,14 @@ class ProductService {
       throw new Error("Invalid product ID");
     }
 
-    const product = await Product.findById(productId);
+    // Try regular product first
+    let product = await Product.findById(productId);
+
+    // If not found, try vendor product
+    if (!product) {
+      product = await VendorProduct.findById(productId);
+    }
+
     if (!product) {
       throw new Error("Product not found");
     }
@@ -309,7 +316,14 @@ class ProductService {
       throw new Error("Invalid product ID");
     }
 
-    const product = await Product.findById(productId);
+    // Try regular product first
+    let product = await Product.findById(productId);
+
+    // If not found, try vendor product
+    if (!product) {
+      product = await VendorProduct.findById(productId);
+    }
+
     if (!product) {
       throw new Error("Product not found");
     }
@@ -323,24 +337,64 @@ class ProductService {
 
   // Get featured products
   static async getFeaturedProducts(limit = 10) {
-    return await Product.find({
+    // Get featured regular products
+    const regularProducts = await Product.find({
       status: PRODUCT_STATUS.ACTIVE,
       $or: [{ featured: true }, { is_featured: true }],
     })
       .populate("category", "name")
       .sort({ featured: -1, createdAt: -1 })
       .limit(limit);
+
+    // Get featured vendor products (approved only)
+    const vendorProducts = await VendorProduct.find({
+      status: "approved",
+      $or: [{ featured: true }, { is_featured: true }],
+    })
+      .populate("category", "name")
+      .sort({ featured: -1, createdAt: -1 })
+      .limit(limit);
+
+    // Combine and sort by featured/createdAt
+    const combined = [
+      ...regularProducts.map((p) => ({ ...p.toObject(), source: "regular" })),
+      ...vendorProducts.map((p) => ({ ...p.toObject(), source: "vendor" })),
+    ].sort(
+      (a, b) =>
+        (b.featured ? 1 : 0) - (a.featured ? 1 : 0) ||
+        new Date(b.createdAt) - new Date(a.createdAt),
+    );
+
+    return combined.slice(0, limit);
   }
 
   // Get trending products
   static async getTrendingProducts(limit = 10) {
-    return await Product.find({
+    // Get trending regular products
+    const regularProducts = await Product.find({
       trending: true,
       status: PRODUCT_STATUS.ACTIVE,
     })
       .populate("category", "name")
       .sort({ trending: -1, createdAt: -1 })
       .limit(limit);
+
+    // Get trending vendor products (approved only)
+    const vendorProducts = await VendorProduct.find({
+      trending: true,
+      status: "approved",
+    })
+      .populate("category", "name")
+      .sort({ trending: -1, createdAt: -1 })
+      .limit(limit);
+
+    // Combine and sort by createdAt
+    const combined = [
+      ...regularProducts.map((p) => ({ ...p.toObject(), source: "regular" })),
+      ...vendorProducts.map((p) => ({ ...p.toObject(), source: "vendor" })),
+    ].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+    return combined.slice(0, limit);
   }
 
   // Search products
@@ -353,26 +407,52 @@ class ProductService {
 
     const skip = (page - 1) * limit;
 
-    // Build search query
-    const query = {
+    // Build search query for regular products
+    const regularQuery = {
       $text: { $search: searchTerm },
       status: PRODUCT_STATUS.ACTIVE,
     };
 
     if (category) {
-      query.category = category;
+      regularQuery.category = category;
     }
 
-    const products = await Product.find(query)
-      .populate("category", "name")
-      .sort({ score: { $meta: "textScore" } })
-      .skip(skip)
-      .limit(Math.min(limit, PAGINATION.MAX_LIMIT));
+    // Build search query for vendor products
+    const vendorQuery = {
+      $text: { $search: searchTerm },
+      status: "approved",
+    };
 
-    const total = await Product.countDocuments(query);
+    if (category) {
+      vendorQuery.category = category;
+    }
+
+    // Search both collections in parallel
+    const [regularProducts, vendorProducts, regularTotal, vendorTotal] = await Promise.all([
+      Product.find(regularQuery)
+        .populate("category", "name")
+        .sort({ score: { $meta: "textScore" } })
+        .skip(skip)
+        .limit(Math.min(limit, PAGINATION.MAX_LIMIT)),
+      VendorProduct.find(vendorQuery)
+        .populate("category", "name")
+        .sort({ score: { $meta: "textScore" } })
+        .skip(skip)
+        .limit(Math.min(limit, PAGINATION.MAX_LIMIT)),
+      Product.countDocuments(regularQuery),
+      VendorProduct.countDocuments(vendorQuery),
+    ]);
+
+    // Combine results
+    const combined = [
+      ...regularProducts.map((p) => ({ ...p.toObject(), source: "regular" })),
+      ...vendorProducts.map((p) => ({ ...p.toObject(), source: "vendor" })),
+    ];
+
+    const total = regularTotal + vendorTotal;
 
     return {
-      products,
+      products: combined,
       pagination: {
         page: parseInt(page),
         limit: parseInt(limit),
@@ -397,24 +477,47 @@ class ProductService {
 
     const skip = (page - 1) * limit;
 
-    const query = {
+    const sort = {};
+    sort[sortBy] = sortOrder === "desc" ? -1 : 1;
+
+    // Query for regular products
+    const regularQuery = {
       category: categoryId,
       status: PRODUCT_STATUS.ACTIVE,
     };
 
-    const sort = {};
-    sort[sortBy] = sortOrder === "desc" ? -1 : 1;
+    // Query for vendor products (approved only)
+    const vendorQuery = {
+      category: categoryId,
+      status: "approved",
+    };
 
-    const products = await Product.find(query)
-      .populate("category", "name")
-      .sort(sort)
-      .skip(skip)
-      .limit(Math.min(limit, PAGINATION.MAX_LIMIT));
+    // Execute both queries in parallel
+    const [regularProducts, vendorProducts, regularTotal, vendorTotal] = await Promise.all([
+      Product.find(regularQuery)
+        .populate("category", "name")
+        .sort(sort)
+        .skip(skip)
+        .limit(Math.min(limit, PAGINATION.MAX_LIMIT)),
+      VendorProduct.find(vendorQuery)
+        .populate("category", "name")
+        .sort(sort)
+        .skip(skip)
+        .limit(Math.min(limit, PAGINATION.MAX_LIMIT)),
+      Product.countDocuments(regularQuery),
+      VendorProduct.countDocuments(vendorQuery),
+    ]);
 
-    const total = await Product.countDocuments(query);
+    // Combine results
+    const combined = [
+      ...regularProducts.map((p) => ({ ...p.toObject(), source: "regular" })),
+      ...vendorProducts.map((p) => ({ ...p.toObject(), source: "vendor" })),
+    ];
+
+    const total = regularTotal + vendorTotal;
 
     return {
-      products,
+      products: combined,
       pagination: {
         page: parseInt(page),
         limit: parseInt(limit),
@@ -430,7 +533,16 @@ class ProductService {
       throw new Error("Invalid product ID");
     }
 
-    const product = await Product.findById(productId);
+    // Try regular product first
+    let product = await Product.findById(productId);
+    let source = "regular";
+
+    // If not found, try vendor product
+    if (!product) {
+      product = await VendorProduct.findById(productId);
+      source = "vendor";
+    }
+
     if (!product) {
       throw new Error("Product not found");
     }

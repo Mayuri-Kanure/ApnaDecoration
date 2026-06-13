@@ -85,9 +85,11 @@ exports.loginDeliveryBoy = async (req, res) => {
     });
   } catch (error) {
     console.error("❌ Error logging in delivery boy:", error);
+    // Hide detailed error from client - only expose safe messages
+    const isKnownError = error.message === 'Invalid credentials' || error.message === 'Account is not active';
     res.status(401).json({
       success: false,
-      message: error.message || "Login failed",
+      message: isKnownError ? error.message : 'Login failed'
     });
   }
 };
@@ -255,6 +257,25 @@ exports.updateAvailability = async (req, res) => {
       });
     }
 
+    // Validate GPS coordinates if provided
+    if (coordinates) {
+      const { latitude, longitude } = coordinates;
+      if (latitude !== undefined && longitude !== undefined) {
+        if (latitude < -90 || latitude > 90) {  
+          return res.status(400).json({
+            success: false,
+            message: "Latitude must be between -90 and 90",
+          });
+        }
+        if (longitude < -180 || longitude > 180) {
+          return res.status(400).json({
+            success: false,
+            message: "Longitude must be between -180 and 180",
+          });
+        }
+      }
+    }
+
     const deliveryBoy = await deliveryBoyService.updateAvailability(
       id,
       isAvailable,
@@ -310,9 +331,27 @@ exports.getDeliveryBoysByLocation = async (req, res) => {
       });
     }
 
+    // Validate GPS coordinates
+    const lat = parseFloat(latitude);
+    const lon = parseFloat(longitude);
+
+    if (isNaN(lat) || lat < -90 || lat > 90) {
+      return res.status(400).json({
+        success: false,
+        message: "Latitude must be a valid number between -90 and 90",
+      });
+    }
+
+    if (isNaN(lon) || lon < -180 || lon > 180) {
+      return res.status(400).json({
+        success: false,
+        message: "Longitude must be a valid number between -180 and 180",
+      });
+    }
+
     const deliveryBoys = await deliveryBoyService.getDeliveryBoysByLocation(
-      parseFloat(latitude),
-      parseFloat(longitude),
+      lat,
+      lon,
       parseFloat(radius),
     );
 
@@ -324,7 +363,7 @@ exports.getDeliveryBoysByLocation = async (req, res) => {
     console.error("❌ Error getting delivery boys by location:", error);
     res.status(500).json({
       success: false,
-      message: error.message || "Failed to get delivery boys by location",
+      message: "Failed to get delivery boys by location",
     });
   }
 };

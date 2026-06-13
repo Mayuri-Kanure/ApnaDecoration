@@ -47,10 +47,15 @@ const addressController = {
   // Create new address
   createAddress: async (req, res) => {
     try {
+      console.log('📍 createAddress called with:', req.body);
+      console.log('📍 User ID:', req.user?.userId);
+      
       const addressData = {
         ...req.body,
         userId: req.user.userId
       };
+      
+      console.log('📍 Address data to save:', addressData);
       
       // If this is marked as default, unset default from other addresses
       if (addressData.isDefault) {
@@ -63,16 +68,23 @@ const addressController = {
       const address = new Address(addressData);
       await address.save();
       
+      console.log('✅ Address saved successfully:', address._id);
+      
       res.status(201).json({
         success: true,
         message: 'Address created successfully',
         data: address
       });
     } catch (error) {
-      console.error('Error creating address:', error);
+      console.error('❌ Error creating address:', error.message);
+      console.error('❌ Validation errors:', error.errors);
+      console.error('❌ Full error:', error);
+      
       res.status(500).json({
         success: false,
-        error: 'Failed to create address'
+        error: 'Failed to create address',
+        details: error.message,
+        validationErrors: error.errors
       });
     }
   },

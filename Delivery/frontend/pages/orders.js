@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/router";
 import axios from "axios";
+import dynamic from "next/dynamic";
 import { DELIVERY_ORDERS_API_URL } from "../config/constants";
 import {
   Box,
@@ -71,7 +72,7 @@ function TabPanel({ children = null, value = 0, index = 0, ...other }) {
   );
 }
 
-export default function OrdersPage() {
+function OrdersPage() {
   const router = useRouter();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
@@ -100,11 +101,23 @@ export default function OrdersPage() {
     rejectedOrders: 0,
   });
 
+  const getAuthHeaders = () => {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('deliveryBoyToken') : null;
+    if (!token) {
+      router.push('/auth/login');
+      throw new Error('Not authenticated');
+    }
+    return {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    };
+  };
+
   useEffect(() => {
     // Check if logged in
     const token = localStorage.getItem("deliveryBoyToken");
     if (!token) {
-      router.push("/delivery-boy/login");
+      router.push("/auth/login");
       return;
     }
 
@@ -116,19 +129,27 @@ export default function OrdersPage() {
 
   const loadOrdersData = async () => {
     try {
-      const token = localStorage.getItem("deliveryBoyToken");
-      const response = await axios.get(`${DELIVERY_ORDERS_API_URL}/my-orders`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      // Handle response structure {success: true, data: [], pagination: {}}
+      const response = await axios.get(
+        'https://admin-api.apnadecoration.com/api/delivery-orders/my-orders',
+        { headers: getAuthHeaders(), timeout: 30000 }
+      );
       if (response.data && response.data.success && response.data.data) {
         setOrders(response.data.data);
       } else {
-        setOrders(response.data || []);
+        setOrders(response.data?.data || []);
       }
     } catch (error) {
       console.error("Error loading orders:", error);
-      // Set empty array for now to see real data
+      if (error.response?.status === 401) {
+        localStorage.removeItem('deliveryBoyToken');
+        router.push('/auth/login');
+        return;
+      }
+      setSnackbar({
+        open: true,
+        message: error.message || "Failed to load orders",
+        severity: "error",
+      });
       setOrders([]);
     }
     setLoading(false);
@@ -136,29 +157,34 @@ export default function OrdersPage() {
 
   const loadAvailableOrders = async () => {
     try {
-      const token = localStorage.getItem("deliveryBoyToken");
-      const response = await axios.get(`${DELIVERY_ORDERS_API_URL}/available`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      // Handle response structure {success: true, data: [], pagination: {}}
+      const response = await axios.get(
+        'https://admin-api.apnadecoration.com/api/delivery-orders/available',
+        { headers: getAuthHeaders(), timeout: 30000 }
+      );
       if (response.data && response.data.success && response.data.data) {
         setAvailableOrders(response.data.data);
       } else {
-        setAvailableOrders(response.data || []);
+        setAvailableOrders(response.data?.data || []);
       }
     } catch (error) {
       console.error("Error loading available orders:", error);
+      if (error.response?.status !== 401) {
+        setSnackbar({
+          open: true,
+          message: error.message || "Failed to load available orders",
+          severity: "error",
+        });
+      }
       setAvailableOrders([]);
     }
   };
 
   const loadOrdersStats = async () => {
     try {
-      const token = localStorage.getItem("deliveryBoyToken");
-      const response = await axios.get(`${DELIVERY_ORDERS_API_URL}/stats`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      // Handle response structure {success: true, data: {}}
+      const response = await axios.get(
+        'https://admin-api.apnadecoration.com/api/delivery-orders/stats',
+        { headers: getAuthHeaders(), timeout: 30000 }
+      );
       if (response.data && response.data.success && response.data.data) {
         const stats = response.data.data;
         setOrdersStats({
@@ -173,6 +199,13 @@ export default function OrdersPage() {
       }
     } catch (error) {
       console.error("Error loading orders stats:", error);
+      if (error.status !== 401) {
+        setSnackbar({
+          open: true,
+          message: error.message || "Failed to load orders statistics",
+          severity: "error",
+        });
+      }
       // Set empty stats for now to see real data
       setOrdersStats({
         totalOrders: 0,
@@ -198,31 +231,18 @@ export default function OrdersPage() {
 
   const handleAcceptOrder = async (orderId) => {
     try {
-      const token = localStorage.getItem("deliveryBoyToken");
-      await axios.post(
-        `${DELIVERY_ORDERS_API_URL}/${orderId}/accept`,
-        {},
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        },
+      const response = await apiClient.post(
+        `/delivery-orders/${orderId}/accept`,
+        {}
       );
 
-      // Update local state - move order from available to my orders
-      const acceptedOrder = availableOrders.find(
-        (order) => order._id === orderId,
-      );
-      if (acceptedOrder) {
+      // Update from response instead of assuming
+      if (response.data?.data) {
+        const acceptedOrder = response.data.data;
         setAvailableOrders(
           availableOrders.filter((order) => order._id !== orderId),
         );
-        setOrders([...orders, { ...acceptedOrder, status: "accepted" }]);
-      } else {
-        // Update existing order
-        setOrders(
-          orders.map((order) =>
-            order._id === orderId ? { ...order, status: "accepted" } : order,
-          ),
-        );
+        setOrders([...orders, acceptedOrder]);
       }
 
       setSnackbar({
@@ -232,11 +252,14 @@ export default function OrdersPage() {
       });
     } catch (error) {
       console.error("Error accepting order:", error);
-      setSnackbar({
-        open: true,
-        message: "Error accepting order",
-        severity: "error",
-      });
+      if (error.status !== 401) {
+        const errorMessage = error.response?.data?.message || error.message || "Error accepting order";
+        setSnackbar({
+          open: true,
+          message: errorMessage,
+          severity: "error",
+        });
+      }
     }
   };
 
@@ -248,7 +271,7 @@ export default function OrdersPage() {
   };
 
   const getCompletedOrders = () => {
-    return orders.filter((order) => order.status === "delivered");
+    return orders.filter((order) => ["delivered", "completed"].includes(order.status));
   };
 
   const getRejectedOrders = () => {
@@ -257,13 +280,9 @@ export default function OrdersPage() {
 
   const handleRejectOrder = async (orderId) => {
     try {
-      const token = localStorage.getItem("deliveryBoyToken");
-      await axios.post(
-        `${DELIVERY_ORDERS_API_URL}/${orderId}/reject`,
-        {},
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        },
+      await apiClient.post(
+        `/delivery-orders/${orderId}/reject`,
+        {}
       );
 
       // Update local state
@@ -276,29 +295,28 @@ export default function OrdersPage() {
       setSnackbar({ open: true, message: "Order rejected", severity: "info" });
     } catch (error) {
       console.error("Error rejecting order:", error);
-      setSnackbar({
-        open: true,
-        message: "Error rejecting order",
-        severity: "error",
-      });
+      if (error.status !== 401) {
+        setSnackbar({
+          open: true,
+          message: error.message || "Error rejecting order",
+          severity: "error",
+        });
+      }
     }
   };
 
   const handleStartDelivery = async (orderId) => {
     try {
-      const token = localStorage.getItem("deliveryBoyToken");
-      await axios.post(
-        `${DELIVERY_ORDERS_API_URL}/${orderId}/start`,
-        {},
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        },
+      const response = await apiClient.post(
+        `/delivery-orders/${orderId}/start`,
+        {}
       );
 
-      // Update local state
+      // Update local state with response data
+      const updatedOrder = response.data?.data || { _id: orderId, status: "picked_up" };
       setOrders(
         orders.map((order) =>
-          order._id === orderId ? { ...order, status: "delivering" } : order,
+          order._id === orderId ? updatedOrder : order,
         ),
       );
 
@@ -309,29 +327,29 @@ export default function OrdersPage() {
       });
     } catch (error) {
       console.error("Error starting delivery:", error);
-      setSnackbar({
-        open: true,
-        message: "Error starting delivery",
-        severity: "error",
-      });
+      if (error.status !== 401) {
+        const errorMessage = error.response?.data?.message || error.message || "Error starting delivery";
+        setSnackbar({
+          open: true,
+          message: errorMessage,
+          severity: "error",
+        });
+      }
     }
   };
 
   const handleCompleteDelivery = async (orderId) => {
     try {
-      const token = localStorage.getItem("deliveryBoyToken");
-      await axios.post(
-        `${DELIVERY_ORDERS_API_URL}/${orderId}/complete`,
-        {},
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        },
+      const response = await apiClient.post(
+        `/delivery-orders/${orderId}/complete`,
+        {}
       );
 
-      // Update local state
+      // Update local state with response data (backend returns "delivered" status)
+      const updatedOrder = response.data?.data || { _id: orderId, status: "delivered" };
       setOrders(
         orders.map((order) =>
-          order._id === orderId ? { ...order, status: "completed" } : order,
+          order._id === orderId ? updatedOrder : order,
         ),
       );
 
@@ -342,9 +360,10 @@ export default function OrdersPage() {
       });
     } catch (error) {
       console.error("Error completing delivery:", error);
+      const errorMessage = error.response?.data?.message || error.message || "Error completing delivery";
       setSnackbar({
         open: true,
-        message: "Error completing delivery",
+        message: errorMessage,
         severity: "error",
       });
     }
@@ -410,13 +429,13 @@ export default function OrdersPage() {
 
   const getStatusColor = (status) => {
     switch (status) {
-      case "available":
+      case "pending":
         return "primary";
-      case "in_progress":
+      case "accepted":
         return "warning";
-      case "delivering":
+      case "picked_up":
         return "info";
-      case "completed":
+      case "delivered":
         return "success";
       case "rejected":
         return "error";
@@ -675,9 +694,10 @@ export default function OrdersPage() {
                 }}
               >
                 <MenuItem value="all">All Status</MenuItem>
-                <MenuItem value="available">Available</MenuItem>
-                <MenuItem value="in_progress">In Progress</MenuItem>
-                <MenuItem value="completed">Completed</MenuItem>
+                <MenuItem value="pending">Available</MenuItem>
+                <MenuItem value="accepted">Accepted</MenuItem>
+                <MenuItem value="picked_up">Picked Up</MenuItem>
+                <MenuItem value="delivered">Delivered</MenuItem>
                 <MenuItem value="rejected">Rejected</MenuItem>
               </Select>
             </Grid>
@@ -821,7 +841,7 @@ export default function OrdersPage() {
                           >
                             View
                           </Button>
-                          {order.status === "available" && (
+                          {order.status === "pending" && (
                             <Button
                               size="small"
                               variant="contained"
@@ -834,7 +854,7 @@ export default function OrdersPage() {
                               Accept
                             </Button>
                           )}
-                          {order.status === "in_progress" && (
+                          {order.status === "accepted" && (
                             <Button
                               size="small"
                               variant="contained"
@@ -847,7 +867,7 @@ export default function OrdersPage() {
                               Start
                             </Button>
                           )}
-                          {order.status === "delivering" && (
+                          {order.status === "picked_up" && (
                             <Button
                               size="small"
                               variant="contained"
@@ -958,7 +978,7 @@ export default function OrdersPage() {
                                 >
                                   View
                                 </Button>
-                                {order.status === "available" && (
+                                {order.status === "pending" && (
                                   <Button
                                     size="small"
                                     variant="contained"
@@ -971,7 +991,7 @@ export default function OrdersPage() {
                                     Accept
                                   </Button>
                                 )}
-                                {order.status === "in_progress" && (
+                                {order.status === "accepted" && (
                                   <Button
                                     size="small"
                                     variant="contained"
@@ -984,7 +1004,7 @@ export default function OrdersPage() {
                                     Start Delivery
                                   </Button>
                                 )}
-                                {order.status === "delivering" && (
+                                {order.status === "picked_up" && (
                                   <Button
                                     size="small"
                                     variant="contained"
@@ -1702,3 +1722,6 @@ export default function OrdersPage() {
     </Box>
   );
 }
+export default dynamic(() => Promise.resolve(OrdersPage), {
+  ssr: false,
+});

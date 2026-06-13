@@ -14,20 +14,21 @@ export const NotificationProvider = ({ children }) => {
   const [notifications, setNotifications] = useState([]);
   const [permission, setPermission] = useState('default');
 
+  // Read current permission only — do not prompt on app open (especially on APK).
   useEffect(() => {
     if ('Notification' in window) {
-      Notification.requestPermission().then((perm) => {
-        setPermission(perm);
-      });
+      setPermission(Notification.permission);
     }
   }, []);
 
   const requestNotificationPermission = () => {
     if ('Notification' in window) {
-      Notification.requestPermission().then((perm) => {
+      return Notification.requestPermission().then((perm) => {
         setPermission(perm);
+        return perm;
       });
     }
+    return Promise.resolve('denied');
   };
 
   const showNotification = (title, options = {}) => {
@@ -126,6 +127,7 @@ export const NotificationProvider = ({ children }) => {
     notifications,
     unreadCount,
     permission,
+    requestNotificationPermission,
     showNotification,
     showOrderNotification,
     markAsRead,
@@ -137,11 +139,6 @@ export const NotificationProvider = ({ children }) => {
   return (
     <NotificationContext.Provider value={value}>
       {children}
-      {permission === 'default' && (
-        <button onClick={requestNotificationPermission}>
-          Enable Notifications
-        </button>
-      )}
     </NotificationContext.Provider>
   );
 };

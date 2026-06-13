@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
-import { Outlet, useNavigate, useLocation } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext';
+import React, { useState, useEffect } from "react";
+import { Outlet, useNavigate, useLocation } from "react-router-dom";
+import { useAuth } from "../contexts/AuthContext";
+import OrderCountBadge from "./OrderCountBadge";
 import {
   AppBar,
   Box,
@@ -16,18 +17,18 @@ import {
   FormControl,
   Badge,
   Button,
-  Tooltip
-} from '@mui/material';
-import { 
-  Menu as MenuIcon, 
+  Tooltip,
+} from "@mui/material";
+import {
+  Menu as MenuIcon,
   Notifications as NotificationsIcon,
   ShoppingCart as CartIcon,
   Language as LanguageIcon,
-  ExpandMore as ExpandMoreIcon
-} from '@mui/icons-material';
-import Sidebar from './Sidebar';
-import Footer from './Footer';
-import { useProfile } from '../contexts/ProfileContext';
+  ExpandMore as ExpandMoreIcon,
+} from "@mui/icons-material";
+import Sidebar from "./Sidebar";
+import Footer from "./Footer";
+import { useProfile } from "../contexts/ProfileContext";
 
 const drawerWidth = 280;
 
@@ -42,11 +43,11 @@ function Layout() {
   const location = useLocation();
 
   useEffect(() => {
-    const userData = localStorage.getItem('user');
+    const userData = localStorage.getItem("user");
     if (userData) {
       setUser(JSON.parse(userData));
     } else {
-      navigate('/login');
+      navigate("/login");
     }
   }, [navigate]);
 
@@ -97,13 +98,13 @@ function Layout() {
   };
 
   const handleProfileClick = () => {
-    navigate('/profile');
+    navigate("/profile");
     handleMenuClose();
   };
 
   const handleLogout = () => {
     logout();
-    navigate('/login');
+    navigate("/login");
     handleMenuClose();
   };
 
@@ -112,11 +113,11 @@ function Layout() {
   }
 
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
+    <Box sx={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
       <CssBaseline />
-      <Box sx={{ display: 'flex', flex: 1 }}>
+      <Box sx={{ display: "flex", flex: 1 }}>
         <Box component="nav">
-          <Sidebar 
+          <Sidebar
             drawerWidth={drawerWidth}
             mobileOpen={mobileOpen}
             handleDrawerToggle={handleDrawerToggle}
@@ -128,9 +129,9 @@ function Layout() {
           sx={{
             width: getAppBarWidth(),
             ml: getAppBarMargin(),
-            bgcolor: '#1e293b',
-            boxShadow: '0 2px 10px rgba(0, 0, 0, 0.1)',
-            transition: 'width 0.3s ease, margin-left 0.3s ease'
+            bgcolor: "#1e293b",
+            boxShadow: "0 2px 10px rgba(0, 0, 0, 0.1)",
+            transition: "width 0.3s ease, margin-left 0.3s ease",
           }}
         >
           <Toolbar sx={{ minHeight: 80 }}>
@@ -139,108 +140,58 @@ function Layout() {
               aria-label="open drawer"
               edge="start"
               onClick={handleDrawerToggle}
-              sx={{ mr: 2, display: { sm: 'none' } }}
+              sx={{ mr: 2, display: { sm: "none" } }}
             >
               <MenuIcon />
             </IconButton>
-            
+
             <Box sx={{ flexGrow: 1 }} />
 
-            {/* Language Selector */}
-            <FormControl size="small" sx={{ mr: 2, minWidth: 120 }}>
-              <Select
-                value="en"
-                sx={{
-                  color: 'white',
-                  borderColor: 'rgba(255, 255, 255, 0.3)',
-                  '& .MuiOutlinedInput-notchedOutline': {
-                    borderColor: 'rgba(255, 255, 255, 0.3)',
-                  },
-                  '&:hover .MuiOutlinedInput-notchedOutline': {
-                    borderColor: 'rgba(255, 255, 255, 0.5)',
-                  },
-                  '& .MuiSvgIcon-root': {
-                    color: 'white',
-                  },
-                }}
-                startAdornment={<LanguageIcon sx={{ mr: 1, color: 'rgba(255, 255, 255, 0.7)' }} />}
-              >
-                <MenuItem value="en">English</MenuItem>
-                <MenuItem value="es">Spanish</MenuItem>
-                <MenuItem value="fr">French</MenuItem>
-              </Select>
-            </FormControl>
-
-            {/* Notification Icon */}
-            <Tooltip title="3 new notifications">
-              <IconButton 
-                sx={{ 
-                  mr: 2, 
-                  color: 'white',
-                  transition: 'all 0.3s ease',
-                  '&:hover': {
-                    bgcolor: 'rgba(255, 255, 255, 0.1)',
-                    transform: 'scale(1.05)'
-                  }
-                }}
-              >
-                <Badge badgeContent={3} color="error">
-                  <NotificationsIcon />
-                </Badge>
-              </IconButton>
-            </Tooltip>
-
-            {/* Cart Icon */}
-            <Tooltip title="5 items in cart">
-              <IconButton 
-                sx={{ 
-                  mr: 2, 
-                  color: 'white',
-                  transition: 'all 0.3s ease',
-                  '&:hover': {
-                    bgcolor: 'rgba(255, 255, 255, 0.1)',
-                    transform: 'scale(1.05)'
-                  }
-                }}
-              >
-                <Badge badgeContent={5} color="success">
-                  <CartIcon />
-                </Badge>
-              </IconButton>
-            </Tooltip>
+            {/* Order Count Badge */}
+            <OrderCountBadge />
 
             {/* Profile Avatar & Menu */}
             <Button
               onClick={handleMenuClick}
               sx={{
-                color: 'white',
-                textTransform: 'none',
-                display: 'flex',
-                alignItems: 'center',
+                color: "white",
+                textTransform: "none",
+                display: "flex",
+                alignItems: "center",
                 gap: 1,
-                '&:hover': { backgroundColor: 'rgba(255, 255, 255, 0.08)' }
+                "&:hover": { backgroundColor: "rgba(255, 255, 255, 0.08)" },
               }}
             >
-              <Avatar sx={{ width: 32, height: 32, bgcolor: '#3b82f6' }} src={profileData.profilePhoto}>
-                {!profileData.profilePhoto && (profileData.fullName?.charAt(0) || 'A')}
+              <Avatar
+                sx={{ width: 32, height: 32, bgcolor: "#3b82f6" }}
+                src={profileData.profilePhoto}
+              >
+                {!profileData.profilePhoto &&
+                  (profileData.fullName?.charAt(0) || "A")}
               </Avatar>
-              <Box sx={{ display: { xs: 'none', sm: 'block' } }}>
-                <Typography variant="body2" sx={{ textAlign: 'left', lineHeight: 1.2 }}>
+              <Box sx={{ display: { xs: "none", sm: "block" } }}>
+                <Typography
+                  variant="body2"
+                  sx={{ textAlign: "left", lineHeight: 1.2 }}
+                >
                   {profileData.fullName}
                 </Typography>
-                <Typography variant="caption" sx={{ color: 'rgba(255, 255, 255, 0.7)' }}>
+                <Typography
+                  variant="caption"
+                  sx={{ color: "rgba(255, 255, 255, 0.7)" }}
+                >
                   Administrator
                 </Typography>
               </Box>
               <ExpandMoreIcon />
             </Button>
-            
+
             <Menu
               anchorEl={anchorEl}
               open={Boolean(anchorEl)}
               onClose={handleMenuClose}
               PaperProps={{
-                sx: { mt: 1, minWidth: 200 }
+                sx: { mt: 1, minWidth: 200 },
               }}
             >
               <MenuItem onClick={handleMenuClose}>
@@ -260,8 +211,8 @@ function Layout() {
             p: { xs: 2, sm: 3 },
             width: getMainWidth(),
             ml: getMainMargin(),
-            minHeight: '100vh',
-            transition: 'width 0.3s ease, margin-left 0.3s ease'
+            minHeight: "100vh",
+            transition: "width 0.3s ease, margin-left 0.3s ease",
           }}
         >
           <Toolbar />

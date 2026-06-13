@@ -7,7 +7,7 @@ const testRazorpayIntegration = async () => {
   // Test 1: Check if we can reach the backend
   console.log('📡 Testing backend connectivity...');
   try {
-    const response = await fetch('https://user-api.apnadecoration.com/api/payments/key');
+    const response = await fetch(`${process.env.REACT_APP_API_URL}/payments/key`);
     console.log('✅ Backend reachable, status:', response.status);
     
     if (response.ok) {

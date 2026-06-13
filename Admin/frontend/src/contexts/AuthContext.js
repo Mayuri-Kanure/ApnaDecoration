@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import api from '../utils/axiosClient';
 
 const AuthContext = createContext();
 
@@ -15,26 +16,34 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const initializeAuth = () => {
+    const initializeAuth = async () => {
       try {
         const token = localStorage.getItem('token');
         const userData = localStorage.getItem('user');
-        
-        console.log('AuthContext: Checking localStorage', { token: !!token, userData: !!userData });
-        console.log('AuthContext: Raw localStorage data', { token, userData });
-        
-        if (token && userData) {
-          const parsedUser = JSON.parse(userData);
-          console.log('AuthContext: User found', parsedUser);
-          setUser(parsedUser);
-        } else {
-          console.log('AuthContext: No auth data found');
+
+        if (!token || !userData) {
+          setUser(null);
+          return;
+        }
+
+        const parsedUser = JSON.parse(userData);
+        setUser(parsedUser);
+
+        // Validate token against live API (fixes stale/invalid tokens)
+        try {
+          const { data } = await api.get('/auth/profile');
+          if (data?.email) {
+            setUser(data);
+            localStorage.setItem('user', JSON.stringify(data));
+          }
+        } catch (verifyError) {
+          console.warn('AuthContext: token invalid on server', verifyError.response?.data);
+          localStorage.removeItem('token');
+          localStorage.removeItem('user');
           setUser(null);
         }
       } catch (error) {
         console.error('AuthContext: Error initializing auth:', error);
-        // Clear corrupted data
-        console.log('AuthContext: Clearing corrupted data');
         localStorage.removeItem('token');
         localStorage.removeItem('user');
         setUser(null);

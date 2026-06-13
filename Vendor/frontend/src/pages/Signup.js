@@ -16,6 +16,7 @@ import {
   Checkbox,
 } from "@mui/material";
 import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
+import { validateVendorSignupStep } from "../utils/formValidation";
 
 const steps = ["Business Info", "Account Info", "Terms & Submit"];
 
@@ -34,6 +35,7 @@ const VendorSignup = () => {
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [fieldErrors, setFieldErrors] = useState({});
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -41,26 +43,20 @@ const VendorSignup = () => {
       ...formData,
       [name]: type === "checkbox" ? checked : value,
     });
+    if (fieldErrors[name]) {
+      setFieldErrors((prev) => ({ ...prev, [name]: "" }));
+    }
+    if (error) setError("");
   };
 
   const handleNext = () => {
-    // Validate current step
-    if (activeStep === 0) {
-      if (!formData.name) {
-        setError("Please fill Business Name to continue");
-        return;
-      }
+    const validation = validateVendorSignupStep(activeStep, formData);
+    if (!validation.valid) {
+      setFieldErrors(validation.errors);
+      setError(validation.message);
+      return;
     }
-    if (activeStep === 1) {
-      if (!formData.email || !formData.password || !formData.confirmPassword) {
-        setError("Please fill all required fields in Account Info");
-        return;
-      }
-      if (formData.password !== formData.confirmPassword) {
-        setError("Passwords do not match");
-        return;
-      }
-    }
+    setFieldErrors({});
     setError("");
     setActiveStep((prev) => prev + 1);
   };
@@ -71,17 +67,14 @@ const VendorSignup = () => {
   };
 
   const handleSubmit = async () => {
-    if (!formData.agreeTerms) {
-      setError("You must agree to the Terms and Conditions");
+    const validation = validateVendorSignupStep(2, formData);
+    if (!validation.valid) {
+      setFieldErrors(validation.errors);
+      setError(validation.message);
       return;
     }
 
-    // Validate password requirements
-    if (formData.password.length < 6) {
-      setError("Password must be at least 6 characters long");
-      return;
-    }
-
+    setFieldErrors({});
     setLoading(true);
     setError("");
 
@@ -133,6 +126,8 @@ const VendorSignup = () => {
               value={formData.name}
               onChange={handleChange}
               margin="normal"
+              error={!!fieldErrors.name}
+              helperText={fieldErrors.name || " "}
             />
             <TextField
               fullWidth
@@ -141,6 +136,8 @@ const VendorSignup = () => {
               value={formData.phone}
               onChange={handleChange}
               margin="normal"
+              error={!!fieldErrors.phone}
+              helperText={fieldErrors.phone || "10-digit mobile (optional)"}
             />
             <TextField
               fullWidth
@@ -173,6 +170,8 @@ const VendorSignup = () => {
               value={formData.email}
               onChange={handleChange}
               margin="normal"
+              error={!!fieldErrors.email}
+              helperText={fieldErrors.email || " "}
             />
             <TextField
               fullWidth
@@ -182,6 +181,8 @@ const VendorSignup = () => {
               value={formData.password}
               onChange={handleChange}
               margin="normal"
+              error={!!fieldErrors.password}
+              helperText={fieldErrors.password || "Min 6 characters"}
             />
             <TextField
               fullWidth
@@ -191,22 +192,31 @@ const VendorSignup = () => {
               value={formData.confirmPassword}
               onChange={handleChange}
               margin="normal"
+              error={!!fieldErrors.confirmPassword}
+              helperText={fieldErrors.confirmPassword || " "}
             />
           </>
         );
       case 2:
         return (
-          <FormControlLabel
-            control={
-              <Checkbox
-                checked={formData.agreeTerms}
-                onChange={handleChange}
-                name="agreeTerms"
-                sx={{ color: "#2F66FF" }}
-              />
-            }
-            label="I agree to the Terms and Conditions"
-          />
+          <>
+            <FormControlLabel
+              control={
+                <Checkbox
+                  checked={formData.agreeTerms}
+                  onChange={handleChange}
+                  name="agreeTerms"
+                  sx={{ color: "#2F66FF" }}
+                />
+              }
+              label="I agree to the Terms and Conditions"
+            />
+            {fieldErrors.agreeTerms && (
+              <Typography variant="caption" color="error" sx={{ display: "block", mt: 1 }}>
+                {fieldErrors.agreeTerms}
+              </Typography>
+            )}
+          </>
         );
       default:
         return null;

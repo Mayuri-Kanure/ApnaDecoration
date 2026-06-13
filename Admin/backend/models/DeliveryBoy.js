@@ -21,10 +21,7 @@ const deliveryBoySchema = new mongoose.Schema(
       unique: true,
       lowercase: true,
       trim: true,
-      match: [
-        /^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/,
-        "Please enter a valid email",
-      ],
+      match: [/^\S+@\S+\.\S+$/, "Please enter a valid email"],
     },
     phone: {
       type: String,
@@ -151,6 +148,10 @@ const deliveryBoySchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+    availableBalance: {
+      type: Number,
+      default: 0,
+    },
 
     // Emergency Contact
     emergencyContact: {
@@ -256,5 +257,57 @@ deliveryBoySchema.index({
   "currentLocation.latitude": 1,
   "currentLocation.longitude": 1,
 });
+
+// Method to update delivery statistics
+deliveryBoySchema.methods.updateStats = async function (isSuccessful = true) {
+  try {
+    this.totalDeliveries += 1;
+    
+    if (isSuccessful) {
+      this.successfulDeliveries += 1;
+    } else {
+      this.failedDeliveries += 1;
+    }
+    
+    await this.save();
+    return this;
+  } catch (error) {
+    console.error("Error updating delivery stats:", error);
+    throw error;
+  }
+};
+
+// Method to update earnings
+deliveryBoySchema.methods.updateEarnings = async function (earnings = 0) {
+  try {
+    this.totalEarnings += earnings;
+    this.availableBalance += earnings;
+    
+    await this.save();
+    return this;
+  } catch (error) {
+    console.error("Error updating earnings:", error);
+    throw error;
+  }
+};
+
+// Method to update rating
+deliveryBoySchema.methods.updateRating = async function (newRating = 0) {
+  try {
+    if (this.totalDeliveries === 0) {
+      this.averageRating = newRating;
+    } else {
+      // Calculate new average rating
+      const totalRating = this.averageRating * (this.totalDeliveries - 1);
+      this.averageRating = ((totalRating + newRating) / this.totalDeliveries).toFixed(2);
+    }
+    
+    await this.save();
+    return this;
+  } catch (error) {
+    console.error("Error updating rating:", error);
+    throw error;
+  }
+};
 
 module.exports = mongoose.model("DeliveryBoy", deliveryBoySchema);

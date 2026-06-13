@@ -4,10 +4,28 @@ const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 
 class DeliveryBoyService {
+  // Normalize phone number to 10-digit format
+  normalizePhone(phone) {
+    if (!phone) return phone;
+    let digits = String(phone).replace(/\D/g, "");
+    if (digits.length === 12 && digits.startsWith("91")) {
+      digits = digits.slice(2);
+    }
+    if (digits.length === 11 && digits.startsWith("0")) {
+      digits = digits.slice(1);
+    }
+    return digits;
+  }
+
   // Create new delivery boy
   async createDeliveryBoy(deliveryBoyData) {
     try {
       console.log("🔧 Creating delivery boy:", deliveryBoyData);
+
+      // Normalize phone number
+      if (deliveryBoyData.phone) {
+        deliveryBoyData.phone = this.normalizePhone(deliveryBoyData.phone);
+      }
 
       // Check if delivery boy already exists
       const existingDeliveryBoy = await DeliveryBoy.findOne({
@@ -25,8 +43,7 @@ class DeliveryBoyService {
       }
 
       // Hash password
-      const salt = await bcrypt.genSalt(10);
-      const hashedPassword = await bcrypt.hash(deliveryBoyData.password, salt);
+      const hashedPassword = await bcrypt.hash(deliveryBoyData.password, 12);
 
       // Generate employee ID if not provided
       if (!deliveryBoyData.employeeId) {
@@ -55,9 +72,11 @@ class DeliveryBoyService {
   // Login delivery boy
   async loginDeliveryBoy(email, password) {
     try {
-      console.log("🔧 Delivery boy login attempt:", email);
+      // Normalize email for case-insensitive lookup
+      const normalizedEmail = String(email).trim().toLowerCase();
+      console.log("🔧 Delivery boy login attempt:", normalizedEmail);
 
-      const deliveryBoy = await DeliveryBoy.findOne({ email });
+      const deliveryBoy = await DeliveryBoy.findOne({ email: normalizedEmail });
 
       if (!deliveryBoy) {
         throw new Error("Invalid credentials");
@@ -76,14 +95,17 @@ class DeliveryBoyService {
         throw new Error("Account is not active");
       }
 
-      // Generate JWT token
+      // Generate JWT token with consistent payload
+      if (!process.env.JWT_SECRET) {
+        throw new Error("JWT_SECRET environment variable is required");
+      }
       const token = jwt.sign(
         {
-          deliveryBoyId: deliveryBoy._id,
-          email: deliveryBoy.email,
+          id: deliveryBoy._id.toString(),
           role: "delivery_boy",
+          email: deliveryBoy.email,
         },
-        process.env.JWT_SECRET || "your-secret-key",
+        process.env.JWT_SECRET,
         { expiresIn: "24h" },
       );
 
@@ -187,6 +209,11 @@ class DeliveryBoyService {
     try {
       console.log("🔧 Updating delivery boy:", { id, updateData });
 
+      // Normalize phone number if provided
+      if (updateData.phone) {
+        updateData.phone = this.normalizePhone(updateData.phone);
+      }
+
       const deliveryBoy = await DeliveryBoy.findById(id);
 
       if (!deliveryBoy) {
@@ -219,8 +246,7 @@ class DeliveryBoyService {
 
       // Hash password if provided
       if (updateData.password) {
-        const salt = await bcrypt.genSalt(10);
-        filteredData.password = await bcrypt.hash(updateData.password, salt);
+        filteredData.password = await bcrypt.hash(updateData.password, 12);
       }
 
       const updatedDeliveryBoy = await DeliveryBoy.findByIdAndUpdate(
@@ -854,7 +880,7 @@ class DeliveryBoyService {
       }
 
       // Hash new password
-      const hashedNewPassword = await bcrypt.hash(newPassword, 10);
+      const hashedNewPassword = await bcrypt.hash(newPassword, 12);
 
       // Update password using findOneAndUpdate to avoid pre-save hooks
       await DeliveryBoy.findByIdAndUpdate(
@@ -897,8 +923,40 @@ class DeliveryBoyService {
     try {
       console.log("🔧 Updating delivery boy:", deliveryBoyId, updateData);
 
-      // 🚨 CRITICAL FIX: Clean data to prevent Mongoose validation errors
-      const cleanData = { ...updateData };
+      // 🚨 SECURITY FIX: Whitelist allowed fields to prevent unauthorized updates
+      const allowedFields = [
+        'name',
+        'email',
+        'phone',
+        'address',
+        'bankAccount',
+        'emergencyContact',
+        'vehicleType',
+        'vehicleNumber',
+        'currentLocation',
+        'isAvailable',
+        'profileImage'
+      ];
+
+      const cleanData = {};
+      for (const field of allowedFields) {
+        if (updateData.hasOwnProperty(field)) {
+          cleanData[field] = updateData[field];
+        }
+      }
+
+      // Validate location coordinates if provided
+      if (cleanData.currentLocation) {
+        const { latitude, longitude } = cleanData.currentLocation;
+        if (latitude !== undefined && longitude !== undefined) {
+          if (latitude < -90 || latitude > 90) {
+            throw new Error('Latitude must be between -90 and 90');
+          }
+          if (longitude < -180 || longitude > 180) {
+            throw new Error('Longitude must be between -180 and 180');
+          }
+        }
+      }
 
       // Handle address object - remove if completely empty
       if (cleanData.address) {

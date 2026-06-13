@@ -34,6 +34,7 @@ const Cart = () => {
     updateQuantity,
     getTotalPrice,
     clearCart,
+    isCartLoading,
   } = useCart();
   const { success, error: showError, warning: showWarning } = useToast();
   const [promoCode, setPromoCode] = useState("");
@@ -238,8 +239,22 @@ const Cart = () => {
   const subtotal = getTotalPrice() || 0;
   const discount = appliedCoupon ? appliedCoupon.discount : 0;
   const shipping = shippingMethod === "express" ? 25 : 10;
-  const tax = (subtotal - discount) * 0.08;
+  const tax = 0;
   const total = subtotal - discount + shipping + tax;
+
+  // ✅ THIS STOPS THE FLASH:
+  // Shows a clean state loader for a split second instead of flashing an empty layout
+  if (isCartLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
+        <Navigation />
+        <div className="flex justify-center items-center min-h-[400px]">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand-accent"></div>
+        </div>
+        <Footer />
+      </div>
+    );
+  }
 
   if (cartItems.length === 0) {
     return (

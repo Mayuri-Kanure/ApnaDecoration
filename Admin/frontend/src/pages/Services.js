@@ -108,7 +108,7 @@ const Services = () => {
       price: service.price || '',
       duration: service.duration || '',
       category: service.category?._id || service.category || '',
-      featured: service.featured || false,
+      featured: !!service.featured,  // Ensure boolean
       status: service.status || 'active',
       priority: service.priority || 0
     });
@@ -117,10 +117,16 @@ const Services = () => {
 
   const handleSaveService = async () => {
     try {
+      const dataToSend = {
+        ...formData,
+        featured: String(formData.featured),  // Convert boolean to string
+        status: formData.status
+      };
+      
       if (editingService) {
-        await apiService.put(`/services/${editingService._id}`, formData);
+        await apiService.put(`/services/${editingService._id}`, dataToSend);
       } else {
-        await apiService.post('/services', formData);
+        await apiService.post('/services', dataToSend);
       }
       setDialogOpen(false);
       fetchServices();

@@ -7,6 +7,9 @@ const { validateOrder } = require("../middleware/validation");
 // Get all orders - temporarily disabled auth for testing
 router.get("/", orderController.getOrders);
 
+// Get pending orders count (for badge)
+router.get("/pending-count", auth, orderController.getPendingOrdersCount);
+
 // Get order statistics
 router.get(
   "/stats",

@@ -16,6 +16,7 @@ import { useCart } from "../contexts/CartContext";
 import { useToast } from "../contexts/ToastContext";
 import { ProductContext } from "../contexts/ProductContext";
 import BookingModal from "../components/BookingModal";
+import serviceService from "../services/serviceService";
 import {
   API_BASE_URL,
   PRODUCT_API_URL,
@@ -51,23 +52,13 @@ const ServiceDetail = () => {
     const fetchService = async () => {
       try {
         setLoading(true);
-        const response = await fetch(
-          `https://user-api.apnadecoration.com/api/services/${id}`,
-          {
-            headers: {
-              "Content-Type": "application/json",
-              "X-Requested-With": "XMLHttpRequest",
-              // Add auth token if available
-              ...(localStorage.getItem("token") && {
-                Authorization: `Bearer ${localStorage.getItem("token")}`,
-              }),
-            },
-          },
-        );
-        const data = await response.json();
-
-        if (data.success && data.data) {
-          setService(data.data);
+        const data = await serviceService.getService(id);
+        
+        // Handle both direct data and nested data responses
+        const serviceData = data?.data || data;
+        
+        if (serviceData && (serviceData.id || serviceData._id)) {
+          setService(serviceData);
         } else {
           showError("Service not found");
         }
@@ -80,7 +71,7 @@ const ServiceDetail = () => {
     };
 
     fetchService();
-  }, [id]);
+  }, [id, showError]);
 
   // Use context services for related items
   const fetchRelatedServices = () => {
@@ -220,59 +211,67 @@ const ServiceDetail = () => {
 
       {/* HERO SECTION - Service Images & Info */}
       <div className="max-w-6xl mx-auto px-4 py-8">
-        <div className="grid lg:grid-cols-2 gap-8 lg:gap-12">
-          {/* LEFT: Service Image Gallery */}
-          <div className="space-y-4">
-            {/* Main Service Image */}
-            <div className="aspect-square overflow-hidden rounded-xl shadow-sm bg-gray-100">
-              <img
-                src={
-                  service.thumbnail
-                    ? service.thumbnail.startsWith("http")
-                      ? service.thumbnail
-                      : IMAGE_BASE_URL + service.thumbnail
-                    : service.bannerImage
-                      ? service.bannerImage.startsWith("https://")
-                        ? service.bannerImage
-                        : service.bannerImage.startsWith("http://")
-                          ? service.bannerImage.replace("http://", "https://")
-                          : IMAGE_BASE_URL + service.bannerImage
-                      : FALLBACK_IMAGE
-                }
-                alt={service.name}
-                className="w-full h-full object-cover"
-              />
-            </div>
+        {(() => {
+          // Combine banner image with other images for full gallery
+          const galleryImages = [];
+          if (service.bannerImage) {
+            galleryImages.push(service.bannerImage);
+          }
+          if (service.images && Array.isArray(service.images)) {
+            service.images.forEach(img => {
+              if (img && !galleryImages.includes(img)) {
+                galleryImages.push(img);
+              }
+            });
+          }
+          const mainImage = selectedImage || galleryImages[0] || service.thumbnail || FALLBACK_IMAGE;
 
-            {/* Thumbnail Gallery */}
-            {service.images && service.images.length > 1 && (
-              <div className="grid grid-cols-4 gap-2">
-                {service.images.slice(0, 4).map((image, index) => (
-                  <div
-                    key={index}
-                    className={`aspect-square overflow-hidden rounded-lg bg-gray-100 cursor-pointer transition-all ${
-                      selectedImage === image
-                        ? "ring-2 ring-blue-500"
-                        : "hover:opacity-80"
-                    }`}
-                    onClick={() => setSelectedImage(image)}
-                  >
-                    <img
-                      src={
-                        image.startsWith("http")
-                          ? image
-                          : IMAGE_BASE_URL + image
-                      }
-                      alt={`${service.name} - Image ${index + 1}`}
-                      className="w-full h-full object-cover"
-                    />
+          return (
+            <div className="grid lg:grid-cols-2 gap-8 lg:gap-12">
+              {/* LEFT: Service Image Gallery */}
+              <div className="space-y-4">
+                {/* Main Service Image */}
+                <div className="aspect-square overflow-hidden rounded-xl shadow-sm bg-gray-100">
+                  <img
+                    src={
+                      mainImage.startsWith("http")
+                        ? mainImage
+                        : IMAGE_BASE_URL + mainImage
+                    }
+                    alt={service.name}
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+
+                {/* Thumbnail Gallery - Show if more than 1 image available */}
+                {galleryImages.length > 1 && (
+                  <div className="grid grid-cols-4 gap-2">
+                    {galleryImages.slice(0, 4).map((image, index) => (
+                      <div
+                        key={index}
+                        className={`aspect-square overflow-hidden rounded-lg bg-gray-100 cursor-pointer transition-all ${
+                          selectedImage === image
+                            ? "ring-2 ring-blue-500"
+                            : "hover:opacity-80"
+                        }`}
+                        onClick={() => setSelectedImage(image)}
+                      >
+                        <img
+                          src={
+                            image.startsWith("http")
+                              ? image
+                              : IMAGE_BASE_URL + image
+                          }
+                          alt={`${service.name} - Image ${index + 1}`}
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                    ))}
                   </div>
-                ))}
+                )}
               </div>
-            )}
-          </div>
 
-          {/* RIGHT: Service Info */}
+              {/* RIGHT: Service Info */}
           <div className="space-y-6">
             {/* Service Title */}
             <div className="flex items-center gap-3">
@@ -431,6 +430,8 @@ const ServiceDetail = () => {
             </div>
           </div>
         </div>
+        );
+        })()}
       </div>
 
       {/* DETAILED INFORMATION SECTION */}

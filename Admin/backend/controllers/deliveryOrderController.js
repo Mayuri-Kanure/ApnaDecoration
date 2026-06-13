@@ -132,7 +132,7 @@ exports.acceptOrder = async (req, res) => {
     }
 
     // Assign order to delivery boy
-    const deliveryBoyId = req.deliveryBoy?.id || req.user?.id;
+    const deliveryBoyId = req.deliveryBoy?._id || req.deliveryBoy?.id || req.user?.id;
     if (!deliveryBoyId) {
       return res.status(401).json({
         success: false,
@@ -242,7 +242,7 @@ exports.startDelivery = async (req, res) => {
       });
     }
 
-    if (order.deliveryBoyId.toString() !== req.deliveryBoy.id) {
+    if (order.deliveryBoyId?.toString() !== (req.deliveryBoy?.id || req.deliveryBoy?._id?.toString())) {
       return res.status(403).json({
         success: false,
         message: "Not authorized to update this order",
@@ -252,7 +252,7 @@ exports.startDelivery = async (req, res) => {
     if (order.status !== "accepted") {
       return res.status(400).json({
         success: false,
-        message: "Order must be accepted first",
+        message: `Order must be accepted first. Current status: ${order.status}`,
       });
     }
 
@@ -301,7 +301,13 @@ exports.completeDelivery = async (req, res) => {
       });
     }
 
-    if (order.deliveryBoyId.toString() !== req.deliveryBoy.id) {
+    console.log(`Completing order ${orderId}:`, {
+      orderStatus: order.status,
+      deliveryBoyIdInOrder: order.deliveryBoyId?.toString(),
+      deliveryBoyIdInRequest: req.deliveryBoy?.id || req.deliveryBoy?._id,
+    });
+
+    if (order.deliveryBoyId?.toString() !== (req.deliveryBoy?.id || req.deliveryBoy?._id?.toString())) {
       return res.status(403).json({
         success: false,
         message: "Not authorized to update this order",
@@ -311,7 +317,7 @@ exports.completeDelivery = async (req, res) => {
     if (order.status !== "picked_up") {
       return res.status(400).json({
         success: false,
-        message: "Order must be picked up first",
+        message: `Order must be picked up first. Current status: ${order.status}`,
       });
     }
 

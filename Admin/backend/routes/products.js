@@ -3,6 +3,8 @@ const router = express.Router();
 const productController = require("../controllers/productController");
 const cloudinaryService = require("../services/cloudinaryService");
 
+// ========== SPECIFIC ROUTES (must come before generic /:id routes) ==========
+
 // Get all products
 router.get("/", productController.getAllProducts);
 
@@ -27,13 +29,7 @@ router.get("/brands", (req, res) => {
   });
 });
 
-// Get single product by ID (MUST be last)
-router.get("/:id", productController.getProductById);
-
-// Toggle featured status
-router.put("/:id/toggle-featured", productController.toggleFeatured);
-
-// Create new product with file upload - Production Ready
+// Create new product with file upload
 router.post("/", cloudinaryService.uploadProductImages(), async (req, res) => {
   try {
     // Handle both formats: direct fields and productData JSON
@@ -81,7 +77,12 @@ router.post("/", cloudinaryService.uploadProductImages(), async (req, res) => {
   }
 });
 
-// Update product with file upload - Production Ready
+// ========== GENERIC ROUTES (/:id - must come after specific routes) ==========
+
+// Toggle featured status
+router.put("/:id/toggle-featured", productController.toggleFeatured);
+
+// Update product with file upload
 router.put(
   "/:id",
   cloudinaryService.uploadProductImages(),
@@ -139,5 +140,8 @@ router.put(
 
 // Delete product
 router.delete("/:id", productController.deleteProduct);
+
+// Get single product by ID (MUST be LAST - generic catch-all)
+router.get("/:id", productController.getProductById);
 
 module.exports = router;

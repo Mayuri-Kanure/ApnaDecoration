@@ -11,6 +11,8 @@ import {
   Avatar,
   Alert,
   MenuItem,
+  Switch,
+  FormControlLabel,
 } from "@mui/material";
 import {
   Person as PersonIcon,
@@ -23,6 +25,7 @@ import {
   LocationOn as LocationIcon,
   Web as WebIcon,
   Description as DescriptionIcon,
+  Notifications as NotificationsIcon,
 } from "@mui/icons-material";
 
 const Profile = () => {
@@ -57,6 +60,10 @@ const Profile = () => {
     newPassword: "",
     confirmPassword: "",
   });
+
+  const [pushEnabled, setPushEnabled] = useState(
+    () => localStorage.getItem("vendorPushEnabled") === "true",
+  );
 
   useEffect(() => {
     // Load vendor profile data
@@ -497,6 +504,42 @@ const Profile = () => {
                   </Button>
                 </Grid>
               </Grid>
+            </CardContent>
+          </Card>
+        </Grid>
+
+        <Grid item xs={12}>
+          <Card>
+            <CardContent>
+              <Typography variant="h6" gutterBottom sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                <NotificationsIcon color="primary" />
+                Push Notifications
+              </Typography>
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={pushEnabled}
+                    onChange={async (e) => {
+                      const on = e.target.checked;
+                      try {
+                        const push = (await import("../services/pushNotificationService")).default;
+                        if (on) {
+                          await push.enablePush();
+                          localStorage.setItem("vendorPushEnabled", "true");
+                        } else {
+                          await push.disablePush();
+                          localStorage.setItem("vendorPushEnabled", "false");
+                        }
+                        setPushEnabled(on);
+                        setSuccess(on ? "Push notifications enabled" : "Push notifications disabled");
+                      } catch (err) {
+                        setError(err.message || "Failed to update push settings");
+                      }
+                    }}
+                  />
+                }
+                label="Order alerts on this device (APK)"
+              />
             </CardContent>
           </Card>
         </Grid>

@@ -90,6 +90,8 @@ function ProductList() {
   const [selectedProductForStatus, setSelectedProductForStatus] =
     useState(null);
 
+  const [isProcessing, setIsProcessing] = useState(false);
+
   useEffect(() => {
     fetchProducts();
     fetchCategories();
@@ -168,9 +170,30 @@ function ProductList() {
   };
 
   const confirmDelete = async () => {
-    await apiService.deleteProduct(selectedProduct._id);
-    setProducts((prev) => prev.filter((p) => p._id !== selectedProduct._id));
-    setDeleteDialogOpen(false);
+    try {
+      setIsProcessing(true);
+      console.log("🗑️ Deleting product:", selectedProduct._id);
+      await apiService.deleteProduct(selectedProduct._id);
+      setProducts((prev) => prev.filter((p) => p._id !== selectedProduct._id));
+      setSnackbarMessage("Product deleted successfully!");
+      setSnackbarOpen(true);
+      setDeleteDialogOpen(false);
+    } catch (error) {
+      console.error("❌ Error deleting product:", error);
+      
+      // If product not found (404), still remove from list
+      if (error.message && error.message.includes("404")) {
+        setProducts((prev) => prev.filter((p) => p._id !== selectedProduct._id));
+        setSnackbarMessage("Product not found or already deleted.");
+        setSnackbarOpen(true);
+        setDeleteDialogOpen(false);
+      } else {
+        setSnackbarMessage(`Failed to delete product: ${error.message}`);
+        setSnackbarOpen(true);
+      }
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   const toggleFeatured = (product) => {
@@ -180,6 +203,7 @@ function ProductList() {
 
   const confirmToggleFeatured = async () => {
     try {
+      setIsProcessing(true);
       console.log(
         "🔄 Toggling featured for product:",
         selectedProductForFeatured._id,
@@ -195,17 +219,56 @@ function ProductList() {
             : p,
         ),
       );
+      
+      // Broadcast cache clear to user frontend via localStorage
+      const cacheKey = `featured_products_${Date.now()}`;
+      localStorage.setItem("CLEAR_FEATURED_CACHE", cacheKey);
+      console.log("📢 Cache clear signal sent to user frontend");
+      
       setFeaturedDialogOpen(false);
     } catch (error) {
       console.error("❌ Error toggling featured:", error);
       setSnackbarMessage(`Failed to toggle featured status: ${error.message}`);
       setSnackbarOpen(true);
+    } finally {
+      setIsProcessing(false);
     }
   };
 
   const toggleStatus = (product) => {
     setSelectedProductForStatus(product);
     setStatusDialogOpen(true);
+  };
+
+  const confirmToggleStatus = async () => {
+    try {
+      setIsProcessing(true);
+      console.log(
+        "🔄 Toggling status for product:",
+        selectedProductForStatus._id,
+      );
+      const newStatus =
+        selectedProductForStatus.status === "active" ? "inactive" : "active";
+      const response = await apiService.updateProduct(
+        selectedProductForStatus._id,
+        { status: newStatus },
+      );
+      console.log("✅ Status toggle response:", response);
+      setProducts((prev) =>
+        prev.map((p) =>
+          p._id === selectedProductForStatus._id
+            ? { ...p, status: newStatus }
+            : p,
+        ),
+      );
+      setStatusDialogOpen(false);
+    } catch (error) {
+      console.error("❌ Error toggling status:", error);
+      setSnackbarMessage(`Failed to toggle status: ${error.message}`);
+      setSnackbarOpen(true);
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   /* ================= RENDER ================= */
@@ -405,7 +468,10 @@ function ProductList() {
                       <TableCell>
                         <Box sx={{ display: "flex", gap: 1 }}>
                           <IconButton
-                            onClick={() => setDetailsDialogOpen(true)}
+                            onClick={() => {
+                              setSelectedProduct(p);
+                              setDetailsDialogOpen(true);
+                            }}
                           >
                             <Visibility />
                           </IconButton>
@@ -437,12 +503,22 @@ function ProductList() {
           <Dialog
             open={deleteDialogOpen}
             onClose={() => setDeleteDialogOpen(false)}
+            fullWidth
+            maxWidth="xs"
           >
             <DialogTitle>Confirm Delete</DialogTitle>
+            <DialogContent>
+              <Typography sx={{ color: "error.main", fontWeight: 500, mt: 2 }}>
+                Are you sure you want to delete "{selectedProduct?.name}"?
+              </Typography>
+              <Typography variant="body2" sx={{ mt: 2, color: "text.secondary" }}>
+                This action cannot be undone.
+              </Typography>
+            </DialogContent>
             <DialogActions>
-              <Button onClick={() => setDeleteDialogOpen(false)}>Cancel</Button>
-              <Button color="error" onClick={confirmDelete}>
-                Delete
+              <Button onClick={() => setDeleteDialogOpen(false)} disabled={isProcessing}>Cancel</Button>
+              <Button color="error" onClick={confirmDelete} variant="contained" disabled={isProcessing}>
+                {isProcessing ? "Deleting..." : "Delete"}
               </Button>
             </DialogActions>
           </Dialog>
@@ -451,6 +527,8 @@ function ProductList() {
           <Dialog
             open={featuredDialogOpen}
             onClose={() => setFeaturedDialogOpen(false)}
+            fullWidth
+            maxWidth="xs"
           >
             <DialogTitle>Toggle Featured Status</DialogTitle>
             <DialogContent>
@@ -461,14 +539,128 @@ function ProductList() {
               </Typography>
             </DialogContent>
             <DialogActions>
-              <Button onClick={() => setFeaturedDialogOpen(false)}>
+              <Button onClick={() => setFeaturedDialogOpen(false)} disabled={isProcessing}>
                 Cancel
               </Button>
-              <Button color="primary" onClick={confirmToggleFeatured}>
-                Confirm
+              <Button color="primary" onClick={confirmToggleFeatured} variant="contained" disabled={isProcessing}>
+                {isProcessing ? "Processing..." : "Confirm"}
               </Button>
             </DialogActions>
           </Dialog>
+
+          {/* STATUS DIALOG */}
+          <Dialog
+            open={statusDialogOpen}
+            onClose={() => setStatusDialogOpen(false)}
+            fullWidth
+            maxWidth="xs"
+          >
+            <DialogTitle>Toggle Product Status</DialogTitle>
+            <DialogContent>
+              <Typography>
+                {selectedProductForStatus?.status === "active"
+                  ? "Deactivate this product?"
+                  : "Activate this product?"}
+              </Typography>
+            </DialogContent>
+            <DialogActions>
+              <Button onClick={() => setStatusDialogOpen(false)} disabled={isProcessing}>
+                Cancel
+              </Button>
+              <Button color="primary" onClick={confirmToggleStatus} variant="contained" disabled={isProcessing}>
+                {isProcessing ? "Processing..." : "Confirm"}
+              </Button>
+            </DialogActions>
+          </Dialog>
+
+          {/* DETAILS DIALOG */}
+          <Dialog
+            open={detailsDialogOpen}
+            onClose={() => setDetailsDialogOpen(false)}
+            maxWidth="sm"
+            fullWidth
+          >
+            <DialogTitle>Product Details</DialogTitle>
+            <DialogContent>
+              {selectedProduct && (
+                <Box sx={{ display: "flex", flexDirection: "column", gap: 2, pt: 2 }}>
+                  <Box>
+                    <Typography variant="caption" color="textSecondary">
+                      Name
+                    </Typography>
+                    <Typography variant="body2">{selectedProduct.name}</Typography>
+                  </Box>
+                  <Box>
+                    <Typography variant="caption" color="textSecondary">
+                      SKU
+                    </Typography>
+                    <Typography variant="body2">{selectedProduct.sku}</Typography>
+                  </Box>
+                  <Box>
+                    <Typography variant="caption" color="textSecondary">
+                      Category
+                    </Typography>
+                    <Typography variant="body2">
+                      {getCategoryName(selectedProduct.category)}
+                    </Typography>
+                  </Box>
+                  <Box>
+                    <Typography variant="caption" color="textSecondary">
+                      Price
+                    </Typography>
+                    <Typography variant="body2">
+                      ₹{selectedProduct.unit_price || selectedProduct.price}
+                    </Typography>
+                  </Box>
+                  <Box>
+                    <Typography variant="caption" color="textSecondary">
+                      Stock
+                    </Typography>
+                    <Typography variant="body2">{selectedProduct.stock}</Typography>
+                  </Box>
+                  <Box>
+                    <Typography variant="caption" color="textSecondary">
+                      Status
+                    </Typography>
+                    <Chip
+                      label={selectedProduct.status}
+                      color={selectedProduct.status === "active" ? "success" : "default"}
+                      size="small"
+                    />
+                  </Box>
+                  <Box>
+                    <Typography variant="caption" color="textSecondary">
+                      Featured
+                    </Typography>
+                    <Chip
+                      label={selectedProduct.featured ? "Yes" : "No"}
+                      color={selectedProduct.featured ? "primary" : "default"}
+                      size="small"
+                    />
+                  </Box>
+                </Box>
+              )}
+            </DialogContent>
+            <DialogActions>
+              <Button onClick={() => setDetailsDialogOpen(false)}>Close</Button>
+            </DialogActions>
+          </Dialog>
+
+          {/* SNACKBAR */}
+          <Snackbar
+            open={snackbarOpen}
+            autoHideDuration={6000}
+            onClose={() => setSnackbarOpen(false)}
+            anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+          >
+            <Alert
+              onClose={() => setSnackbarOpen(false)}
+              severity={snackbarMessage.includes("success") || snackbarMessage.includes("successfully") ? "success" : "error"}
+              sx={{ width: "100%" }}
+            >
+              {snackbarMessage}
+            </Alert>
+          </Snackbar>
         </>
       )}
     </Box>

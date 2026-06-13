@@ -411,3 +411,23 @@ exports.getOrderStats = async (req, res) => {
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
+
+// Get pending orders count for badge
+exports.getPendingOrdersCount = async (req, res) => {
+  try {
+    const count = await Order.countDocuments({
+      status: { $in: ["pending", "processing", "confirmed"] }
+    });
+
+    res.json({
+      count,
+      message: "Pending orders count retrieved successfully"
+    });
+  } catch (error) {
+    console.error("Error fetching pending orders count:", error);
+    res.status(500).json({
+      message: "Error fetching pending orders count",
+      error: error.message
+    });
+  }
+};

@@ -91,9 +91,9 @@ const ProductDetail = () => {
         }
 
         const endpoints = [
-          `https://user-api.apnadecoration.com/api/services/${id}`,
-          `https://user-api.apnadecoration.com/api/products/${id}`,
-          `https://user-api.apnadecoration.com/api/vendor-products/public/${id}`,
+          `${process.env.REACT_APP_API_URL}/services/${id}`,
+          `${process.env.REACT_APP_API_URL}/products/${id}`,
+          `${process.env.REACT_APP_API_URL}/vendor-products/public/${id}`,
         ];
 
         let data = null;
@@ -269,10 +269,23 @@ const ProductDetail = () => {
 
   const handleBuyNow = async () => {
     try {
-      await addToCart(product, quantity);
-      navigate("/checkout");
+      const validation = canAddToCart(product, quantity);
+      if (!validation.allowed) {
+        showError(validation.message);
+        return;
+      }
+
+      success("Redirecting to checkout...");
+      navigate("/checkout", {
+        state: {
+          buyNowItem: {
+            ...product,
+            quantity,
+          },
+        },
+      });
     } catch (err) {
-      showError("Failed");
+      showError("Failed to proceed to checkout");
     }
   };
 
@@ -293,7 +306,7 @@ const ProductDetail = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 overflow-x-hidden">
+    <div className="product-detail-container min-h-screen bg-gray-50 overflow-x-hidden text-gray-900">
       <Navigation />
 
       {/* BACK BUTTON */}
@@ -312,46 +325,59 @@ const ProductDetail = () => {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12">
           {/* IMAGE SECTION */}
           <div className="space-y-4">
-            <div className="aspect-square max-h-[450px] overflow-hidden rounded-2xl bg-white shadow">
-              <img
-                src={
-                  selectedImage ||
-                  (product.thumbnail
-                    ? product.thumbnail.startsWith("http")
-                      ? product.thumbnail
-                      : IMAGE_BASE_URL + product.thumbnail
-                    : FALLBACK_IMAGE)
-                }
-                alt={product.name}
-                className="w-full h-full object-cover"
-              />
-            </div>
-
-            {product.images && product.images.length > 1 && (
-              <div className="grid grid-cols-4 gap-2">
-                {product.images.slice(0, 4).map((image, index) => (
-                  <button
-                    key={index}
-                    onClick={() => setSelectedImage(image)}
-                    className={`aspect-square overflow-hidden rounded-xl border-2 ${
-                      selectedImage === image
-                        ? "border-blue-500"
-                        : "border-transparent"
-                    }`}
-                  >
+            {/* Create combined gallery from thumbnail + images array */}
+            {(() => {
+              const galleryImages = [];
+              if (product.thumbnail) galleryImages.push(product.thumbnail);
+              if (product.bannerImage && product.bannerImage !== product.thumbnail) galleryImages.push(product.bannerImage);
+              if (product.images && Array.isArray(product.images)) {
+                galleryImages.push(...product.images);
+              }
+              
+              const mainImage = selectedImage || galleryImages[0] || product.thumbnail || FALLBACK_IMAGE;
+              
+              return (
+                <>
+                  <div className="aspect-square max-h-[450px] overflow-hidden rounded-2xl bg-white shadow">
                     <img
                       src={
-                        image.startsWith("http")
-                          ? image
-                          : IMAGE_BASE_URL + image
+                        mainImage.startsWith("http")
+                          ? mainImage
+                          : IMAGE_BASE_URL + mainImage
                       }
-                      alt=""
+                      alt={product.name}
                       className="w-full h-full object-cover"
                     />
-                  </button>
-                ))}
-              </div>
-            )}
+                  </div>
+
+                  {galleryImages.length > 1 && (
+                    <div className="grid grid-cols-4 gap-2">
+                      {galleryImages.slice(0, 4).map((image, index) => (
+                        <button
+                          key={index}
+                          onClick={() => setSelectedImage(image)}
+                          className={`aspect-square overflow-hidden rounded-xl border-2 ${
+                            selectedImage === image
+                              ? "border-blue-500"
+                              : "border-transparent"
+                          }`}
+                        >
+                          <img
+                            src={
+                              image.startsWith("http")
+                                ? image
+                                : IMAGE_BASE_URL + image
+                            }
+                            alt=""
+                            className="w-full h-full object-cover"
+                          />
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </>
+              );
+            })()}
           </div>
 
           {/* PRODUCT INFO */}
@@ -376,7 +402,7 @@ const ProductDetail = () => {
             </div>
 
             {/* RATING */}
-            <div className="flex items-center gap-2 flex-wrap">
+            <div className="flex items-center gap-2 flex-wrap text-gray-700">
               {[...Array(5)].map((_, i) => (
                 <Star
                   key={i}
@@ -389,7 +415,7 @@ const ProductDetail = () => {
                 />
               ))}
 
-              <span className="text-sm text-gray-600">
+              <span className="text-sm text-gray-700">
                 {product.rating} ({product.reviews} reviews)
               </span>
             </div>
@@ -420,6 +446,7 @@ const ProductDetail = () => {
             {/* DESCRIPTION */}
             <div className="text-gray-700 text-sm sm:text-base leading-relaxed break-words">
               <div
+                className="prose max-w-none text-gray-800 prose-p:text-gray-800 prose-headings:text-gray-900 prose-li:text-gray-800 prose-strong:text-gray-900"
                 dangerouslySetInnerHTML={{
                   __html:
                     product.description || "<p>No description available</p>",
@@ -431,7 +458,7 @@ const ProductDetail = () => {
             {product.vendor && (
               <div className="p-4 rounded-2xl bg-white shadow-sm border">
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 text-gray-800">
                     <Store size={18} />
                     <span className="font-medium">
                       Sold by {product.vendor.name}
@@ -450,21 +477,21 @@ const ProductDetail = () => {
 
             {/* QUANTITY */}
             <div className="flex items-center gap-4 flex-wrap">
-              <div className="flex border rounded-xl overflow-hidden">
+              <div className="quantity-box flex border border-gray-300 rounded-xl overflow-hidden bg-white">
                 <button
                   onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                  className="p-3 hover:bg-gray-100"
+                  className="p-3 hover:bg-gray-100 text-gray-800"
                 >
                   <Minus size={16} />
                 </button>
 
-                <div className="px-5 flex items-center justify-center font-medium">
+                <div className="px-5 flex items-center justify-center font-medium text-gray-900 bg-white">
                   {quantity}
                 </div>
 
                 <button
                   onClick={() => setQuantity(quantity + 1)}
-                  className="p-3 hover:bg-gray-100"
+                  className="p-3 hover:bg-gray-100 text-gray-800"
                 >
                   <Plus size={16} />
                 </button>
@@ -475,7 +502,7 @@ const ProductDetail = () => {
             <div className="flex flex-col sm:flex-row gap-3">
               <button
                 onClick={handleAddToCart}
-                className="w-full sm:flex-1 bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl flex items-center justify-center gap-2 transition"
+                className="btn-text-white w-full sm:flex-1 bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl flex items-center justify-center gap-2 transition"
               >
                 <ShoppingBag size={18} />
                 Add to Cart
@@ -483,7 +510,7 @@ const ProductDetail = () => {
 
               <button
                 onClick={handleBuyNow}
-                className="w-full sm:flex-1 bg-orange-500 hover:bg-orange-600 text-white py-3 rounded-xl flex items-center justify-center gap-2 transition"
+                className="btn-text-white w-full sm:flex-1 bg-orange-500 hover:bg-orange-600 text-white py-3 rounded-xl flex items-center justify-center gap-2 transition"
               >
                 Buy Now
               </button>
@@ -499,7 +526,7 @@ const ProductDetail = () => {
                 className={`w-full sm:w-auto px-4 py-3 rounded-xl border flex items-center justify-center ${
                   isInWishlist(product.id || product._id)
                     ? "border-red-500 text-red-500 bg-red-50"
-                    : "border-gray-300"
+                    : "border-gray-300 text-gray-700"
                 }`}
               >
                 <Heart
@@ -540,10 +567,10 @@ const ProductDetail = () => {
           <nav className="flex overflow-x-auto whitespace-nowrap gap-4 border-b pb-4 scrollbar-hide">
             <button
               onClick={() => setActiveTab("description")}
-              className={`pb-2 px-1 ${
+              className={`pb-2 px-1 font-medium ${
                 activeTab === "description"
-                  ? "border-b-2 border-blue-500 text-blue-600"
-                  : "text-gray-500"
+                  ? "border-b-2 border-blue-500 tab-active"
+                  : "tab-inactive"
               }`}
             >
               Description
@@ -551,10 +578,10 @@ const ProductDetail = () => {
 
             <button
               onClick={() => setActiveTab("specifications")}
-              className={`pb-2 px-1 ${
+              className={`pb-2 px-1 font-medium ${
                 activeTab === "specifications"
-                  ? "border-b-2 border-blue-500 text-blue-600"
-                  : "text-gray-500"
+                  ? "border-b-2 border-blue-500 tab-active"
+                  : "tab-inactive"
               }`}
             >
               Specifications
@@ -562,20 +589,20 @@ const ProductDetail = () => {
 
             <button
               onClick={() => setActiveTab("reviews")}
-              className={`pb-2 px-1 ${
+              className={`pb-2 px-1 font-medium ${
                 activeTab === "reviews"
-                  ? "border-b-2 border-blue-500 text-blue-600"
-                  : "text-gray-500"
+                  ? "border-b-2 border-blue-500 tab-active"
+                  : "tab-inactive"
               }`}
             >
               Reviews
             </button>
           </nav>
 
-          <div className="pt-6">
+          <div className="pt-6 text-gray-800">
             {activeTab === "description" && (
               <div
-                className="prose max-w-none break-words"
+                className="prose max-w-none break-words text-gray-800 prose-p:text-gray-800 prose-headings:text-gray-900 prose-li:text-gray-800 prose-strong:text-gray-900"
                 dangerouslySetInnerHTML={{
                   __html:
                     product.description || "<p>No description available</p>",
@@ -585,16 +612,16 @@ const ProductDetail = () => {
 
             {activeTab === "specifications" && (
               <div className="overflow-x-auto">
-                <table className="w-full min-w-[500px]">
+                <table className="w-full min-w-[500px] text-gray-800">
                   <tbody>
                     <tr className="border-b">
-                      <td className="py-3 font-medium">Name</td>
-                      <td className="py-3">{product.name}</td>
+                      <td className="py-3 font-medium text-gray-900">Name</td>
+                      <td className="py-3 text-gray-800">{product.name}</td>
                     </tr>
 
                     <tr className="border-b">
-                      <td className="py-3 font-medium">Price</td>
-                      <td className="py-3">
+                      <td className="py-3 font-medium text-gray-900">Price</td>
+                      <td className="py-3 text-gray-800">
                         ₹
                         {isOnSale && getSaleInfo()
                           ? getSaleInfo().salePrice.toFixed(2)
@@ -603,13 +630,13 @@ const ProductDetail = () => {
                     </tr>
 
                     <tr className="border-b">
-                      <td className="py-3 font-medium">Type</td>
-                      <td className="py-3">{product.type}</td>
+                      <td className="py-3 font-medium text-gray-900">Type</td>
+                      <td className="py-3 text-gray-800">{product.type}</td>
                     </tr>
 
                     <tr className="border-b">
-                      <td className="py-3 font-medium">Rating</td>
-                      <td className="py-3">{product.rating}</td>
+                      <td className="py-3 font-medium text-gray-900">Rating</td>
+                      <td className="py-3 text-gray-800">{product.rating}</td>
                     </tr>
                   </tbody>
                 </table>
@@ -624,7 +651,9 @@ const ProductDetail = () => {
       {/* RELATED PRODUCTS */}
       {relatedProducts.length > 0 && (
         <div className="max-w-7xl mx-auto px-4 py-10">
-          <h2 className="text-2xl font-bold mb-6">Related Products</h2>
+          <h2 className="text-2xl font-bold mb-6 text-gray-900">
+            Related Products
+          </h2>
 
           <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
             {relatedProducts.map((item) => (
@@ -646,7 +675,7 @@ const ProductDetail = () => {
                 />
 
                 <div className="p-4">
-                  <h3 className="font-semibold text-sm sm:text-base line-clamp-2 break-words">
+                  <h3 className="related-product-title font-semibold text-sm sm:text-base line-clamp-2 break-words text-gray-900">
                     {item.name}
                   </h3>
 

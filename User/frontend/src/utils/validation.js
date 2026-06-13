@@ -4,64 +4,53 @@ export const sanitizeInput = (input) => {
 
   return input
     .trim()
-    .replace(/[<>]/g, "") // Remove potential HTML tags
-    .replace(/javascript:/gi, "") // Remove javascript: protocol
-    .replace(/on\w+=/gi, "") // Remove event handlers
-    .substring(0, 500); // Limit length
+    .replace(/<script.*?>.*?<\/script>/gi, "")
+    .replace(/javascript:/gi, "")
+    .substring(0, 500);
 };
 
 export const sanitizeEmail = (emailInput) => {
-  const email = sanitizeInput(emailInput).toLowerCase();
-  return email; // Always return sanitized email, no validation here
+  if (typeof emailInput !== "string") return "";
+  return emailInput.trim().toLowerCase();
 };
 
 export const isValidEmail = (emailInput) => {
-  const email = sanitizeInput(emailInput).toLowerCase();
-  const standardEmailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
-  if (standardEmailRegex.test(email)) {
-    return true;
-  } else {
-    return false; // Return false for invalid emails
-  }
+  const email = sanitizeEmail(emailInput);
+  const standardEmailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return standardEmailRegex.test(email);
 };
 
 export const sanitizePhone = (phoneInput) => {
   const phone = sanitizeInput(phoneInput);
-  // Remove all non-digit characters except +, -, (, )
   return phone.replace(/[^\d+\-\(\)\s]/g, "");
 };
 
+export const isValidPhone = (phone) => {
+  if (!phone) return false;
+  return /^[6-9]\d{9}$/.test(String(phone).replace(/\D/g, ""));
+};
+
 export const validatePassword = (password) => {
-  if (!password || password.length < 8) {
+  if (!password) {
     return {
       valid: false,
-      message: "Password must be at least 8 characters long",
+      message: "Password is required",
     };
   }
 
-  // For demo account, allow simple passwords
-  if (
-    password === "password" ||
-    password === "12345678" ||
-    password === "Demo123"
-  ) {
-    return { valid: true, message: "" };
-  }
+  const errors = [];
 
-  // Check for at least one lowercase, one uppercase, and one digit for other passwords
-  const hasLower = /[a-z]/.test(password);
-  const hasUpper = /[A-Z]/.test(password);
-  const hasDigit = /\d/.test(password);
+  if (password.length < 8) errors.push("8 characters");
+  if (!/[A-Z]/.test(password)) errors.push("1 uppercase letter");
+  if (!/[a-z]/.test(password)) errors.push("1 lowercase letter");
+  if (!/\d/.test(password)) errors.push("1 number");
+  if (!/[^A-Za-z0-9]/.test(password)) errors.push("1 special character");
 
-  if (!hasLower || !hasUpper || !hasDigit) {
-    return {
-      valid: false,
-      message:
-        'Password must contain at least one uppercase letter, one lowercase letter, and one number (or use "password", "12345678", or "Demo123" for demo)',
-    };
-  }
-
-  return { valid: true, message: "" };
+  return {
+    valid: errors.length === 0,
+    message:
+      errors.length > 0 ? `Password must contain: ${errors.join(", ")}` : "",
+  };
 };
 
 export const validateUsername = (username) => {
@@ -69,6 +58,13 @@ export const validateUsername = (username) => {
     return {
       valid: false,
       message: "Username must be at least 3 characters long",
+    };
+  }
+
+  if (username.length > 20) {
+    return {
+      valid: false,
+      message: "Username cannot exceed 20 characters",
     };
   }
 
@@ -83,7 +79,7 @@ export const validateUsername = (username) => {
 };
 
 export const validateRequired = (value, fieldName) => {
-  if (!value || value.trim() === "") {
+  if (!value || String(value).trim() === "") {
     return { valid: false, message: fieldName + " is required" };
   }
   return { valid: true, message: "" };

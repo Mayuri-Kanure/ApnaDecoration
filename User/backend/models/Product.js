@@ -66,6 +66,20 @@ const productSchema = new mongoose.Schema(
       enum: ["active", "inactive", "out_of_stock"],
       default: "active",
     },
+    // Service vs Physical Product indicator
+    isService: {
+      type: Boolean,
+      default: false,
+      index: true,
+      description: 'True if this product is a service (decoration package), false if physical item'
+    },
+    // Service type (for services only)
+    serviceType: {
+      type: String,
+      enum: ["decoration", "wedding", "birthday", "anniversary", "proposal", "other"],
+      default: null,
+      description: 'Type of service if isService is true'
+    },
     featured: {
       type: Boolean,
       default: false,

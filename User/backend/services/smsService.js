@@ -1,56 +1,82 @@
 const axios = require('axios');
+const SMSProvider = require('./smsProvider');
 
 class SMSService {
   constructor() {
-    // SMS provider configuration (using a mock service for demo)
-    this.provider = process.env.SMS_PROVIDER || 'twilio';
+    // SMS provider configuration
+    this.provider = process.env.SMS_PROVIDER || 'mock';
     this.apiKey = process.env.SMS_API_KEY || 'demo_key';
-    this.apiSecret = process.env.SMS_API_SECRET || 'demo_secret';
     this.fromNumber = process.env.SMS_FROM_NUMBER || 'APNADEC';
-    this.baseURL = process.env.SMS_BASE_URL || 'https://api.twilio.com/2010-04-01';
   }
 
-  // Send OTP verification SMS
+  /**
+   * Validate phone number
+   */
+  validatePhoneNumber(phoneNumber) {
+    // Remove spaces and special characters
+    let cleaned = phoneNumber.replace(/\D/g, '');
+    
+    // Add country code if missing (assuming India: +91)
+    if (cleaned.length === 10) {
+      cleaned = '+91' + cleaned;
+    } else if (!cleaned.startsWith('+')) {
+      cleaned = '+' + cleaned;
+    }
+    
+    return cleaned;
+  }
+
+  /**
+   * Send OTP verification SMS
+   */
   async sendOTP(phoneNumber, otp, name = '') {
     try {
       console.log('🔧 Sending OTP SMS:', { phoneNumber, otp, name });
 
-      // In production, this would integrate with real SMS providers like:
-      // - Twilio
-      // - AWS SNS
-      // - Firebase Cloud Messaging
-      // - MSG91
-      // - Fast2SMS
-
+      const validatedPhone = this.validatePhoneNumber(phoneNumber);
       const message = this.generateOTPMessage(otp, name);
+
+      // Route to appropriate provider
+      let result;
       
-      // Mock SMS sending for development
-      if (process.env.NODE_ENV === 'development') {
-        console.log('📱 MOCK SMS - OTP:', {
-          to: phoneNumber,
-          from: this.fromNumber,
-          message: message,
-          otp: otp,
-          timestamp: new Date().toISOString()
-        });
-        
-        return {
-          success: true,
-          messageId: `MOCK_${Date.now()}`,
-          provider: 'mock',
-          message: 'OTP sent successfully (development mode)'
-        };
+      switch (this.provider.toLowerCase()) {
+        case 'twilio':
+          result = await SMSProvider.sendViaTwilio(validatedPhone, message);
+          break;
+        case 'nexmo':
+        case 'vonage':
+          result = await SMSProvider.sendViaNexmo(validatedPhone, message);
+          break;
+        case 'msg91':
+          result = await SMSProvider.sendViaMSG91(validatedPhone, message);
+          break;
+        case 'fastsms':
+        case 'fast2sms':
+          result = await SMSProvider.sendViaFastSMS(validatedPhone, message);
+          break;
+        case 'aws-sns':
+          result = await SMSProvider.sendViaAWSSNS(validatedPhone, message);
+          break;
+        case 'mock':
+        default:
+          result = await SMSProvider.sendViaMock(validatedPhone, message);
+          break;
       }
 
-      // Real SMS integration would go here
-      const response = await this.sendSMS(phoneNumber, message);
-      
-      console.log('✅ OTP SMS sent successfully:', response);
-      return response;
+      console.log('✅ OTP SMS sent successfully:', result);
+      return result;
     } catch (error) {
       console.error('❌ Error sending OTP SMS:', error);
       throw new Error(error.message || 'Failed to send OTP');
     }
+  }
+
+  /**
+   * Generate OTP message
+   */
+  generateOTPMessage(otp, name) {
+    const greeting = name ? `Hi ${name},` : 'Hi,';
+    return `${greeting} Your OTP for APNA DECORATION is ${otp}. Valid for 5 minutes. Please do not share this OTP with anyone. - APNA DECORATION`;
   }
 
   // Send order status update SMS

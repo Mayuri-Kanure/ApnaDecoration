@@ -902,7 +902,12 @@ class OrderService {
       saveSuccessful: verification.status === status,
     });
 
-    // TODO: Send notification to user about status change
+    try {
+      const { notifyOrderStatusChange } = require("../utils/pushNotificationHelper");
+      await notifyOrderStatusChange(order, status);
+    } catch (pushErr) {
+      console.warn("Push notification skipped:", pushErr.message);
+    }
 
     return order;
   }
@@ -1132,6 +1137,159 @@ class OrderService {
     } catch (error) {
       console.error("Error clearing cancelled orders:", error);
       throw new Error(`Failed to clear cancelled orders: ${error.message}`);
+    }
+  }
+
+  // Create Razorpay order for service booking
+  static async createRazorpayOrderForService(bookingPaymentData) {
+    try {
+      const PaymentService = require("./paymentService");
+      const { bookingId, amount, serviceName, customerInfo } =
+        bookingPaymentData;
+
+      console.log("💳 Creating Razorpay order for service booking:", {
+        bookingId,
+        amount,
+        serviceName,
+      });
+
+      // Validate booking exists
+      const booking = await Order.findById(bookingId);
+      if (!booking) {
+        throw new Error("Booking not found");
+      }
+
+      if (booking.type !== ORDER_TYPE.SERVICE) {
+        throw new Error("This order is not a service booking");
+      }
+
+      // Create Razorpay order using PaymentService
+      const razorpayOrder = await PaymentService.createRazorpayOrder({
+        orderId: bookingId,
+        amount: Math.round(amount * 100), // Convert to paise
+        currency: "INR",
+        receiptId: `SVC-${bookingId}-${Date.now()}`,
+        notes: {
+          bookingId,
+          serviceName,
+          customerName: customerInfo?.name || "Customer",
+          customerEmail: customerInfo?.email || "N/A",
+          customerPhone: customerInfo?.phone || "N/A",
+        },
+      });
+
+      console.log(
+        "✅ Razorpay order created successfully:",
+        razorpayOrder.id,
+      );
+
+      // Store Razorpay order ID in booking
+      booking.paymentDetails = booking.paymentDetails || {};
+      booking.paymentDetails.razorpay_order_id = razorpayOrder.id;
+      booking.paymentMethod = "razorpay";
+      await booking.save();
+
+      return {
+        success: true,
+        bookingId,
+        razorpayOrderId: razorpayOrder.id,
+        amount: razorpayOrder.amount,
+        currency: razorpayOrder.currency,
+        notes: razorpayOrder.notes,
+      };
+    } catch (error) {
+      console.error("❌ Error creating Razorpay order:", error);
+      throw new Error(`Failed to create payment order: ${error.message}`);
+    }
+  }
+
+  // Verify service payment
+  static async verifyServicePayment(paymentVerificationData) {
+    try {
+      const crypto = require("crypto");
+      const PaymentService = require("./paymentService");
+      const { bookingId, razorpayOrderId, razorpayPaymentId, razorpaySignature } =
+        paymentVerificationData;
+
+      console.log("🔐 Verifying service payment:", {
+        bookingId,
+        razorpayOrderId,
+        razorpayPaymentId,
+      });
+
+      // Validate booking exists
+      const booking = await Order.findById(bookingId);
+      if (!booking) {
+        throw new Error("Booking not found");
+      }
+
+      if (booking.type !== ORDER_TYPE.SERVICE) {
+        throw new Error("This order is not a service booking");
+      }
+
+      // Verify payment signature
+      const razorpayKeySecret = process.env.RAZORPAY_KEY_SECRET;
+      if (!razorpayKeySecret) {
+        throw new Error("Razorpay key secret not configured");
+      }
+
+      const shasum = crypto.createHmac("sha256", razorpayKeySecret);
+      shasum.update(`${razorpayOrderId}|${razorpayPaymentId}`);
+      const digest = shasum.digest("hex");
+
+      if (digest !== razorpaySignature) {
+        console.error("❌ Payment signature verification failed");
+        throw new Error("Payment verification failed - invalid signature");
+      }
+
+      console.log("✅ Payment signature verified successfully");
+
+      // Fetch payment details from Razorpay
+      const paymentDetails = await PaymentService.getPaymentDetails(
+        razorpayPaymentId,
+      );
+
+      if (!paymentDetails || paymentDetails.status !== "captured") {
+        throw new Error("Payment not captured or invalid status");
+      }
+
+      // Update booking with payment details
+      booking.paymentDetails = {
+        razorpay_order_id: razorpayOrderId,
+        razorpay_payment_id: razorpayPaymentId,
+        razorpay_signature: razorpaySignature,
+        amount: paymentDetails.amount,
+        currency: paymentDetails.currency,
+        status: "captured",
+        captured_at: new Date(),
+      };
+      booking.paymentStatus = "paid";
+      booking.status = ORDER_STATUS.CONFIRMED;
+      await booking.save();
+
+      console.log("✅ Booking payment verified and confirmed:", bookingId);
+
+      // Send payment confirmation notifications
+      try {
+        await NotificationHelper.notifyPaymentConfirmed(booking.user, booking);
+      } catch (notifError) {
+        console.error("❌ Error sending payment confirmation:", notifError);
+        // Don't fail payment verification if notification fails
+      }
+
+      return {
+        success: true,
+        bookingId,
+        message: "Payment verified successfully",
+        paymentDetails: {
+          amount: booking.paymentDetails.amount,
+          currency: booking.paymentDetails.currency,
+          status: booking.paymentDetails.status,
+        },
+      };
+    } catch (error) {
+      console.error("❌ Error verifying payment:", error);
+      throw new Error(`Payment verification failed: ${error.message}`);
     }
   }
 }

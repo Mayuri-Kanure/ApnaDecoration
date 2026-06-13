@@ -17,6 +17,7 @@ import { useNavigate } from "react-router-dom";
 import { useCart } from "../contexts/CartContext";
 import InventoryCheckoutService from "../services/inventoryCheckoutService";
 import InventoryOrderService from "../services/inventoryOrderService";
+import { API_BASE_URL } from "../config";
 
 const EnhancedCheckoutFlow = () => {
   const navigate = useNavigate();

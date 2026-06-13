@@ -2,67 +2,74 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Fix white text visibility issues - Specific targeting only */
-.product-detail-container .text-content {
-  color: #333333 !important;
+/* reCAPTCHA Invisible Container Fix */
+#recaptcha-container {
+  height: 0;
+  width: 0;
+  visibility: hidden;
+  overflow: hidden;
 }
 
-.product-detail-container .product-title,
-.product-detail-container .product-rating,
-.product-detail-container .product-reviews-text,
-.product-detail-container .product-price-text,
-.product-detail-container .shipping-info,
-.product-detail-container .return-info,
-.product-detail-container .guarantee-info {
-  color: #333333 !important;
+/* PRODUCT DETAIL PAGE FIX */
+.product-detail-container {
+  color: #111827 !important;
 }
 
-.product-detail-container .text-sm {
-  color: #555555 !important;
-}
-
-/* Only override specific problematic elements */
-.product-detail-container .text-gray-700 {
-  color: #333333 !important;
-}
-
-.product-detail-container .text-gray-500 {
-  color: #555555 !important;
-}
-
-.product-detail-container .text-black {
-  color: #000000 !important;
-}
-
-/* Fix product detail page text visibility - Specific targeting */
+/* Headings */
 .product-detail-container h1,
 .product-detail-container h2,
 .product-detail-container h3,
 .product-detail-container h4,
 .product-detail-container h5,
 .product-detail-container h6 {
-  color: #333333 !important;
+  color: #111827 !important;
 }
 
-.product-detail-container .text-3xl {
-  color: #333333 !important;
+/* Paragraphs & text */
+.product-detail-container p,
+.product-detail-container span,
+.product-detail-container div,
+.product-detail-container td {
+  color: inherit;
 }
 
-/* Specific fix for rating text - Only in product detail container */
-.product-detail-container .rating-text,
-.product-detail-container .product-rating span {
-  color: #000000 !important;
-  font-weight: 500 !important;
+/* Description */
+.product-detail-container .prose,
+.product-detail-container .prose p,
+.product-detail-container .prose li,
+.product-detail-container .prose strong {
+  color: #374151 !important;
 }
 
-/* Profile page specific fixes */
-.profile-container input,
-.profile-container select,
-.profile-container .text-xl,
-.profile-container .text-lg {
-  color: #333333 !important;
+/* Quantity Box */
+.product-detail-container .quantity-box {
+  background: #ffffff;
+  border: 1px solid #d1d5db;
 }
 
+.product-detail-container .quantity-box button,
+.product-detail-container .quantity-box div {
+  color: #111827 !important;
+}
+
+/* Tabs */
+.product-detail-container .tab-inactive {
+  color: #6b7280 !important;
+}
+
+.product-detail-container .tab-active {
+  color: #2563eb !important;
+}
+
+/* Related product names */
+.product-detail-container .related-product-title {
+  color: #111827 !important;
+}
+
+/* Buttons */
+.product-detail-container .btn-text-white {
+  color: #ffffff !important;
+}
 /* Remove global overrides that affect other elements */
 
 /* Custom base styles */

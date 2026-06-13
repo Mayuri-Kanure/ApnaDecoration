@@ -25,13 +25,17 @@ const userSchema = new mongoose.Schema({
   googleId: {
     type: String
   },
+  firebaseUid: {
+    type: String,
+    sparse: true  // Allow null but ensure unique
+  },
   avatar: {
     type: String,
     default: ''
   },
   authProvider: {
     type: String,
-    enum: ['local', 'google', 'hybrid'],
+    enum: ['local', 'google', 'firebase', 'hybrid'],
     default: 'local'
   },
   role: {
@@ -148,6 +152,7 @@ userSchema.virtual('addresses', {
 userSchema.index({ email: 1 }, { unique: true });
 userSchema.index({ username: 1 }, { unique: true, sparse: true });
 userSchema.index({ googleId: 1 }, { unique: true, sparse: true });
+userSchema.index({ firebaseUid: 1 }, { unique: true, sparse: true });
 userSchema.index({ phone: 1 });
 
 module.exports = mongoose.model('User', userSchema);

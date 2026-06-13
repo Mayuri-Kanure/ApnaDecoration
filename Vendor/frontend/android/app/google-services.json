@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "977154955614",
+    "project_id": "apna-decoration",
+    "storage_bucket": "apna-decoration.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:977154955614:android:01a3e001681b207d8417cf",
+        "android_client_info": {
+          "package_name": "com.apnadecoration.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD_sP32kdVgqpgm1EZ7mV3Ezwxnn9DhWq4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:977154955614:android:975d7d0e72ba62ec8417cf",
+        "android_client_info": {
+          "package_name": "com.apnadecoration.vendor"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD_sP32kdVgqpgm1EZ7mV3Ezwxnn9DhWq4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -15,6 +15,7 @@ import {
   Link
 } from '@mui/material';
 import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
+import { validateVendorLogin } from '../utils/formValidation';
 
 const VendorLogin = () => {
   const navigate = useNavigate();
@@ -22,6 +23,7 @@ const VendorLogin = () => {
   const [formData, setFormData] = useState({ email: '', password: '', remember: false });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [fieldErrors, setFieldErrors] = useState({});
 
   const handleChange = (e) => {
     const { name, value, checked, type } = e.target;
@@ -29,10 +31,21 @@ const VendorLogin = () => {
       ...formData,
       [name]: type === 'checkbox' ? checked : value
     });
+    if (fieldErrors[name]) {
+      setFieldErrors((prev) => ({ ...prev, [name]: '' }));
+    }
+    if (error) setError('');
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    const validation = validateVendorLogin(formData);
+    if (!validation.valid) {
+      setFieldErrors(validation.errors);
+      setError(validation.message);
+      return;
+    }
+    setFieldErrors({});
     setLoading(true);
     setError('');
 
@@ -96,6 +109,8 @@ const VendorLogin = () => {
               onChange={handleChange}
               margin="normal"
               required
+              error={!!fieldErrors.email}
+              helperText={fieldErrors.email || ' '}
               sx={{ mb: 2 }}
             />
             <TextField
@@ -107,6 +122,8 @@ const VendorLogin = () => {
               onChange={handleChange}
               margin="normal"
               required
+              error={!!fieldErrors.password}
+              helperText={fieldErrors.password || ' '}
               sx={{ mb: 2 }}
             />
 

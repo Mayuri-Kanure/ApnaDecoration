@@ -2,7 +2,20 @@ import React, { useState } from "react";
 import { useRouter } from "next/router";
 import Head from "next/head";
 import { Container } from "@mui/material";
+import dynamic from "next/dynamic";
 import { DELIVERY_API_URL } from "../../config/constants";
+import {
+  apiFetch,
+  getApiErrorMessage,
+  getNetworkErrorMessage,
+} from "../../utils/apiFetch";
+import {
+  validateDeliveryRegister,
+  normalizePhone,
+  isValidPhone,
+  isValidEmail,
+  isValidIFSC,
+} from "../../utils/formValidation";
 import {
   Box,
   Card,
@@ -36,7 +49,7 @@ import toast from "react-hot-toast";
 
 const steps = ["Personal Info", "Vehicle & Bank", "Terms & Submit"];
 
-export default function DeliveryBoyRegister() {
+function DeliveryBoyRegister() {
   const router = useRouter();
   const [activeStep, setActiveStep] = useState(0);
   const [formData, setFormData] = useState({
@@ -61,6 +74,7 @@ export default function DeliveryBoyRegister() {
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [fieldErrors, setFieldErrors] = useState({});
 
   React.useEffect(() => {
     // Check if already logged in
@@ -77,43 +91,53 @@ export default function DeliveryBoyRegister() {
       ...formData,
       [name]: type === "checkbox" ? checked : value,
     });
+    if (fieldErrors[name]) {
+      setFieldErrors((prev) => ({ ...prev, [name]: "" }));
+    }
+    if (error) setError("");
   };
 
   const handleNext = () => {
-    // Validate current step
+    const errors = {};
     if (activeStep === 0) {
-      if (
-        !formData.firstName ||
-        !formData.lastName ||
-        !formData.email ||
-        !formData.phone
-      ) {
-        setError("Please fill all required personal information");
-        return;
-      }
-      if (!formData.password || !formData.confirmPassword) {
-        setError("Please enter and confirm your password");
-        return;
-      }
-      if (formData.password !== formData.confirmPassword) {
-        setError("Passwords do not match");
-        return;
-      }
-      if (formData.password.length < 6) {
-        setError("Password must be at least 6 characters long");
-        return;
-      }
+      if (!String(formData.firstName || "").trim())
+        errors.firstName = "First name is required";
+      if (!String(formData.lastName || "").trim())
+        errors.lastName = "Last name is required";
+      if (!String(formData.email || "").trim())
+        errors.email = "Email is required";
+      else if (!isValidEmail(formData.email))
+        errors.email = "Enter a valid email address";
+      if (!String(formData.phone || "").trim())
+        errors.phone = "Phone is required";
+      else if (!isValidPhone(formData.phone))
+        errors.phone = "Enter a valid 10-digit mobile number";
+      if (!formData.password) errors.password = "Password is required";
+      else if (formData.password.length < 8)
+        errors.password = "Password must be at least 8 characters and contain mixed case, numbers, and symbols";
+      if (!formData.confirmPassword)
+        errors.confirmPassword = "Please confirm your password";
+      else if (formData.password !== formData.confirmPassword)
+        errors.confirmPassword = "Passwords do not match";
     }
     if (activeStep === 1) {
-      if (!formData.vehicleType || !formData.vehicleNumber) {
-        setError("Please provide vehicle information");
-        return;
-      }
-      if (!formData.bankAccount || !formData.ifscCode) {
-        setError("Please provide bank account details");
-        return;
-      }
+      if (!formData.vehicleType) errors.vehicleType = "Select a vehicle type";
+      if (!String(formData.vehicleNumber || "").trim())
+        errors.vehicleNumber = "Vehicle number is required";
+      if (!String(formData.bankAccount || "").trim())
+        errors.bankAccount = "Bank account number is required";
+      if (!String(formData.ifscCode || "").trim())
+        errors.ifscCode = "IFSC code is required";
+      else if (!isValidIFSC(formData.ifscCode))
+        errors.ifscCode = "Enter a valid IFSC code (e.g. SBIN0001234)";
     }
+    const first = Object.values(errors)[0];
+    if (first) {
+      setFieldErrors(errors);
+      setError(first);
+      return;
+    }
+    setFieldErrors({});
     setError("");
     setActiveStep((prev) => prev + 1);
   };
@@ -138,7 +162,7 @@ export default function DeliveryBoyRegister() {
 
   const validatePhone = (phone) => {
     const phoneRegex = /^[6-9]\d{9}$/;
-    if (!phoneRegex.test(phone)) {
+    if (!phoneRegex.test(normalizePhone(phone))) {
       return {
         isValid: false,
         error: "Please enter a valid 10-digit phone number",
@@ -149,11 +173,11 @@ export default function DeliveryBoyRegister() {
   };
 
   const validatePassword = (password) => {
-    if (password.length < 6) {
+    if (password.length < 8) {
       return {
         isValid: false,
-        error: "Password must be at least 6 characters",
-        helperText: "Example: Password123",
+        error: "Password must be at least 8 characters",
+        helperText: "Example: Password123!",
       };
     }
     return { isValid: true };
@@ -199,7 +223,6 @@ export default function DeliveryBoyRegister() {
   const validateForm = (formData) => {
     const errors = [];
 
-    // Validate each field
     const emailValid = validateEmail(formData.email);
     if (!emailValid.isValid) {
       errors.push(emailValid.error);
@@ -220,27 +243,21 @@ export default function DeliveryBoyRegister() {
       errors.push(vehicleTypeValid.error);
     }
 
-    const vehicleNumberValid = validateRequired(formData.vehicleNumber);
+    const vehicleNumberValid = validateRequired(formData.vehicleNumber, "Vehicle number");
     if (!vehicleNumberValid.isValid) {
       errors.push(vehicleNumberValid.error);
     }
 
-    const bankAccountValid = validateRequired(formData.bankAccount);
+    const bankAccountValid = validateRequired(formData.bankAccount, "Bank account");
     if (!bankAccountValid.isValid) {
       errors.push(bankAccountValid.error);
     }
 
-    const ifscCodeValid = validateRequired(formData.ifscCode);
+    const ifscCodeValid = validateRequired(formData.ifscCode, "IFSC code");
     if (!ifscCodeValid.isValid) {
       errors.push(ifscCodeValid.error);
-    }
-
-    const bankNameValid =
-      formData.bankName?.trim() !== ""
-        ? { isValid: true }
-        : { isValid: false, error: "Bank name is required" };
-    if (!bankNameValid.isValid) {
-      errors.push(bankNameValid.error);
+    } else if (!/^[A-Z]{4}0[A-Z0-9]{6}$/i.test(formData.ifscCode.trim())) {
+      errors.push("Please enter a valid IFSC code (e.g. SBIN0001234)");
     }
 
     // Terms agreement check
@@ -256,39 +273,40 @@ export default function DeliveryBoyRegister() {
   };
 
   const handleSubmit = async () => {
-    // Enhanced validation before API call
-    const validation = validateForm(formData);
+    const validation = validateDeliveryRegister(formData);
 
-    if (!validation.isValid) {
-      setError(validation.error);
+    if (!validation.valid) {
+      setFieldErrors(validation.errors);
+      setError(validation.message);
       return;
     }
 
+    setFieldErrors({});
     setLoading(true);
     setError("");
 
-    // Debug: Log form data
     console.log("Registration Form Data:", formData);
 
     try {
-      // Simplified data structure to match backend validation
-      const response = await fetch(`${DELIVERY_API_URL}/register`, {
+      const payload = {
+        firstName: formData.firstName.trim(),
+        lastName: formData.lastName.trim(),
+        email: formData.email.trim().toLowerCase(),
+        phone: normalizePhone(formData.phone.trim()),
+        password: formData.password,
+        vehicleType: formData.vehicleType,
+        vehicleNumber: formData.vehicleNumber.trim().toUpperCase(), 
+        drivingLicense: formData.drivingLicense?.trim() || undefined,
+        bankAccount: String(formData.bankAccount).replace(/\D/g, ""), 
+        ifscCode: formData.ifscCode.trim().toUpperCase(),
+        bankName: formData.bankName.trim() || undefined,
+        agreeTerms: formData.agreeTerms === true,
+      };
+
+      const response = await apiFetch(`${DELIVERY_API_URL}/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          firstName: formData.firstName.trim(),
-          lastName: formData.lastName.trim(),
-          email: formData.email.trim().toLowerCase(),
-          phone: formData.phone.trim(),
-          password: formData.password,
-          vehicleType: formData.vehicleType,
-          vehicleNumber: formData.vehicleNumber.trim(),
-          drivingLicense: formData.drivingLicense?.trim(),
-          bankAccount: formData.bankAccount?.trim(),
-          ifscCode: formData.ifscCode?.trim(),
-          bankName: formData.bankName?.trim(),
-          agreeTerms: formData.agreeTerms,
-        }),
+        body: JSON.stringify(payload),
       });
 
       console.log("Registration Response Status:", response.status);
@@ -298,16 +316,18 @@ export default function DeliveryBoyRegister() {
 
       if (response.ok) {
         toast.success("Registration successful! Please login.");
-        // Redirect to login after successful registration
         setTimeout(() => {
           router.push("/auth/login");
         }, 2000);
       } else {
-        setError(data.message || "Registration failed");
+        console.error("SERVER VALIDATION ERRORS DETECTED:", data.errors || data);
+        setError(getApiErrorMessage(data, "Registration failed"));
       }
     } catch (err) {
       console.error("Registration Error:", err);
-      setError("Connection error. Please try again.");
+      setError(
+        getNetworkErrorMessage(err, "Registration failed. Please try again."),
+      );
     } finally {
       setLoading(false);
     }
@@ -326,6 +346,8 @@ export default function DeliveryBoyRegister() {
                 value={formData.firstName}
                 onChange={handleChange}
                 margin="normal"
+                error={!!fieldErrors.firstName}
+                helperText={fieldErrors.firstName || " "}
                 InputProps={{
                   startAdornment: <Person sx={{ mr: 1, color: "#1e3a5f" }} />,
                 }}
@@ -350,10 +372,11 @@ export default function DeliveryBoyRegister() {
                 label="Email Address *"
                 name="email"
                 type="email"
-                value={formData.email.trim()} // Trim whitespace
+                value={formData.email.trim()}
                 onChange={handleChange}
                 margin="normal"
                 required
+                autoComplete="email"
                 InputProps={{
                   startAdornment: <Email sx={{ mr: 1, color: "#1e3a5f" }} />,
                 }}
@@ -367,7 +390,10 @@ export default function DeliveryBoyRegister() {
                 name="phone"
                 value={formData.phone}
                 onChange={handleChange}
+                helperText="10-digit mobile (e.g. 9876543210)"
+                inputProps={{ inputMode: "numeric", maxLength: 14 }}
                 margin="normal"
+                autoComplete="tel"
                 InputProps={{
                   startAdornment: <Phone sx={{ mr: 1, color: "#1e3a5f" }} />,
                 }}
@@ -382,6 +408,7 @@ export default function DeliveryBoyRegister() {
                 value={formData.password}
                 onChange={handleChange}
                 margin="normal"
+                autoComplete="new-password"
                 InputProps={{
                   startAdornment: <Lock sx={{ mr: 1, color: "#1e3a5f" }} />,
                 }}
@@ -396,6 +423,7 @@ export default function DeliveryBoyRegister() {
                 value={formData.confirmPassword}
                 onChange={handleChange}
                 margin="normal"
+                autoComplete="new-password"
                 InputProps={{
                   startAdornment: <Lock sx={{ mr: 1, color: "#1e3a5f" }} />,
                 }}
@@ -432,6 +460,7 @@ export default function DeliveryBoyRegister() {
                 value={formData.vehicleNumber}
                 onChange={handleChange}
                 margin="normal"
+                autoComplete="off"
                 InputProps={{
                   startAdornment: (
                     <LocalShipping sx={{ mr: 1, color: "#1e3a5f" }} />
@@ -457,6 +486,7 @@ export default function DeliveryBoyRegister() {
                 value={formData.bankAccount}
                 onChange={handleChange}
                 margin="normal"
+                autoComplete="off"
                 InputProps={{
                   startAdornment: (
                     <AccountBalance sx={{ mr: 1, color: "#1e3a5f" }} />
@@ -472,6 +502,9 @@ export default function DeliveryBoyRegister() {
                 value={formData.ifscCode}
                 onChange={handleChange}
                 margin="normal"
+                helperText="Example: SBIN0001234"
+                autoComplete="off"
+                inputProps={{ style: { textTransform: "uppercase" } }}
               />
             </Grid>
             <Grid item xs={12} sm={6}>
@@ -482,6 +515,7 @@ export default function DeliveryBoyRegister() {
                 value={formData.bankName}
                 onChange={handleChange}
                 margin="normal"
+                autoComplete="organization"
               />
             </Grid>
           </Grid>
@@ -529,15 +563,15 @@ export default function DeliveryBoyRegister() {
       <Box
         sx={{
           minHeight: "100vh",
-          backgroundColor: "#F5F5F5", // Admin background color
+          backgroundColor: "#F5F5F5",
           py: 4,
         }}
       >
         <Container maxWidth="md">
           <Card
             sx={{
-              boxShadow: "0 2px 8px rgba(0,0,0,0.1)", // Admin card shadow
-              borderRadius: 8, // Admin border radius
+              boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
+              borderRadius: 8,
               overflow: "hidden",
             }}
           >
@@ -546,7 +580,7 @@ export default function DeliveryBoyRegister() {
               <Box sx={{ textAlign: "center", mb: 4 }}>
                 <Avatar
                   sx={{
-                    backgroundColor: "#1e3a5f", // Admin primary color
+                    backgroundColor: "#1e3a5f",
                     width: 64,
                     height: 64,
                     mx: "auto",
@@ -558,7 +592,7 @@ export default function DeliveryBoyRegister() {
                 <Typography
                   variant="h4"
                   sx={{
-                    color: "#1e3a5f", // Admin primary color
+                    color: "#1e3a5f",
                     fontWeight: 600,
                     mb: 1,
                   }}
@@ -695,3 +729,7 @@ export default function DeliveryBoyRegister() {
     </>
   );
 }
+
+export default dynamic(() => Promise.resolve(DeliveryBoyRegister), {
+  ssr: false,
+});

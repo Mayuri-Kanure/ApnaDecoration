@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/router";
-import axios from "axios";
+import { createAxiosInstance } from "../utils/axiosInstance";
+import dynamic from "next/dynamic";
 import { DELIVERY_API_URL } from "../config/constants";
 import {
   Box,
@@ -66,10 +67,11 @@ function TabPanel({ children, value, index, ...other }) {
   );
 }
 
-export default function WithdrawalPage() {
+function WithdrawalPage() {
   const router = useRouter();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
+  const [apiClient] = useState(() => createAxiosInstance(router));
   const [tabValue, setTabValue] = useState(0);
   const [loading, setLoading] = useState(true);
   const [snackbar, setSnackbar] = useState({
@@ -105,37 +107,26 @@ export default function WithdrawalPage() {
 
   const loadWithdrawalHistory = async () => {
     try {
-      const token = localStorage.getItem("deliveryBoyToken");
-      const response = await axios.get(`${DELIVERY_API_URL}/withdrawals`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      console.log("API Response - Withdrawal History:", response.data);
-      // Temporarily set empty data to test "no data" UI
-      // setWithdrawalHistory(response.data);
-      setWithdrawalHistory([]); // Uncomment this line to test empty state
+      const response = await apiClient.get(`/delivery-boy/withdrawals`);
+      setWithdrawalHistory([]);
     } catch (error) {
       console.error("Error loading withdrawal history:", error);
       setWithdrawalHistory([]);
-      setSnackbar({
-        open: true,
-        message: "Failed to load withdrawal data",
-        severity: "error",
-      });
+      if (error.status !== 401) {
+        setSnackbar({
+          open: true,
+          message: error.message || "Failed to load withdrawal data",
+          severity: "error",
+        });
+      }
     }
     setLoading(false);
   };
 
   const loadWithdrawalStats = async () => {
     try {
-      const token = localStorage.getItem("deliveryBoyToken");
-      const response = await axios.get(
-        `${DELIVERY_API_URL}/withdrawals/stats`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        },
-      );
-      console.log("API Response - Withdrawal Stats:", response.data);
-      setWithdrawalStats(response.data);
+      const response = await apiClient.get(`/delivery-boy/withdrawals/stats`);
+      setWithdrawalStats(response.data?.data || response.data);
     } catch (error) {
       console.error("Error loading withdrawal stats:", error);
       setWithdrawalStats({
@@ -163,16 +154,12 @@ export default function WithdrawalPage() {
     }
 
     try {
-      const token = localStorage.getItem("deliveryBoyToken");
-      const response = await axios.post(
-        `${DELIVERY_API_URL}/withdrawals`,
+      const response = await apiClient.post(
+        `/delivery-boy/withdrawals`,
         {
           amount: parseFloat(withdrawalAmount),
           method: withdrawalMethod,
-        },
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        },
+        }
       );
 
       setSnackbar({
@@ -963,3 +950,6 @@ export default function WithdrawalPage() {
     </Box>
   );
 }
+export default dynamic(() => Promise.resolve(WithdrawalPage), {
+  ssr: false,
+});

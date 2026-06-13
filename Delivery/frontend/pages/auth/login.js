@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/router";
+import dynamic from "next/dynamic";
 import Head from "next/head";
 import {
   Box,
@@ -16,9 +17,15 @@ import {
 } from "@mui/material";
 import { Email, Lock, LocalShipping, ArrowBack } from "@mui/icons-material";
 import { DELIVERY_API_URL } from "../../config/constants";
+import {
+  apiFetch,
+  getApiErrorMessage,
+  getNetworkErrorMessage,
+} from "../../utils/apiFetch";
 import toast from "react-hot-toast";
+import { validateDeliveryLogin } from "../../utils/formValidation";
 
-export default function DeliveryBoyLogin() {
+function DeliveryBoyLogin() {
   const router = useRouter();
   const [formData, setFormData] = useState({
     email: "",
@@ -30,6 +37,7 @@ export default function DeliveryBoyLogin() {
     message: "",
     severity: "success",
   });
+  const [fieldErrors, setFieldErrors] = useState({});
 
   useEffect(() => {
     // Check if already logged in
@@ -38,6 +46,33 @@ export default function DeliveryBoyLogin() {
       router.push("/dashboard");
       return;
     }
+
+    // Handle keyboard visibility and scroll input into view
+    const handleFocus = () => {
+      setTimeout(() => {
+        if (document.activeElement) {
+          document.activeElement.scrollIntoView({
+            behavior: "smooth",
+            block: "center",
+          });
+        }
+      }, 300);
+    };
+
+    const handleBlur = () => {
+      // Reset scroll position when keyboard closes
+      setTimeout(() => {
+        window.scrollTo(0, 0);
+      }, 300);
+    };
+
+    window.addEventListener("focusin", handleFocus);
+    window.addEventListener("focusout", handleBlur);
+
+    return () => {
+      window.removeEventListener("focusin", handleFocus);
+      window.removeEventListener("focusout", handleBlur);
+    };
   }, []);
 
   const handleChange = (e) => {
@@ -46,15 +81,29 @@ export default function DeliveryBoyLogin() {
       ...formData,
       [name]: value,
     });
+    if (fieldErrors[name]) {
+      setFieldErrors((prev) => ({ ...prev, [name]: "" }));
+    }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    const validation = validateDeliveryLogin(formData);
+    if (!validation.valid) {
+      setFieldErrors(validation.errors);
+      setSnackbar({
+        open: true,
+        message: validation.message,
+        severity: "error",
+      });
+      return;
+    }
+    setFieldErrors({});
     setLoading(true);
     setSnackbar({ open: false, message: "", severity: "success" });
 
     try {
-      const response = await fetch(`${DELIVERY_API_URL}/login`, {
+      const response = await apiFetch(`${DELIVERY_API_URL}/login`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -81,8 +130,10 @@ export default function DeliveryBoyLogin() {
       } else {
         setSnackbar({
           open: true,
-          message:
-            data.message || "Login failed. Please check your credentials.",
+          message: getApiErrorMessage(
+            data,
+            "Login failed. Please check your credentials.",
+          ),
           severity: "error",
         });
       }
@@ -90,8 +141,7 @@ export default function DeliveryBoyLogin() {
       console.error("Login error:", error);
       setSnackbar({
         open: true,
-        message:
-          error.response?.data?.message || "Login failed. Please try again.",
+        message: getNetworkErrorMessage(error),
         severity: "error",
       });
     } finally {
@@ -118,7 +168,8 @@ export default function DeliveryBoyLogin() {
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          p: 2,
+          py: 4,
+          px: 2,
         }}
       >
         <Container
@@ -174,9 +225,9 @@ export default function DeliveryBoyLogin() {
                   onChange={handleChange}
                   margin="normal"
                   required
-                  InputProps={{
-                    startAdornment: <Email sx={{ mr: 1, color: "#1e3a5f" }} />,
-                  }}
+                  error={!!fieldErrors.email}
+                  helperText={fieldErrors.email || " "}
+                  autoComplete="email"
                 />
 
                 <TextField
@@ -188,9 +239,9 @@ export default function DeliveryBoyLogin() {
                   onChange={handleChange}
                   margin="normal"
                   required
-                  InputProps={{
-                    startAdornment: <Lock sx={{ mr: 1, color: "#1e3a5f" }} />,
-                  }}
+                  error={!!fieldErrors.password}
+                  helperText={fieldErrors.password || " "}
+                  autoComplete="current-password"
                 />
 
                 <Button
@@ -272,3 +323,6 @@ export default function DeliveryBoyLogin() {
     </>
   );
 }
+export default dynamic(() => Promise.resolve(DeliveryBoyLogin), {
+  ssr: false,
+});

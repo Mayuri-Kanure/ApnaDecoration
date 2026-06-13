@@ -1,13 +1,56 @@
 const DeliveryBoy = require("../models/DeliveryBoy");
+const DeliveryOrder = require("../models/DeliveryOrder");
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
 const { validationResult } = require("express-validator");
 
 // Generate JWT Token
 const generateToken = (id) => {
-  return jwt.sign({ id }, process.env.JWT_SECRET, {
+  return jwt.sign({ id, role: "delivery_boy" }, process.env.JWT_SECRET, {
     expiresIn: process.env.JWT_EXPIRE || "7d",
   });
+};
+
+const normalizePhone = (phone) => {
+  if (!phone) return phone;
+  let digits = String(phone).replace(/\D/g, "");
+  if (digits.length === 12 && digits.startsWith("91")) {
+    digits = digits.slice(2);
+  }
+  if (digits.length === 11 && digits.startsWith("0")) {
+    digits = digits.slice(1);
+  }
+  return digits;
+};
+
+const formatRegisterError = (error) => {
+  if (error.name === "ValidationError") {
+    const messages = Object.values(error.errors).map((e) => e.message);
+    return {
+      status: 400,
+      body: {
+        success: false,
+        message: messages[0] || "Invalid registration data",
+        errors: messages,
+      },
+    };
+  }
+  if (error.code === 11000) {
+    return {
+      status: 400,
+      body: {
+        success: false,
+        message: "Email or phone number is already registered",
+      },
+    };
+  }
+  return {
+    status: 500,
+    body: {
+      success: false,
+      message: "Server error",
+    },
+  };
 };
 
 // @desc    Register new delivery boy
@@ -35,19 +78,36 @@ exports.registerDeliveryBoy = async (req, res) => {
       firstName,
       lastName,
       email,
-      phone,
+      phone: rawPhone,
       password,
       vehicleType,
       vehicleNumber,
       drivingLicense,
       bankAccount,
-      ifscCode,
+      ifscCode: rawIfsc,
       bankName,
     } = req.body;
 
+    const normalizedEmail = String(email).trim().toLowerCase();
+    const phone = normalizePhone(rawPhone);
+    const ifscCode = String(rawIfsc || "")
+      .trim()
+      .toUpperCase();
+    const normalizedVehicleNumber = String(vehicleNumber || "")
+      .trim()
+      .toUpperCase();
+
+    if (!/^[6-9]\d{9}$/.test(phone)) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Please enter a valid 10-digit Indian mobile number (e.g. 9876543210)",
+      });
+    }
+
     // Check if delivery boy already exists
     const existingDeliveryBoy = await DeliveryBoy.findOne({
-      $or: [{ email }, { phone }],
+      $or: [{ email: normalizedEmail }, { phone }],
     });
 
     if (existingDeliveryBoy) {
@@ -58,8 +118,7 @@ exports.registerDeliveryBoy = async (req, res) => {
     }
 
     // Hash password
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(password, salt);
+    const hashedPassword = await bcrypt.hash(password, 12);
 
     // Generate unique delivery boy ID
     const timestamp = Date.now().toString(36).toUpperCase();
@@ -69,19 +128,19 @@ exports.registerDeliveryBoy = async (req, res) => {
     // Create delivery boy
     const deliveryBoy = await DeliveryBoy.create({
       deliveryBoyId,
-      firstName,
-      lastName,
-      email,
+      firstName: String(firstName).trim(),
+      lastName: String(lastName).trim(),
+      email: normalizedEmail,
       phone,
       password: hashedPassword,
       vehicleType,
-      vehicleNumber,
-      drivingLicense,
+      vehicleNumber: normalizedVehicleNumber,
+      drivingLicense: drivingLicense ? String(drivingLicense).trim() : null,
       bankDetails: {
-        bankAccount,
+        bankAccount: String(bankAccount).trim(),
         ifscCode,
-        bankName,
-        accountHolderName: `${firstName} ${lastName}`,
+        bankName: bankName ? String(bankName).trim() : "",
+        accountHolderName: `${String(firstName).trim()} ${String(lastName).trim()}`,
       },
     });
 
@@ -108,11 +167,8 @@ exports.registerDeliveryBoy = async (req, res) => {
     });
   } catch (error) {
     console.error("Error registering delivery boy:", error);
-    res.status(500).json({
-      success: false,
-      message: "Server error",
-      error: error.message,
-    });
+    const { status, body } = formatRegisterError(error);
+    res.status(status).json(body);
   }
 };
 
@@ -134,10 +190,13 @@ exports.loginDeliveryBoy = async (req, res) => {
 
     const { email, password } = req.body;
 
+    // Normalize email
+    const normalizedEmail = String(email).trim().toLowerCase();
+
     // Find delivery boy
-    const deliveryBoy = await DeliveryBoy.findOne({ email }).select(
-      "+password",
-    );
+    const deliveryBoy = await DeliveryBoy.findOne({
+      email: normalizedEmail,
+    }).select("+password");
 
     if (!deliveryBoy) {
       return res.status(401).json({
@@ -198,7 +257,6 @@ exports.loginDeliveryBoy = async (req, res) => {
     res.status(500).json({
       success: false,
       message: "Server error",
-      error: error.message,
     });
   }
 };
@@ -251,7 +309,6 @@ exports.getDeliveryBoyProfile = async (req, res) => {
     res.status(500).json({
       success: false,
       message: "Server error",
-      error: error.message,
     });
   }
 };
@@ -315,7 +372,6 @@ exports.updateDeliveryBoyProfile = async (req, res) => {
     res.status(500).json({
       success: false,
       message: "Server error",
-      error: error.message,
     });
   }
 };
@@ -351,7 +407,6 @@ exports.updateAvailability = async (req, res) => {
     res.status(500).json({
       success: false,
       message: "Server error",
-      error: error.message,
     });
   }
 };
@@ -362,6 +417,35 @@ exports.updateAvailability = async (req, res) => {
 exports.updateLocation = async (req, res) => {
   try {
     const { latitude, longitude } = req.body;
+
+    // Validate latitude and longitude
+    if (latitude === undefined || longitude === undefined) {
+      return res.status(400).json({
+        success: false,
+        message: "Latitude and longitude are required",
+      });
+    }
+
+    if (typeof latitude !== "number" || typeof longitude !== "number") {
+      return res.status(400).json({
+        success: false,
+        message: "Latitude and longitude must be numbers",
+      });
+    }
+
+    if (latitude < -90 || latitude > 90) {
+      return res.status(400).json({
+        success: false,
+        message: "Latitude must be between -90 and 90",
+      });
+    }
+
+    if (longitude < -180 || longitude > 180) {
+      return res.status(400).json({
+        success: false,
+        message: "Longitude must be between -180 and 180",
+      });
+    }
 
     const deliveryBoy = await DeliveryBoy.findById(req.deliveryBoy.id);
 
@@ -392,7 +476,6 @@ exports.updateLocation = async (req, res) => {
     res.status(500).json({
       success: false,
       message: "Server error",
-      error: error.message,
     });
   }
 };
@@ -435,7 +518,6 @@ exports.getDashboardStats = async (req, res) => {
     res.status(500).json({
       success: false,
       message: "Server error",
-      error: error.message,
     });
   }
 };
@@ -461,7 +543,31 @@ exports.logoutDeliveryBoy = async (req, res) => {
     res.status(500).json({
       success: false,
       message: "Server error",
-      error: error.message,
+    });
+  }
+};
+
+// @desc    Get pending orders count for badge
+// @route   GET /api/delivery-boy/pending-orders-count
+// @access   Private
+exports.getPendingOrdersCount = async (req, res) => {
+  try {
+    const count = await DeliveryOrder.countDocuments({
+      assignedDeliveryBoy: req.deliveryBoy.id,
+      status: { $in: ["pending", "accepted", "in_progress"] }
+    });
+
+    res.status(200).json({
+      success: true,
+      count,
+      message: "Pending orders count retrieved successfully"
+    });
+  } catch (error) {
+    console.error("Error fetching pending orders count:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error fetching pending orders count",
+      error: error.message
     });
   }
 };

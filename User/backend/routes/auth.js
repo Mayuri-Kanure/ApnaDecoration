@@ -1,5 +1,6 @@
 const express = require('express');
 const authController = require('../controllers/authController');
+const firebaseAuthController = require('../controllers/firebaseAuthController');
 const { authMiddleware } = require('../middleware/auth');
 const cloudinaryService = require('../services/cloudinaryService');
 
@@ -8,8 +9,17 @@ const router = express.Router();
 // Register new user
 router.post('/register', authController.register);
 
-// Login user
+// Login user (with 2FA support)
 router.post('/login', authController.login);
+
+// Verify OTP and complete 2FA login
+router.post('/verify-otp-login', authController.verifyOTPLogin);
+
+// Firebase 2FA verification (no auth required - user not logged in yet)
+router.post('/verify-firebase-2fa', firebaseAuthController.verifyFirebase2FA);
+
+// Link Firebase phone to existing user (protected)
+router.post('/link-firebase-phone', authMiddleware, firebaseAuthController.linkFirebasePhone);
 
 // Get current user profile (protected)
 router.get('/profile', authMiddleware, authController.getCurrentUser);

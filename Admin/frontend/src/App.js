@@ -24,6 +24,7 @@ import Login from "./components/Login";
 import Register from "./pages/Register";
 
 import Layout from "./components/Layout";
+import FloatingRefreshButton from "./components/FloatingRefreshButton";
 
 import ProtectedRoute from "./components/ProtectedRoute";
 
@@ -247,6 +248,7 @@ function App() {
       <AuthProvider>
         <ProfileProvider>
           <Router>
+            <FloatingRefreshButton />
             <Routes>
               <Route path="/login" element={<LoginWrapper />} />
 

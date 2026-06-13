@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from "react";
-import axios from "axios";
+import api from "../utils/axiosClient";
+import useAutoRefresh from "../hooks/useAutoRefresh";
+import RefreshSettings from "../components/RefreshSettings";
 import {
   Grid,
   Card,
@@ -48,32 +50,28 @@ import {
   ShoppingBasket as CartIcon,
 } from "@mui/icons-material";
 
-const API_BASE_URL =
-  process.env.REACT_APP_API_URL || "https://admin-api.apnadecoration.com/api";
-
 function Dashboard() {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [orderTimeRange, setOrderTimeRange] = useState("thisYear");
   const [earningTimeRange, setEarningTimeRange] = useState("thisYear");
-
-  useEffect(() => {
-    fetchDashboardData();
-  }, [orderTimeRange, earningTimeRange]);
+  const [autoRefreshEnabled, setAutoRefreshEnabled] = useState(true);
+  const [refreshInterval, setRefreshInterval] = useState(5 * 60 * 1000); // 5 minutes
 
   const fetchDashboardData = async () => {
     try {
       setLoading(true);
       const token = localStorage.getItem("token");
-      console.log(
-        "🔍 Fetching dashboard data with token:",
-        token ? "Token present" : "No token",
-      );
-      console.log("🔍 API URL:", `${API_BASE_URL}/analytics/dashboard`);
-      console.log("🔍 Params:", { orderTimeRange, earningTimeRange });
+      if (!token) {
+        window.location.href = "/login";
+        return;
+      }
+      console.log("🔍 Fetching dashboard analytics...", {
+        orderTimeRange,
+        earningTimeRange,
+      });
 
-      const response = await axios.get(`${API_BASE_URL}/analytics/dashboard`, {
-        headers: { Authorization: `Bearer ${token}` },
+      const response = await api.get("/analytics/dashboard", {
         params: { orderTimeRange, earningTimeRange },
       });
 
@@ -141,6 +139,17 @@ function Dashboard() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    fetchDashboardData();
+  }, [orderTimeRange, earningTimeRange]);
+
+  // Setup auto-refresh
+  const { isRefreshing, manualRefresh, setAutoRefreshEnabled: setAutoRefresh, setRefreshInterval: setInterval } = useAutoRefresh(
+    fetchDashboardData,
+    refreshInterval,
+    autoRefreshEnabled
+  );
 
   const handleOrderTimeRangeChange = (event, newTimeRange) => {
     if (newTimeRange !== null) {
@@ -230,20 +239,40 @@ function Dashboard() {
   return (
     <Box sx={{ bgcolor: "#F5F7FA", minHeight: "100vh", p: 3 }}>
       {/* Welcome Section */}
-      <Box mb={4}>
-        <Typography
-          variant="h4"
-          sx={{
-            fontWeight: 700,
-            color: "#1e293b",
-            mb: 1,
-          }}
-        >
-          Welcome APNA DECORATION
-        </Typography>
-        <Typography variant="h6" color="#64748b">
-          Monitor your business analytics and statistics.
-        </Typography>
+      <Box mb={4} display="flex" justifyContent="space-between" alignItems="center">
+        <Box>
+          <Typography
+            variant="h4"
+            sx={{
+              fontWeight: 700,
+              color: "#1e293b",
+              mb: 1,
+            }}
+          >
+            Welcome APNA DECORATION
+          </Typography>
+          <Typography variant="h6" color="#64748b">
+            Monitor your business analytics and statistics.
+          </Typography>
+        </Box>
+        
+        {/* Refresh Settings */}
+        <Box>
+          <RefreshSettings
+            autoRefreshEnabled={autoRefreshEnabled}
+            onAutoRefreshChange={(enabled) => {
+              setAutoRefreshEnabled(enabled);
+              setAutoRefresh(enabled);
+            }}
+            refreshInterval={refreshInterval}
+            onRefreshIntervalChange={(interval) => {
+              setRefreshInterval(interval);
+              setInterval(interval);
+            }}
+            onManualRefresh={manualRefresh}
+            isRefreshing={isRefreshing}
+          />
+        </Box>
       </Box>
 
       {/* Business Analytics Section */}

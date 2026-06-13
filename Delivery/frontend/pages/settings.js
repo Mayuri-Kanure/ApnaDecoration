@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/router";
 import axios from "axios";
+import dynamic from "next/dynamic";
 import { DELIVERY_API_URL } from "../config/constants";
 import {
   Box,
@@ -48,7 +49,7 @@ import {
   Delete,
 } from "@mui/icons-material";
 
-export default function DeliveryBoySettings() {
+function DeliveryBoySettings() {
   const router = useRouter();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
@@ -62,11 +63,15 @@ export default function DeliveryBoySettings() {
 
   // Settings state
   const [settings, setSettings] = useState({
-    // Account settings only
     currentPassword: "",
     newPassword: "",
     confirmPassword: "",
   });
+  const [pushEnabled, setPushEnabled] = useState(false);
+
+  useEffect(() => {
+    setPushEnabled(localStorage.getItem("deliveryPushEnabled") === "true");
+  }, []);
 
   useEffect(() => {
     // Check if logged in
@@ -172,6 +177,31 @@ export default function DeliveryBoySettings() {
 
   const handleSettingChange = (setting, value) => {
     setSettings({ ...settings, [setting]: value });
+  };
+
+  const handlePushToggle = async (enabled) => {
+    try {
+      const push = (await import("../utils/pushNotificationService")).default;
+      if (enabled) {
+        await push.enablePush();
+        localStorage.setItem("deliveryPushEnabled", "true");
+      } else {
+        await push.disablePush();
+        localStorage.setItem("deliveryPushEnabled", "false");
+      }
+      setPushEnabled(enabled);
+      setSnackbar({
+        open: true,
+        message: enabled ? "Push notifications enabled" : "Push notifications disabled",
+        severity: "success",
+      });
+    } catch (error) {
+      setSnackbar({
+        open: true,
+        message: error.message || "Failed to update push notifications",
+        severity: "error",
+      });
+    }
   };
 
   return (
@@ -301,6 +331,29 @@ export default function DeliveryBoySettings() {
             </CardContent>
           </Card>
         </Grid>
+
+        <Grid item xs={12}>
+          <Card>
+            <CardContent>
+              <Typography
+                variant="h6"
+                sx={{ mb: 2, display: "flex", alignItems: "center" }}
+              >
+                <Notifications sx={{ mr: 1 }} />
+                Push Notifications
+              </Typography>
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={pushEnabled}
+                    onChange={(e) => handlePushToggle(e.target.checked)}
+                  />
+                }
+                label="Delivery alerts on this device (APK)"
+              />
+            </CardContent>
+          </Card>
+        </Grid>
       </Grid>
 
       {/* Delete Account Dialog */}
@@ -345,3 +398,6 @@ export default function DeliveryBoySettings() {
     </Box>
   );
 }
+export default dynamic(() => Promise.resolve(DeliveryBoySettings), {
+  ssr: false,
+});

@@ -210,6 +210,39 @@ const orderService = {
       throw error;
     }
   },
+
+  // Create Razorpay order for service booking
+  createRazorpayOrderForService: async (bookingPaymentData) => {
+    try {
+      console.log(
+        "📱 Creating Razorpay order for service:",
+        bookingPaymentData,
+      );
+      const response = await apiService.post(
+        "/payments/service/create-razorpay-order",
+        bookingPaymentData,
+      );
+      return response;
+    } catch (error) {
+      console.error("Error creating Razorpay order:", error);
+      throw error;
+    }
+  },
+
+  // Verify service payment
+  verifyServicePayment: async (paymentVerificationData) => {
+    try {
+      console.log("🔐 Verifying service payment:", paymentVerificationData);
+      const response = await apiService.post(
+        "/payments/service/verify-payment",
+        paymentVerificationData,
+      );
+      return response;
+    } catch (error) {
+      console.error("Error verifying payment:", error);
+      throw error;
+    }
+  },
 };
 
 export default orderService;

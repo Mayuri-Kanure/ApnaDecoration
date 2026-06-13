@@ -13,11 +13,14 @@ import {
   Check,
 } from "lucide-react";
 import { LoadingSpinner } from "../components/LoadingSpinner";
+import addressService from "../services/addressService";
+import { toast } from "react-toastify";
 
 const AddressManagement = () => {
   const navigate = useNavigate();
   const [addresses, setAddresses] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [editingAddress, setEditingAddress] = useState(null);
   const [formData, setFormData] = useState({
@@ -30,7 +33,7 @@ const AddressManagement = () => {
     state: "",
     pincode: "",
     country: "India",
-    addressType: "home",
+    type: "home",
     isDefault: false,
   });
 
@@ -40,41 +43,20 @@ const AddressManagement = () => {
 
   const fetchAddresses = async () => {
     try {
-      // Simulate API call - replace with actual API
-      const mockAddresses = [
-        {
-          id: 1,
-          name: "Rahul Sharma",
-          phone: "+91 98765 43210",
-          addressLine1: "123 Garden Street",
-          addressLine2: "Near Central Park",
-          landmark: "Opposite Mall",
-          city: "Mumbai",
-          state: "Maharashtra",
-          pincode: "400001",
-          country: "India",
-          addressType: "home",
-          isDefault: true,
-        },
-        {
-          id: 2,
-          name: "Rahul Sharma",
-          phone: "+91 98765 43210",
-          addressLine1: "456 Business Avenue",
-          addressLine2: "Wing A, 7th Floor",
-          landmark: "Near Metro Station",
-          city: "Mumbai",
-          state: "Maharashtra",
-          pincode: "400051",
-          country: "India",
-          addressType: "work",
-          isDefault: false,
-        },
-      ];
-
-      setAddresses(mockAddresses);
+      setLoading(true);
+      const response = await addressService.getAddresses();
+      
+      if (response && response.data) {
+        setAddresses(Array.isArray(response.data) ? response.data : [response.data]);
+      } else if (Array.isArray(response)) {
+        setAddresses(response);
+      } else {
+        setAddresses([]);
+      }
     } catch (error) {
       console.error("Error fetching addresses:", error);
+      toast.error("Failed to load addresses");
+      setAddresses([]);
     } finally {
       setLoading(false);
     }
@@ -105,32 +87,25 @@ const AddressManagement = () => {
     e.preventDefault();
 
     try {
+      setSubmitting(true);
+
       if (editingAddress) {
         // Update existing address
-        setAddresses((prev) =>
-          prev.map((addr) =>
-            addr.id === editingAddress.id
-              ? { ...formData, id: editingAddress.id }
-              : formData.isDefault
-                ? { ...addr, isDefault: false }
-                : addr,
-          ),
-        );
-      } else {
-        // Add new address
-        const newAddress = {
-          ...formData,
-          id: Date.now(),
-        };
-
+        await addressService.updateAddress(editingAddress._id || editingAddress.id, formData);
+        toast.success("Address updated successfully!");
+        
+        // Set as default if checked
         if (formData.isDefault) {
-          setAddresses((prev) =>
-            prev.map((addr) => ({ ...addr, isDefault: false })),
-          );
+          await addressService.setDefaultAddress(editingAddress._id || editingAddress.id);
         }
-
-        setAddresses((prev) => [...prev, newAddress]);
+      } else {
+        // Create new address
+        await addressService.createAddress(formData);
+        toast.success("Address added successfully!");
       }
+
+      // Refresh addresses list
+      await fetchAddresses();
 
       // Reset form
       setFormData({
@@ -143,7 +118,7 @@ const AddressManagement = () => {
         state: "",
         pincode: "",
         country: "India",
-        addressType: "home",
+        type: "home",
         isDefault: false,
       });
 
@@ -151,35 +126,57 @@ const AddressManagement = () => {
       setEditingAddress(null);
     } catch (error) {
       console.error("Error saving address:", error);
+      toast.error(error.response?.data?.message || "Failed to save address");
+    } finally {
+      setSubmitting(false);
     }
   };
 
   const handleEdit = (address) => {
     setEditingAddress(address);
-    setFormData(address);
+    setFormData({
+      name: address.name,
+      phone: address.phone,
+      addressLine1: address.addressLine1,
+      addressLine2: address.addressLine2,
+      landmark: address.landmark,
+      city: address.city,
+      state: address.state,
+      pincode: address.pincode,
+      country: address.country || "India",
+      type: address.type,
+      isDefault: address.isDefault || false,
+    });
     setShowForm(true);
   };
 
   const handleDelete = async (addressId) => {
     if (window.confirm("Are you sure you want to delete this address?")) {
       try {
-        setAddresses((prev) => prev.filter((addr) => addr.id !== addressId));
+        setLoading(true);
+        await addressService.deleteAddress(addressId);
+        toast.success("Address deleted successfully!");
+        await fetchAddresses();
       } catch (error) {
         console.error("Error deleting address:", error);
+        toast.error("Failed to delete address");
+      } finally {
+        setLoading(false);
       }
     }
   };
 
   const handleSetDefault = async (addressId) => {
     try {
-      setAddresses((prev) =>
-        prev.map((addr) => ({
-          ...addr,
-          isDefault: addr.id === addressId,
-        })),
-      );
+      setLoading(true);
+      await addressService.setDefaultAddress(addressId);
+      toast.success("Default address updated!");
+      await fetchAddresses();
     } catch (error) {
       console.error("Error setting default address:", error);
+      toast.error("Failed to set default address");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -196,7 +193,7 @@ const AddressManagement = () => {
       state: "",
       pincode: "",
       country: "India",
-      addressType: "home",
+      type: "home",
       isDefault: false,
     });
   };
@@ -394,22 +391,22 @@ const AddressManagement = () => {
                   Address Type *
                 </label>
                 <div className="flex flex-wrap gap-3">
-                  {["home", "work", "other"].map((type) => (
+                  {["home", "work", "other"].map((addressTypeOption) => (
                     <label
-                      key={type}
+                      key={addressTypeOption}
                       className="flex items-center gap-2 cursor-pointer"
                     >
                       <input
                         type="radio"
-                        name="addressType"
-                        value={type}
-                        checked={formData.addressType === type}
+                        name="type"
+                        value={addressTypeOption}
+                        checked={formData.type === addressTypeOption}
                         onChange={handleInputChange}
                         className="text-indigo-600"
                       />
                       <span className="flex items-center gap-1">
-                        {getAddressIcon(type)}
-                        <span className="capitalize">{type}</span>
+                        {getAddressIcon(addressTypeOption)}
+                        <span className="capitalize">{addressTypeOption}</span>
                       </span>
                     </label>
                   ))}
@@ -436,14 +433,16 @@ const AddressManagement = () => {
               <div className="flex flex-col sm:flex-row gap-3 pt-4">
                 <button
                   type="submit"
-                  className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 transition-colors"
+                  disabled={submitting}
+                  className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
                 >
-                  {editingAddress ? "Update Address" : "Save Address"}
+                  {submitting ? "Saving..." : editingAddress ? "Update Address" : "Save Address"}
                 </button>
                 <button
                   type="button"
                   onClick={handleCancel}
-                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 transition-colors"
+                  disabled={submitting}
+                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 transition-colors disabled:bg-gray-100"
                 >
                   Cancel
                 </button>

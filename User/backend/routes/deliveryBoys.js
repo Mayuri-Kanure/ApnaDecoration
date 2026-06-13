@@ -5,6 +5,19 @@ const { auth } = require("../middleware/auth");
 const { body, validationResult } = require("express-validator");
 const { CloudinaryStorage } = require("multer-storage-cloudinary");
 const cloudinary = require("cloudinary").v2;
+const rateLimit = require("express-rate-limit");
+
+// Rate limiting for login endpoint
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 5, // Limit each IP to 5 requests per windowMs
+  message: {
+    success: false,
+    message: "Too many login attempts, please try again after 15 minutes",
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 
 // Configure Cloudinary
 cloudinary.config({
@@ -56,8 +69,8 @@ router.post(
     body("password")
       .notEmpty()
       .withMessage("Password is required")
-      .isLength({ min: 6 })
-      .withMessage("Password must be at least 6 characters long"),
+      .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/)
+      .withMessage("Password must be at least 8 characters with uppercase, lowercase, number, and special character"),
     body("address.street").notEmpty().withMessage("Street address is required"),
     body("address.city").notEmpty().withMessage("City is required"),
     body("address.state").notEmpty().withMessage("State is required"),
@@ -72,12 +85,12 @@ router.post(
       .withMessage("Invalid vehicle type"),
     body("vehicleNumber")
       .optional()
-      .isString()
-      .withMessage("Vehicle number must be a string"),
+      .matches(/^[A-Z]{2}[0-9]{2}[A-Z]{2}[0-9]{4}$/)
+      .withMessage("Invalid vehicle number format (e.g., MH12AB1234)"),
     body("licenseNumber")
       .optional()
-      .isString()
-      .withMessage("License number must be a string"),
+      .matches(/^[A-Z]{2}[0-9]{13}$/)
+      .withMessage("Invalid license number format (e.g., MH2010123456789)"),
   ],
   deliveryBoyController.createDeliveryBoy,
 );
@@ -86,6 +99,7 @@ router.post(
 router.post(
   "/login",
   [
+    loginLimiter,
     body("email")
       .notEmpty()
       .withMessage("Email is required")
@@ -143,20 +157,20 @@ router.put(
       .withMessage("Invalid vehicle type"),
     body("vehicleNumber")
       .optional()
-      .isString()
-      .withMessage("Vehicle number must be a string"),
+      .matches(/^[A-Z]{2}[0-9]{2}[A-Z]{2}[0-9]{4}$/)
+      .withMessage("Invalid vehicle number format (e.g., MH12AB1234)"),
     body("bankAccount.accountNumber")
       .optional()
-      .isString()
-      .withMessage("Account number must be a string"),
+      .matches(/^\d{9,18}$/)
+      .withMessage("Account number must be 9-18 digits"),
     body("bankAccount.bankName")
       .optional()
       .isString()
       .withMessage("Bank name must be a string"),
     body("bankAccount.ifscCode")
       .optional()
-      .isString()
-      .withMessage("IFSC code must be a string"),
+      .matches(/^[A-Z]{4}0[A-Z0-9]{6}$/)
+      .withMessage("Invalid IFSC code format (e.g., SBIN0001234)"),
     body("bankAccount.accountHolderName")
       .optional()
       .isString()
@@ -292,12 +306,12 @@ router.put(
       .withMessage("Invalid vehicle type"),
     body("vehicleNumber")
       .optional()
-      .isString()
-      .withMessage("Vehicle number must be a string"),
+      .matches(/^[A-Z]{2}[0-9]{2}[A-Z]{2}[0-9]{4}$/)
+      .withMessage("Invalid vehicle number format (e.g., MH12AB1234)"),
     body("licenseNumber")
       .optional()
-      .isString()
-      .withMessage("License number must be a string"),
+      .matches(/^[A-Z]{2}[0-9]{13}$/)
+      .withMessage("Invalid license number format (e.g., MH2010123456789)"),
   ],
   deliveryBoyController.updateDeliveryBoy,
 );

@@ -1,0 +1,7 @@
+node_modules/
+.env
+.env.local
+.env.production
+config/firebase-service-account.json
+User/backend/config/firebase-service-account.json
+Admin/backend/config/firebase-service-account.json

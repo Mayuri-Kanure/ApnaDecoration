@@ -4,6 +4,7 @@ import { useProducts } from "../contexts/ProductContext";
 import { useCart } from "../contexts/CartContext";
 import { useToast } from "../contexts/ToastContext";
 import productService from "../services/productService";
+import { isProductService, getProductRoute } from "../utils/serviceDetector";
 import {
   ArrowRight,
   Grid,
@@ -48,7 +49,7 @@ const FeaturedProducts = () => {
 
     // Service filter
     if (showServicesOnly) {
-      filtered = filtered.filter((product) => product.type === "service");
+      filtered = filtered.filter((product) => isProductService(product));
     }
 
     // Search filter
@@ -142,11 +143,14 @@ const FeaturedProducts = () => {
     e.preventDefault();
     e.stopPropagation();
 
+    const productId = product.id || product._id;
+
+    // ✅ OPTIMISTIC UI: Show toast immediately
+    success(`${product.name} added to cart!`);
+
     try {
       const result = await addToCart(product, 1, null, null);
-      if (result.success) {
-        success(`${product.name} added to cart successfully!`);
-      } else {
+      if (!result.success) {
         showError(result.error || "Failed to add to cart");
       }
     } catch (err) {
@@ -159,19 +163,18 @@ const FeaturedProducts = () => {
     e.stopPropagation();
 
     try {
-      // Add to cart first
-      const result = await addToCart(product, 1, null, null);
-      if (result.success) {
-        success(`${product.name} added to cart! Redirecting to checkout...`);
-        // Navigate to checkout after a short delay
-        setTimeout(() => {
-          navigate("/checkout");
-        }, 1000);
-      } else {
-        showError(result.error || "Failed to add to cart");
-      }
+      success(`Redirecting to checkout...`);
+      // Navigate to checkout with buyNowItem in state
+      navigate("/checkout", {
+        state: {
+          buyNowItem: {
+            ...product,
+            quantity: 1,
+          },
+        },
+      });
     } catch (err) {
-      showError("Failed to add to cart");
+      showError("Failed to proceed to checkout");
     }
   };
 
@@ -651,8 +654,8 @@ const FeaturedProducts = () => {
                         product.id || product._id,
                       );
                       console.log(
-                        `🔍 ProductCard - IsService:`,
-                        product.type === "service",
+                        `🔍 ProductCard - ${product.name} - IsService:`,
+                        isProductService(product),
                       );
 
                       return (
@@ -661,11 +664,7 @@ const FeaturedProducts = () => {
                           className="bg-white p-6 rounded-xl shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all duration-300 group relative h-full flex flex-col"
                         >
                           <Link
-                            to={
-                              product.type === "service"
-                                ? `/service/${product.id || product._id}`
-                                : `/product/${product.id || product._id}`
-                            }
+                            to={getProductRoute(product)}
                             className="block flex-1 focus:outline-none focus:ring-0"
                           >
                             <div className="aspect-[4/3] overflow-hidden rounded-xl mx-auto mb-4 group-hover:scale-110 transition duration-300 bg-gradient-to-br from-yellow-100 to-amber-100 flex items-center justify-center">
@@ -773,12 +772,8 @@ const FeaturedProducts = () => {
                         className="flex flex-col sm:flex-row gap-4 sm:gap-6 bg-white p-6 rounded-xl shadow-sm hover:shadow-md transition-all duration-300 relative"
                       >
                         <Link
-                          to={
-                            product.type === "service"
-                              ? `/service/${product.id || product._id}`
-                              : `/product/${product.id || product._id}`
-                          }
-                          className="aspect-square overflow-hidden rounded-xl flex-shrink-0 bg-gradient-to-br from-yellow-100 to-amber-100 flex items-center justify-center block focus:outline-none focus:ring-0"
+                          to={getProductRoute(product)}
+                          className="aspect-square overflow-hidden rounded-xl flex-shrink-0 bg-gradient-to-br from-yellow-100 to-amber-100 flex items-center justify-center focus:outline-none focus:ring-0"
                         >
                           {product.thumbnail &&
                           product.thumbnail.startsWith("http") ? (
@@ -809,11 +804,7 @@ const FeaturedProducts = () => {
                           <div className="flex items-start justify-between">
                             <div className="flex-1">
                               <Link
-                                to={
-                                  product.type === "service"
-                                    ? `/service/${product.id || product._id}`
-                                    : `/product/${product.id || product._id}`
-                                }
+                                to={getProductRoute(product)}
                                 className="block focus:outline-none focus:ring-0"
                               >
                                 <h3 className="font-semibold text-gray-900 text-lg mb-2">

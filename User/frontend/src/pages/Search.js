@@ -66,9 +66,7 @@ const SearchPage = () => {
     useCart();
 
   // API Base URL
-  const API_BASE_URL = process.env.REACT_APP_API_BASE_URL
-    ? `${process.env.REACT_APP_API_BASE_URL}/api`
-    : "https://user-api.apnadecoration.com/api";
+  const API_BASE_URL = process.env.REACT_APP_API_URL || "https://user-api.apnadecoration.com/api";
 
   // Fetch categories
   useEffect(() => {

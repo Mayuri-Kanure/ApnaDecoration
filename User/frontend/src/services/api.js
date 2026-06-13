@@ -124,7 +124,6 @@ api.interceptors.request.use(
     console.log(`🔍 API CALL [${timestamp}]: ${urlPath}`);
 
     const token = localStorage.getItem("token");
-    const user = localStorage.getItem("user");
 
     console.log(
       "🔍 Auth Token Check:",
@@ -134,7 +133,6 @@ api.interceptors.request.use(
       "🔍 Token Value:",
       token ? `${token.substring(0, 20)}...` : "null",
     );
-    console.log("🔍 User Data Check:", user ? "✅ User Found" : "❌ No User");
     console.log("🔍 All localStorage keys:", Object.keys(localStorage));
 
     if (token) {
@@ -147,7 +145,6 @@ api.interceptors.request.use(
       console.log("🔍 No Authorization Header Added");
       console.log("🔍 localStorage contents:", {
         token: localStorage.getItem("token"),
-        user: localStorage.getItem("user"),
         tokenLength: localStorage.getItem("token")?.length || 0,
       });
     }

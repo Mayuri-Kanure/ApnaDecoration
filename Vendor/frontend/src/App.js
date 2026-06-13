@@ -19,6 +19,8 @@ import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import VendorOrders from "./pages/VendorOrders";
 import Analytics from "./pages/Analytics";
+import FloatingRefreshButton from "./components/FloatingRefreshButton";
+import PushNotificationManager from "./components/PushNotificationManager";
 
 // Protected Route component for vendor
 const ProtectedVendorRoute = ({ children }) => {
@@ -65,6 +67,8 @@ function App() {
       <CssBaseline />
       <AuthProvider>
         <Router>
+          <FloatingRefreshButton />
+          <PushNotificationManager />
           <Routes>
             <Route path="/login" element={<Login />} />
             <Route path="/signup" element={<Signup />} />

@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import useAutoRefresh from '../../hooks/useAutoRefresh';
+import RefreshSettings from '../../components/RefreshSettings';
 import { useAuth } from '../../contexts/AuthContext';
 
 const AdminDashboard = () => {
@@ -9,11 +11,8 @@ const AdminDashboard = () => {
     totalCustomers: 0,
     totalRevenue: 0
   });
-
-  useEffect(() => {
-    // Fetch admin dashboard stats
-    fetchDashboardStats();
-  }, []);
+  const [autoRefreshEnabled, setAutoRefreshEnabled] = useState(true);
+  const [refreshInterval, setRefreshInterval] = useState(5 * 60 * 1000); // 5 minutes
 
   const fetchDashboardStats = async () => {
     try {
@@ -26,11 +25,41 @@ const AdminDashboard = () => {
     }
   };
 
+  useEffect(() => {
+    // Fetch admin dashboard stats
+    fetchDashboardStats();
+  }, []);
+
+  // Setup auto-refresh
+  const { isRefreshing, manualRefresh, setAutoRefreshEnabled: setAutoRefresh, setRefreshInterval: setInterval } = useAutoRefresh(
+    fetchDashboardStats,
+    refreshInterval,
+    autoRefreshEnabled
+  );
+
   return (
     <div className="admin-dashboard">
       <div className="dashboard-header">
-        <h1>Admin Dashboard</h1>
-        <p>Welcome back, {user?.name}</p>
+        <div>
+          <h1>Admin Dashboard</h1>
+          <p>Welcome back, {user?.name}</p>
+        </div>
+        <div>
+          <RefreshSettings
+            autoRefreshEnabled={autoRefreshEnabled}
+            onAutoRefreshChange={(enabled) => {
+              setAutoRefreshEnabled(enabled);
+              setAutoRefresh(enabled);
+            }}
+            refreshInterval={refreshInterval}
+            onRefreshIntervalChange={(interval) => {
+              setRefreshInterval(interval);
+              setInterval(interval);
+            }}
+            onManualRefresh={manualRefresh}
+            isRefreshing={isRefreshing}
+          />
+        </div>
       </div>
       
       <div className="stats-grid">

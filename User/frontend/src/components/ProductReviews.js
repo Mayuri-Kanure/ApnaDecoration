@@ -321,7 +321,7 @@ const ProductReviews = ({ productId }) => {
                 }
                 placeholder="Summarize your experience"
                 maxLength={100}
-                className="w-full px-3 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-700"
               />
             </div>
 
@@ -342,7 +342,7 @@ const ProductReviews = ({ productId }) => {
                 rows={4}
                 maxLength={500}
                 placeholder="Tell us about your experience with this product..."
-                className="w-full px-3 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                className="w-full px-3 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none text-gray-700"
               />
             </div>
 

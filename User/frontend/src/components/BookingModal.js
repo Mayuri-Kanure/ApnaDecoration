@@ -16,6 +16,17 @@ import orderService from "../services/orderService";
 import { useToast } from "../contexts/ToastContext";
 import { useAuth } from "../contexts/AuthContext";
 
+// Load Razorpay script
+const loadRazorpayScript = () => {
+  return new Promise((resolve) => {
+    const script = document.createElement("script");
+    script.src = "https://checkout.razorpay.com/v1/checkout.js";
+    script.onload = () => resolve(true);
+    script.onerror = () => resolve(false);
+    document.body.appendChild(script);
+  });
+};
+
 const BookingModal = ({ service, isOpen, onClose, onSuccess }) => {
   const { success, error: showError } = useToast();
   const { user, isAuthenticated } = useAuth();
@@ -199,12 +210,134 @@ const BookingModal = ({ service, isOpen, onClose, onSuccess }) => {
     onClose();
   };
 
-  const handlePayment = (method) => {
-    success(`Redirecting to ${method} payment...`);
-    // Here you would integrate with actual payment gateway
-    setTimeout(() => {
-      handleClose();
-    }, 2000);
+  // Handle Razorpay payment
+  const handlePayment = async () => {
+    try {
+      setLoading(true);
+
+      if (!bookingData || !bookingData._id) {
+        showError("Booking data not found");
+        return;
+      }
+
+      if (!service || !service.price) {
+        showError("Service price not available");
+        return;
+      }
+
+      // Load Razorpay script
+      const razorpayLoaded = await loadRazorpayScript();
+      if (!razorpayLoaded) {
+        showError("Failed to load payment gateway. Please try again.");
+        return;
+      }
+
+      // Create Razorpay order from backend
+      console.log("📱 Creating Razorpay order for booking:", bookingData._id);
+      const razorpayOrderResponse =
+        await orderService.createRazorpayOrderForService({
+          bookingId: bookingData._id,
+          amount: service.price,
+          serviceName: service.name,
+          customerInfo: {
+            name: bookingData.customerInfo?.name,
+            email: bookingData.customerInfo?.email,
+            phone: bookingData.customerInfo?.phone,
+          },
+        });
+
+      if (!razorpayOrderResponse || !razorpayOrderResponse.razorpayOrderId) {
+        showError(
+          "Failed to create payment order. Please try again.",
+        );
+        return;
+      }
+
+      console.log(
+        "✅ Razorpay order created:",
+        razorpayOrderResponse.razorpayOrderId,
+      );
+
+      // Get Razorpay Key ID from environment
+      const RAZORPAY_KEY_ID = process.env.REACT_APP_RAZORPAY_KEY_ID;
+
+      if (!RAZORPAY_KEY_ID) {
+        showError("Payment configuration error. Please contact support.");
+        return;
+      }
+
+      // Open Razorpay checkout
+      const options = {
+        key: RAZORPAY_KEY_ID,
+        amount: service.price * 100, // Convert to paise
+        currency: "INR",
+        order_id: razorpayOrderResponse.razorpayOrderId,
+        name: "APNA DECORATION",
+        description: `Service Booking - ${service.name}`,
+        image:
+          "https://apnadecoration.com/logo.png",
+        prefill: {
+          name: bookingData.customerInfo?.name || "",
+          email: bookingData.customerInfo?.email || "",
+          contact: bookingData.customerInfo?.phone || "",
+        },
+        handler: async (response) => {
+          try {
+            console.log(
+              "✅ Payment successful! Verifying payment...",
+              response,
+            );
+
+            // Verify payment with backend
+            const verificationResponse =
+              await orderService.verifyServicePayment({
+                bookingId: bookingData._id,
+                razorpayOrderId: razorpayOrderResponse.razorpayOrderId,
+                razorpayPaymentId: response.razorpay_payment_id,
+                razorpaySignature: response.razorpay_signature,
+              });
+
+            if (
+              verificationResponse &&
+              verificationResponse.success
+            ) {
+              success("Payment successful! Your service is confirmed.");
+              setTimeout(() => {
+                handleClose();
+              }, 1500);
+            } else {
+              showError(
+                "Payment verification failed. Please contact support.",
+              );
+            }
+          } catch (error) {
+            console.error("Payment verification error:", error);
+            showError(
+              error.message ||
+                "Payment verification failed. Please contact support.",
+            );
+          }
+        },
+        modal: {
+          ondismiss: () => {
+            console.log("Payment modal dismissed");
+            showError("Payment cancelled. Please try again.");
+          },
+        },
+        retry: {
+          enabled: true,
+          max_count: 3,
+        },
+      };
+
+      const razorpay = new window.Razorpay(options);
+      razorpay.open();
+    } catch (error) {
+      console.error("Payment error:", error);
+      showError(error.message || "Payment failed. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -550,40 +683,39 @@ const BookingModal = ({ service, isOpen, onClose, onSuccess }) => {
 
               <div className="space-y-3">
                 <h4 className="font-medium text-gray-900">
-                  Choose Payment Method:
+                  Payment Method:
                 </h4>
+                <p className="text-sm text-gray-600 mb-4">
+                  Service bookings are processed through Razorpay for your
+                  convenience and security.
+                </p>
 
                 <button
-                  onClick={() => handlePayment("Credit/Debit Card")}
-                  className="w-full flex items-center justify-between p-4 border border-gray-300 rounded-lg hover:border-indigo-500 hover:bg-indigo-50 transition-colors"
+                  onClick={handlePayment}
+                  disabled={loading}
+                  className="w-full flex items-center justify-between p-4 border-2 border-indigo-500 bg-indigo-50 rounded-lg hover:bg-indigo-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                    <div className="w-12 h-12 bg-indigo-600 rounded-lg flex items-center justify-center">
                       <svg
-                        className="w-6 h-6 text-blue-600"
-                        fill="none"
-                        stroke="currentColor"
+                        className="w-7 h-7 text-white"
+                        fill="currentColor"
                         viewBox="0 0 24 24"
                       >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"
-                        />
+                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm3.5-9c.83 0 1.5-.67 1.5-1.5S16.33 8 15.5 8 14 8.67 14 9.5s.67 1.5 1.5 1.5zm-7 0c.83 0 1.5-.67 1.5-1.5S9.33 8 8.5 8 7 8.67 7 9.5 7.67 11 8.5 11zm3.5 6.5c2.33 0 4.31-1.46 5.11-3.5H6.89c.8 2.04 2.78 3.5 5.11 3.5z" />
                       </svg>
                     </div>
                     <div className="text-left">
-                      <div className="font-medium text-gray-900">
-                        Credit/Debit Card
+                      <div className="font-semibold text-gray-900 text-lg">
+                        Razorpay Checkout
                       </div>
-                      <div className="text-sm text-gray-500">
-                        Visa, Mastercard, Rupay
+                      <div className="text-sm text-gray-600">
+                        Card, UPI, Net Banking, Wallet & More
                       </div>
                     </div>
                   </div>
                   <svg
-                    className="w-5 h-5 text-gray-400"
+                    className="w-5 h-5 text-indigo-600"
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
@@ -597,135 +729,27 @@ const BookingModal = ({ service, isOpen, onClose, onSuccess }) => {
                   </svg>
                 </button>
 
-                <button
-                  onClick={() => handlePayment("UPI")}
-                  className="w-full flex items-center justify-between p-4 border border-gray-300 rounded-lg hover:border-indigo-500 hover:bg-indigo-50 transition-colors"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
-                      <svg
-                        className="w-6 h-6 text-green-600"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1"
-                        />
-                      </svg>
-                    </div>
-                    <div className="text-left">
-                      <div className="font-medium text-gray-900">UPI</div>
-                      <div className="text-sm text-gray-500">
-                        Google Pay, PhonePe, Paytm
-                      </div>
+                <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                  <div className="flex gap-2">
+                    <svg
+                      className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                      />
+                    </svg>
+                    <div className="text-sm text-green-800">
+                      <strong>Secure Payment:</strong> Your payment information
+                      is encrypted and protected.
                     </div>
                   </div>
-                  <svg
-                    className="w-5 h-5 text-gray-400"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M9 5l7 7-7 7"
-                    />
-                  </svg>
-                </button>
-
-                <button
-                  onClick={() => handlePayment("Net Banking")}
-                  className="w-full flex items-center justify-between p-4 border border-gray-300 rounded-lg hover:border-indigo-500 hover:bg-indigo-50 transition-colors"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
-                      <svg
-                        className="w-6 h-6 text-purple-600"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"
-                        />
-                      </svg>
-                    </div>
-                    <div className="text-left">
-                      <div className="font-medium text-gray-900">
-                        Net Banking
-                      </div>
-                      <div className="text-sm text-gray-500">
-                        All major banks
-                      </div>
-                    </div>
-                  </div>
-                  <svg
-                    className="w-5 h-5 text-gray-400"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M9 5l7 7-7 7"
-                    />
-                  </svg>
-                </button>
-
-                <button
-                  onClick={() => handlePayment("Cash on Delivery")}
-                  className="w-full flex items-center justify-between p-4 border border-gray-300 rounded-lg hover:border-indigo-500 hover:bg-indigo-50 transition-colors"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center">
-                      <svg
-                        className="w-6 h-6 text-orange-600"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"
-                        />
-                      </svg>
-                    </div>
-                    <div className="text-left">
-                      <div className="font-medium text-gray-900">
-                        Cash on Service
-                      </div>
-                      <div className="text-sm text-gray-500">
-                        Pay when service is delivered
-                      </div>
-                    </div>
-                  </div>
-                  <svg
-                    className="w-5 h-5 text-gray-400"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M9 5l7 7-7 7"
-                    />
-                  </svg>
-                </button>
+                </div>
               </div>
 
               <div className="flex gap-3 pt-4 border-t">

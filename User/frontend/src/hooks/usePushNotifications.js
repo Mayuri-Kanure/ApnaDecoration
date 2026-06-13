@@ -195,11 +195,6 @@ export const usePushNotifications = () => {
   // Get unread count
   const unreadCount = notifications.filter(n => !n.read).length;
 
-  // Auto-initialize on mount
-  useEffect(() => {
-    initialize();
-  }, [initialize]);
-
   return {
     // State
     isInitialized,

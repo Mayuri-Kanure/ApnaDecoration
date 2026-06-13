@@ -3,7 +3,14 @@
 	"appName": "Apna Decoration Vendor",
 	"webDir": "build",
 	"server": {
-		"cleartext": true
+		"androidScheme": "https",
+		"cleartext": true,
+		"allowNavigation": [
+			"admin-api.apnadecoration.com",
+			"user-api.apnadecoration.com",
+			"vendor-api.apnadecoration.com",
+			"apnadecoration.com"
+		]
 	},
 	"plugins": {
 		"CapacitorHttp": {
@@ -13,5 +20,8 @@
 			"allowFileAccessFromFileURLs": true,
 			"allowUniversalAccessFromFileURLs": true
 		}
+	},
+	"android": {
+		"allowMixedContent": true
 	}
 }

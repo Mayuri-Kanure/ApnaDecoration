@@ -1,3 +1,5 @@
+import { apiFetch } from "../../utils/apiFetch";
+
 // API Configuration
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL || "https://admin-api.apnadecoration.com/api";
@@ -51,7 +53,7 @@ class DeliveryApiService {
     };
 
     try {
-      const response = await fetch(url, config);
+      const response = await apiFetch(url, config);
       const data = await response.json();
 
       if (!response.ok) {

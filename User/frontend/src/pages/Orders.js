@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
+import { useOrders } from "../contexts/OrderContext";
 import Navigation from "../components/Navigation";
 import Footer from "../components/Footer";
 import { API_BASE_URL } from "../config/constants";
@@ -19,8 +20,9 @@ import {
 
 const Orders = () => {
   const navigate = useNavigate();
+  const { allOrders, refreshTrigger } = useOrders();
   const [orders, setOrders] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [filter, setFilter] = useState("all");
   const [cancellingItems, setCancellingItems] = useState(new Set()); // Track items being cancelled
 
@@ -36,40 +38,13 @@ const Orders = () => {
   };
 
   useEffect(() => {
-    fetchOrders();
-  }, []);
-
-  const fetchOrders = async () => {
-    try {
-      setLoading(true);
-      const token = localStorage.getItem("token");
-
-      const response = await fetch(`${API_BASE_URL}/orders`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error("Failed to fetch orders");
-      }
-
-      const result = await response.json();
-
-      if (result.success) {
-        setOrders(result.data || []);
-      } else {
-        throw new Error(result.message || "Failed to fetch orders");
-      }
-    } catch (error) {
-      console.error("Error fetching orders:", error);
-      // Show empty state on error
-      setOrders([]);
-    } finally {
+    // Update local orders from context
+    if (allOrders && allOrders.length > 0) {
+      setOrders(allOrders);
       setLoading(false);
+      console.log("Orders page - Synced with context:", allOrders.length);
     }
-  };
+  }, [refreshTrigger, allOrders]);
 
   const getStatusColor = (status) => {
     switch (status) {

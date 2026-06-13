@@ -37,19 +37,27 @@ const protectDeliveryBoy = async (req, res, next) => {
       });
     }
 
-    // Check if delivery boy is verified (temporarily disabled for testing)
-    // if (!deliveryBoy.isVerified) {
-    //   return res.status(401).json({
-    //     success: false,
-    //     message: 'Access denied. Account not verified.'
-    //   });
-    // }
+    // Check if delivery boy is verified
+    if (!deliveryBoy.isVerified) {
+      return res.status(401).json({
+        success: false,
+        message: "Access denied. Account not verified.",
+      });
+    }
 
-    // Check if delivery boy is active (temporarily allow pending for testing)
-    if (!["active", "pending"].includes(deliveryBoy.status)) {
+    // Check if delivery boy is active (only allow active status)
+    if (deliveryBoy.status !== "active") {
       return res.status(401).json({
         success: false,
         message: "Access denied. Account is not active.",
+      });
+    }
+
+    // Check role - ensure user is a delivery boy
+    if (!decoded.role || decoded.role !== "delivery_boy") {
+      return res.status(403).json({
+        success: false,
+        message: "Access denied. Insufficient permissions.",
       });
     }
 
@@ -58,6 +66,16 @@ const protectDeliveryBoy = async (req, res, next) => {
     next();
   } catch (error) {
     console.error("Auth middleware error:", error);
+
+    // Handle token expiration specifically
+    if (error.name === "TokenExpiredError") {
+      return res.status(401).json({
+        success: false,
+        message: "Access denied. Token has expired.",
+        code: "TOKEN_EXPIRED",
+      });
+    }
+
     return res.status(401).json({
       success: false,
       message: "Access denied. Invalid token.",

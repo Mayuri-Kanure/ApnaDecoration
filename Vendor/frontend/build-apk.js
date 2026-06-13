@@ -4,10 +4,16 @@ const path = require("path");
 
 console.log("?? Building APK and AAB for Apna Decoration Vendor App...");
 
-// Step 1: Build the React app
+// Step 1: Build the React app (production API baked in)
 console.log("? Step 1: Building React app...");
+const buildEnv = {
+  ...process.env,
+  NODE_ENV: "production",
+  REACT_APP_API_URL: "https://user-api.apnadecoration.com/api",
+  REACT_APP_IMAGE_URL: "https://admin-api.apnadecoration.com",
+};
 try {
-  execSync("npm run build", { stdio: "inherit" });
+  execSync("npm run build", { stdio: "inherit", env: buildEnv });
   console.log("?? React build completed");
 } catch (error) {
   console.error("?? React build failed:", error);

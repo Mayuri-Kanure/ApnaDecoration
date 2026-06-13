@@ -1,8 +1,29 @@
-/* Global styles aligned with Admin/Vendor panels */
+html,
 body {
-  font-family: 'Roboto', 'Helvetica', 'Arial', sans-serif;
+  font-family: "Roboto", "Helvetica", "Arial", sans-serif;
   margin: 0;
   padding: 0;
+  background: #fff !important;
+
+  width: 100%;
+  height: 100%;
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
-/* Keep global overrides minimal and let MUI theme drive the UI */
+/* IMPORTANT */
+body.keyboard-open {
+  height: auto !important;
+}
+
+#root,
+#__next {
+  width: 100%;
+  min-height: 100%;
+  background: #fff !important;
+
+  display: flex;
+  flex-direction: column;
+}
+
+/* REMOVE ALL 100vh / 100dvh */

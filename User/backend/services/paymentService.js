@@ -364,6 +364,42 @@ class PaymentService {
       throw new Error("Failed to fetch payment history");
     }
   }
+
+  // Get payment details from Razorpay
+  async getPaymentDetails(paymentId) {
+    try {
+      console.log("🔍 Fetching payment details from Razorpay:", paymentId);
+
+      const payment = await razorpay.payments.fetch(paymentId);
+
+      console.log("✅ Payment details fetched:", {
+        id: payment.id,
+        amount: payment.amount,
+        currency: payment.currency,
+        status: payment.status,
+        method: payment.method,
+      });
+
+      return {
+        id: payment.id,
+        amount: payment.amount,
+        currency: payment.currency,
+        status: payment.status,
+        method: payment.method,
+        captured: payment.captured,
+        description: payment.description,
+        email: payment.email,
+        contact: payment.contact,
+        fee: payment.fee,
+        tax: payment.tax,
+        notes: payment.notes,
+        created_at: new Date(payment.created_at * 1000),
+      };
+    } catch (error) {
+      console.error("❌ Error fetching payment from Razorpay:", error);
+      throw new Error(`Failed to fetch payment details: ${error.message}`);
+    }
+  }
 }
 
 module.exports = new PaymentService();

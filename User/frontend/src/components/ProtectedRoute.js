@@ -5,7 +5,7 @@ import LoadingSpinner from './LoadingSpinner';
 import { AlertCircle, Lock } from 'lucide-react';
 
 const ProtectedRoute = ({ children, requiredRole = 'user' }) => {
-  const { isAuthenticated, isLoading, user, error } = useAuth();
+  const { isAuthenticated, loading, user } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -38,7 +38,7 @@ const ProtectedRoute = ({ children, requiredRole = 'user' }) => {
 
   const isTokenExpired = checkTokenExpiry();
 
-  if (isLoading) {
+  if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">

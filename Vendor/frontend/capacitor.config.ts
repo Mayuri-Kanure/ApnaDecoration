@@ -1,21 +1,31 @@
-import type { CapacitorConfig } from '@capacitor/cli';
+import type { CapacitorConfig } from "@capacitor/cli";
 
 const config: CapacitorConfig = {
-  appId: 'com.apnadecoration.vendor',
-  appName: 'Apna Decoration Vendor',
-  webDir: 'build',
+  appId: "com.apnadecoration.vendor",
+  appName: "Apna Decoration Vendor",
+  webDir: "build",
   server: {
-    cleartext: true
+    androidScheme: "https",
+    cleartext: true,
+    allowNavigation: [
+      "admin-api.apnadecoration.com",
+      "user-api.apnadecoration.com",
+      "vendor-api.apnadecoration.com",
+      "apnadecoration.com",
+    ],
   },
   plugins: {
     CapacitorHttp: {
-      enabled: true
+      enabled: true,
     },
     WebView: {
       allowFileAccessFromFileURLs: true,
-      allowUniversalAccessFromFileURLs: true
-    }
-  }
+      allowUniversalAccessFromFileURLs: true,
+    },
+  },
+  android: {
+    allowMixedContent: true,
+  },
 };
 
 export default config;

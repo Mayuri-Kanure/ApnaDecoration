@@ -9,7 +9,8 @@ import {
   Paper,
   IconButton,
   InputAdornment,
-  Avatar
+  Avatar,
+  Alert
 } from '@mui/material'
 import {
   Visibility,
@@ -20,6 +21,7 @@ import {
   Person
 } from '@mui/icons-material'
 import { API_BASE_URL } from '../config/api'
+import { validateAdminRegister } from '../utils/formValidation'
 import './auth.css'
 
 const Register = () => {
@@ -34,13 +36,26 @@ const Register = () => {
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [fieldErrors, setFieldErrors] = useState({})
   const navigate = useNavigate()
 
-  const handleChange = (field) => (e) =>
+  const handleChange = (field) => (e) => {
     setFormData({ ...formData, [field]: e.target.value })
+    if (fieldErrors[field]) {
+      setFieldErrors((prev) => ({ ...prev, [field]: '' }))
+    }
+    if (error) setError('')
+  }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
+    const validation = validateAdminRegister(formData)
+    if (!validation.valid) {
+      setFieldErrors(validation.errors)
+      setError(validation.message)
+      return
+    }
+    setFieldErrors({})
     setLoading(true)
     setError('')
 
@@ -68,6 +83,12 @@ const Register = () => {
           Create your business account
         </Typography>
 
+        {error && (
+          <Alert severity="error" sx={{ mb: 2, width: '100%' }}>
+            {error}
+          </Alert>
+        )}
+
         <form onSubmit={handleSubmit}>
           <Grid container spacing={2}>
             <Grid item xs={12}>
@@ -76,6 +97,8 @@ const Register = () => {
                 placeholder="Username"
                 value={formData.username}
                 onChange={handleChange('username')}
+                error={!!fieldErrors.username}
+                helperText={fieldErrors.username || ' '}
                 InputProps={{
                   startAdornment: (
                     <InputAdornment position="start">
@@ -92,6 +115,8 @@ const Register = () => {
                 placeholder="First Name"
                 value={formData.firstName}
                 onChange={handleChange('firstName')}
+                error={!!fieldErrors.firstName}
+                helperText={fieldErrors.firstName || ' '}
               />
             </Grid>
 
@@ -101,6 +126,8 @@ const Register = () => {
                 placeholder="Last Name"
                 value={formData.lastName}
                 onChange={handleChange('lastName')}
+                error={!!fieldErrors.lastName}
+                helperText={fieldErrors.lastName || ' '}
               />
             </Grid>
 
@@ -110,6 +137,8 @@ const Register = () => {
                 placeholder="Email Address"
                 value={formData.email}
                 onChange={handleChange('email')}
+                error={!!fieldErrors.email}
+                helperText={fieldErrors.email || ' '}
                 InputProps={{
                   startAdornment: (
                     <InputAdornment position="start">
@@ -136,6 +165,8 @@ const Register = () => {
                 placeholder="Password"
                 value={formData.password}
                 onChange={handleChange('password')}
+                error={!!fieldErrors.password}
+                helperText={fieldErrors.password || ' '}
                 InputProps={{
                   startAdornment: (
                     <InputAdornment position="start">
