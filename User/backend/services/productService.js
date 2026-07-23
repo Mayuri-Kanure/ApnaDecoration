@@ -80,19 +80,29 @@ class ProductService {
     const sort = {};
     sort[sortBy] = sortOrder === "desc" ? -1 : 1;
 
-    // Execute both queries in parallel
+    // Execute both queries in parallel with timeout protection
     const [regularProducts, vendorProducts] = await Promise.all([
-      Product.find(regularProductQuery)
-        .populate("category", "name")
-        .sort(sort)
-        .skip(skip)
-        .limit(Math.min(limit, PAGINATION.MAX_LIMIT)),
+      Promise.race([
+        Product.find(regularProductQuery)
+          .populate("category", "name")
+          .sort(sort)
+          .skip(skip)
+          .limit(Math.min(limit, PAGINATION.MAX_LIMIT)),
+        new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Product query timeout')), 8000)
+        )
+      ]),
 
-      VendorProduct.find(vendorProductQuery)
-        .populate("category", "name")
-        .sort(sort)
-        .skip(skip)
-        .limit(Math.min(limit, PAGINATION.MAX_LIMIT)),
+      Promise.race([
+        VendorProduct.find(vendorProductQuery)
+          .populate("category", "name")
+          .sort(sort)
+          .skip(skip)
+          .limit(Math.min(limit, PAGINATION.MAX_LIMIT)),
+        new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('VendorProduct query timeout')), 8000)
+        )
+      ]),
     ]);
 
     // Transform vendor products to match regular product format

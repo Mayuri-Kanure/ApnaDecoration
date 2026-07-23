@@ -5,33 +5,29 @@ const router = express.Router();
 // Get public categories
 router.get('/public', async (req, res) => {
   try {
-    const { homeCategory, status } = req.query;
+    console.log('🔍 [CATEGORIES/PUBLIC] Starting request...');
     
-    // Build query
-    const query = {};
+    // MINIMAL TEST - just count documents first
+    console.log('🔍 [CATEGORIES/PUBLIC] Counting documents...');
+    const count = await Category.countDocuments({});
+    console.log('✅ [CATEGORIES/PUBLIC] Total categories in DB:', count);
     
-    if (homeCategory === 'true') {
-      query.homeCategory = true;
-    }
-    
-    if (status) {
-      query.status = status;
-    } else {
-      query.status = 'active'; // Default to active only
-    }
-    
-    const categories = await Category.find(query)
-      .sort({ priority: 1, order: 1, createdAt: -1 });
+    // Try simple find with no filters
+    console.log('🔍 [CATEGORIES/PUBLIC] Fetching all categories (no filters)...');
+    const categories = await Category.find({}).limit(10).exec();
+    console.log('✅ [CATEGORIES/PUBLIC] Fetched categories:', categories.length);
     
     res.json({
       success: true,
       categories: categories
     });
   } catch (error) {
-    console.error('Error fetching categories:', error);
+    console.error('❌ [CATEGORIES/PUBLIC] Error:', error.message);
+    console.error('❌ [CATEGORIES/PUBLIC] Stack:', error.stack);
     res.status(500).json({
       success: false,
-      message: 'Failed to fetch categories'
+      message: 'Failed to fetch categories',
+      error: error.message
     });
   }
 });
@@ -39,18 +35,50 @@ router.get('/public', async (req, res) => {
 // Get all categories (admin)
 router.get('/', async (req, res) => {
   try {
-    const categories = await Category.find()
-      .sort({ priority: 1, order: 1, createdAt: -1 });
+    const { homeCategory, status } = req.query;
+    
+    console.log('🔍 [CATEGORIES] Fetching categories with query:', { homeCategory, status });
+    console.log('🔍 [CATEGORIES] Request URL:', req.url);
+    console.log('🔍 [CATEGORIES] Request method:', req.method);
+    
+    // Build query
+    const query = {};
+    
+    if (homeCategory === 'true') {
+      query.homeCategory = true;
+      console.log('🔍 [CATEGORIES] Query filter: homeCategory = true');
+    }
+    
+    if (status) {
+      query.status = status;
+      console.log('🔍 [CATEGORIES] Query filter: status =', status);
+    }
+    
+    console.log('🔍 [CATEGORIES] Final query object:', query);
+    console.log('🔍 [CATEGORIES] Starting database query...');
+    
+    // Add timeout to prevent hanging
+    const categories = await Promise.race([
+      Category.find(query).limit(50).exec(),
+      new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Category query timeout')), 8000)
+      )
+    ]);
+    
+    console.log('✅ [CATEGORIES] Categories fetched successfully:', categories.length);
+    console.log('✅ [CATEGORIES] Sample category:', categories[0]);
     
     res.json({
       success: true,
       categories: categories
     });
   } catch (error) {
-    console.error('Error fetching categories:', error);
+    console.error('❌ [CATEGORIES] Error fetching categories:', error.message);
+    console.error('❌ [CATEGORIES] Error stack:', error.stack);
     res.status(500).json({
       success: false,
-      message: 'Failed to fetch categories'
+      message: 'Failed to fetch categories',
+      error: error.message
     });
   }
 });
