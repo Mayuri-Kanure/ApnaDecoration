@@ -41,6 +41,26 @@ router.get('/', async (req, res) => {
     console.log('🔍 [CATEGORIES] Request URL:', req.url);
     console.log('🔍 [CATEGORIES] Request method:', req.method);
     
+    // DIAGNOSTIC: Try count first
+    console.log('🔍 [CATEGORIES] Step 1: Counting documents...');
+    const count = await Promise.race([
+      Category.countDocuments({}),
+      new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Category count timeout')), 5000)
+      )
+    ]);
+    console.log('✅ [CATEGORIES] Total categories:', count);
+    
+    // DIAGNOSTIC: Try findOne
+    console.log('🔍 [CATEGORIES] Step 2: Finding one document...');
+    const oneCategory = await Promise.race([
+      Category.findOne({}),
+      new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Category findOne timeout')), 5000)
+      )
+    ]);
+    console.log('✅ [CATEGORIES] Found one category:', !!oneCategory);
+    
     // Build query
     const query = {};
     
@@ -55,7 +75,7 @@ router.get('/', async (req, res) => {
     }
     
     console.log('🔍 [CATEGORIES] Final query object:', query);
-    console.log('🔍 [CATEGORIES] Starting database query...');
+    console.log('🔍 [CATEGORIES] Step 3: Starting find query...');
     
     // Add timeout to prevent hanging
     const categories = await Promise.race([
