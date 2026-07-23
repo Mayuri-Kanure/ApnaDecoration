@@ -5,7 +5,8 @@ const categorySchema = new mongoose.Schema({
     type: String,
     required: true,
     trim: true,
-    unique: true
+    // TEMPORARILY DISABLED unique constraint to diagnose timeout
+    // unique: true
   },
   priority: {
     type: Number,
@@ -36,5 +37,6 @@ const categorySchema = new mongoose.Schema({
 // Index for better query performance (name already indexed by unique: true)
 categorySchema.index({ priority: 1 });
 categorySchema.index({ status: 1 });
+categorySchema.index({ homeCategory: 1, status: 1 }); // Compound index for home category queries
 
 module.exports = mongoose.model('Category', categorySchema);
